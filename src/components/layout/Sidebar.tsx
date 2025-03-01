@@ -34,9 +34,9 @@ const Sidebar: React.FC = () => {
         isCollapsed ? "w-[70px]" : "w-[240px]"
       )}
     >
-      {/* Logo area */}
+      {/* Logo area with collapse button */}
       <div className="flex items-center h-16 px-4 border-b border-gray-200 dark:border-gray-800">
-        <Link to="/" className={cn("flex items-center", isCollapsed ? "justify-center" : "")}>
+        <Link to="/" className={cn("flex items-center flex-1", isCollapsed ? "justify-center" : "")}>
           {!isCollapsed && (
             <span className="text-xl font-medium tracking-tight mr-2">
               HotelWise<span className="text-blue-500">.</span>
@@ -48,6 +48,16 @@ const Sidebar: React.FC = () => {
             </span>
           )}
         </Link>
+        
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="flex items-center justify-center"
+          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+        </Button>
       </div>
       
       {/* Menu items */}
@@ -72,32 +82,18 @@ const Sidebar: React.FC = () => {
         </nav>
       </div>
       
-      {/* Footer with logout and collapse button */}
+      {/* Footer with logout button only */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-800">
-        <div className="flex flex-col space-y-2">
-          <Link
-            to="/logout"
-            className={cn(
-              "flex items-center px-3 py-2.5 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800 transition-all duration-200",
-              isCollapsed && "justify-center"
-            )}
-          >
-            <LogOut size={20} className={cn(isCollapsed ? "mx-0" : "mr-3")} />
-            {!isCollapsed && <span>Logout</span>}
-          </Link>
-          
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className={cn(
-              "flex items-center justify-center mt-2",
-              isCollapsed ? "w-full px-0" : "self-end"
-            )}
-          >
-            {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
-          </Button>
-        </div>
+        <Link
+          to="/logout"
+          className={cn(
+            "flex items-center px-3 py-2.5 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800 transition-all duration-200",
+            isCollapsed && "justify-center"
+          )}
+        >
+          <LogOut size={20} className={cn(isCollapsed ? "mx-0" : "mr-3")} />
+          {!isCollapsed && <span>Logout</span>}
+        </Link>
       </div>
     </div>
   );
