@@ -1,13 +1,12 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/auth';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, CheckCircle2 } from 'lucide-react';
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import SignInForm from '@/components/auth/SignInForm';
+import SignUpForm from '@/components/auth/SignUpForm';
+import EmailVerification from '@/components/auth/EmailVerification';
+import AuthError from '@/components/auth/AuthError';
 
 const Auth: React.FC = () => {
   const { user, loading, signIn, signUp, resendConfirmationEmail } = useAuth();
@@ -112,40 +111,13 @@ const Auth: React.FC = () => {
         </div>
 
         {emailSent ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <CheckCircle2 className="h-5 w-5 mr-2 text-green-500" />
-                Verification Email Sent
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-center mb-4">
-                We've sent a verification email to <strong>{email || resendEmail}</strong>.
-                Please check your inbox and click the link to verify your account.
-              </p>
-              <p className="text-sm text-gray-500 text-center mb-4">
-                If you don't see the email, check your spam folder.
-              </p>
-            </CardContent>
-            <CardFooter className="flex flex-col space-y-2">
-              <Button 
-                onClick={() => setEmailSent(false)} 
-                variant="outline" 
-                className="w-full"
-              >
-                Back to Sign In
-              </Button>
-              <Button 
-                onClick={handleResendConfirmation} 
-                variant="ghost" 
-                className="w-full"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? 'Sending...' : 'Resend Verification Email'}
-              </Button>
-            </CardFooter>
-          </Card>
+          <EmailVerification
+            email={email}
+            resendEmail={resendEmail}
+            isSubmitting={isSubmitting}
+            onGoBack={() => setEmailSent(false)}
+            onResendConfirmation={handleResendConfirmation}
+          />
         ) : (
           <Tabs defaultValue="signin" value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-2 mb-6">
@@ -153,128 +125,36 @@ const Auth: React.FC = () => {
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
             </TabsList>
             
-            {authError && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{authError}</AlertDescription>
-                {authError.includes('Email not confirmed') && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="mt-2 w-full"
-                    onClick={handleResendConfirmation}
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? 'Sending...' : 'Resend Confirmation Email'}
-                  </Button>
-                )}
-              </Alert>
-            )}
+            <AuthError
+              error={authError}
+              isEmailNotConfirmed={authError?.includes('Email not confirmed') || false}
+              isSubmitting={isSubmitting}
+              onResendConfirmation={handleResendConfirmation}
+            />
             
             <TabsContent value="signin">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Sign In</CardTitle>
-                  <CardDescription>
-                    Enter your credentials to access your account
-                  </CardDescription>
-                </CardHeader>
-                <form onSubmit={handleSignIn}>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input 
-                        id="email" 
-                        type="email" 
-                        placeholder="you@example.com"
-                        value={email}
-                        onChange={(e) => {
-                          setEmail(e.target.value);
-                          setResendEmail(e.target.value);
-                        }}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="password">Password</Label>
-                      <Input 
-                        id="password" 
-                        type="password" 
-                        placeholder="••••••••"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                      />
-                    </div>
-                  </CardContent>
-                  <CardFooter>
-                    <Button 
-                      type="submit" 
-                      className="w-full" 
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? 'Signing in...' : 'Sign In'}
-                    </Button>
-                  </CardFooter>
-                </form>
-              </Card>
+              <SignInForm
+                email={email}
+                password={password}
+                isSubmitting={isSubmitting}
+                onEmailChange={(e) => setEmail(e.target.value)}
+                onPasswordChange={(e) => setPassword(e.target.value)}
+                onSubmit={handleSignIn}
+                setResendEmail={setResendEmail}
+              />
             </TabsContent>
             
             <TabsContent value="signup">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Create Account</CardTitle>
-                  <CardDescription>
-                    Enter your details to create a new account
-                  </CardDescription>
-                </CardHeader>
-                <form onSubmit={handleSignUp}>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-email">Email</Label>
-                      <Input 
-                        id="signup-email" 
-                        type="email" 
-                        placeholder="you@example.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="username">Username</Label>
-                      <Input 
-                        id="username" 
-                        type="text" 
-                        placeholder="johndoe"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-password">Password</Label>
-                      <Input 
-                        id="signup-password" 
-                        type="password" 
-                        placeholder="••••••••"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                      />
-                    </div>
-                  </CardContent>
-                  <CardFooter>
-                    <Button 
-                      type="submit" 
-                      className="w-full" 
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? 'Creating account...' : 'Create Account'}
-                    </Button>
-                  </CardFooter>
-                </form>
-              </Card>
+              <SignUpForm
+                email={email}
+                password={password}
+                username={username}
+                isSubmitting={isSubmitting}
+                onEmailChange={(e) => setEmail(e.target.value)}
+                onPasswordChange={(e) => setPassword(e.target.value)}
+                onUsernameChange={(e) => setUsername(e.target.value)}
+                onSubmit={handleSignUp}
+              />
             </TabsContent>
           </Tabs>
         )}
