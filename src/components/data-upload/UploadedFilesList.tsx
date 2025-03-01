@@ -1,13 +1,14 @@
 
 import React, { useEffect, useState } from 'react';
-import { File, FileCheck, Loader2, RefreshCw, Search } from 'lucide-react';
-import { getUploadedFiles } from '@/services/uploadService';
+import { File, FileCheck, Loader2, RefreshCw, Search, Trash2, AlertTriangle, Download } from 'lucide-react';
+import { getUploadedFiles, deleteUploadedFile } from '@/services/uploadService';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface UploadedFile {
   id: string;
@@ -25,6 +26,9 @@ const UploadedFilesList = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedFile, setSelectedFile] = useState<UploadedFile | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState<string | null>(null);
 
   const fetchFiles = async () => {
     setLoading(true);
@@ -60,6 +64,59 @@ const UploadedFilesList = () => {
       file.filename.toLowerCase().includes(query)
     );
     setFilteredFiles(filtered);
+  };
+
+  const handleDeleteFile = async (fileId: string) => {
+    setFileToDelete(null);
+    setIsDeleting(true);
+    try {
+      const success = await deleteUploadedFile(fileId);
+      if (success) {
+        // Remove the file from our lists
+        const updatedFiles = files.filter(file => file.id !== fileId);
+        setFiles(updatedFiles);
+        setFilteredFiles(updatedFiles.filter(file => 
+          file.filename.toLowerCase().includes(searchQuery.toLowerCase())
+        ));
+        toast.success('File deleted successfully');
+      }
+    } catch (error) {
+      console.error('Error during deletion:', error);
+      toast.error('Failed to delete file');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const openDeleteConfirm = (fileId: string) => {
+    setFileToDelete(fileId);
+    setDeleteConfirmOpen(true);
+  };
+
+  const downloadFileData = (file: UploadedFile) => {
+    if (!file.extracted_data) {
+      toast.error('No data available to download');
+      return;
+    }
+
+    try {
+      const dataStr = JSON.stringify(file.extracted_data, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${file.filename.replace(/\.[^/.]+$/, '')}_extracted_data.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      toast.success('Data downloaded successfully');
+    } catch (error) {
+      console.error('Error downloading data:', error);
+      toast.error('Failed to download data');
+    }
   };
 
   useEffect(() => {
@@ -98,6 +155,7 @@ const UploadedFilesList = () => {
             size="icon" 
             onClick={handleRefresh} 
             disabled={refreshing}
+            title="Refresh file list"
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
           </Button>
@@ -128,49 +186,84 @@ const UploadedFilesList = () => {
                     </p>
                   </div>
                 </div>
-                {file.processed && (
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => setSelectedFile(file)}
-                      >
-                        View Data
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-4xl">
-                      <DialogHeader>
-                        <DialogTitle>Extracted Data: {file.filename}</DialogTitle>
-                      </DialogHeader>
-                      <div className="mt-4 overflow-auto max-h-[70vh]">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          {file.extracted_data && (
-                            <>
-                              <Card className="p-4">
-                                <h4 className="text-lg font-medium mb-3">Financial Data</h4>
-                                <pre className="text-sm bg-muted p-3 rounded overflow-auto">
-                                  {JSON.stringify(file.extracted_data.financial, null, 2)}
-                                </pre>
-                              </Card>
-                              <Card className="p-4">
-                                <h4 className="text-lg font-medium mb-3">Occupancy Data</h4>
-                                <pre className="text-sm bg-muted p-3 rounded overflow-auto">
-                                  {JSON.stringify(file.extracted_data.occupancy, null, 2)}
-                                </pre>
-                              </Card>
-                            </>
+                <div className="flex gap-2">
+                  {file.processed && (
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setSelectedFile(file)}
+                        >
+                          View Data
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-4xl">
+                        <DialogHeader>
+                          <DialogTitle>Extracted Data: {file.filename}</DialogTitle>
+                        </DialogHeader>
+                        <div className="mt-4 overflow-auto max-h-[70vh]">
+                          {file.extracted_data?.error ? (
+                            <Alert className="mb-4">
+                              <AlertTriangle className="h-4 w-4" />
+                              <AlertDescription>
+                                Error processing file: {file.extracted_data.message}
+                              </AlertDescription>
+                            </Alert>
+                          ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              {file.extracted_data && (
+                                <>
+                                  <Card className="p-4">
+                                    <h4 className="text-lg font-medium mb-3">Financial Data</h4>
+                                    <pre className="text-sm bg-muted p-3 rounded overflow-auto">
+                                      {JSON.stringify(file.extracted_data.financial, null, 2)}
+                                    </pre>
+                                  </Card>
+                                  <Card className="p-4">
+                                    <h4 className="text-lg font-medium mb-3">Occupancy Data</h4>
+                                    <pre className="text-sm bg-muted p-3 rounded overflow-auto">
+                                      {JSON.stringify(file.extracted_data.occupancy, null, 2)}
+                                    </pre>
+                                  </Card>
+                                </>
+                              )}
+                            </div>
                           )}
                         </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                )}
+                        <DialogFooter>
+                          <Button
+                            variant="outline"
+                            onClick={() => downloadFileData(file)}
+                            disabled={!file.extracted_data || file.extracted_data?.error}
+                          >
+                            <Download className="mr-2 h-4 w-4" />
+                            Download Data
+                          </Button>
+                          <DialogClose asChild>
+                            <Button>Close</Button>
+                          </DialogClose>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                    onClick={() => openDeleteConfirm(file.id)}
+                    disabled={isDeleting}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
               <div className="mt-2">
                 <p className="text-xs">
                   Status: {file.processed ? 
-                    <span className="text-green-600">Processed</span> : 
+                    (file.extracted_data?.error ? 
+                      <span className="text-red-600">Processing Error</span> : 
+                      <span className="text-green-600">Processed</span>) : 
                     <span className="text-amber-600">Processing...</span>
                   }
                 </p>
@@ -179,6 +272,42 @@ const UploadedFilesList = () => {
           ))}
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+          </DialogHeader>
+          <p>Are you sure you want to delete this file? This action cannot be undone.</p>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setDeleteConfirmOpen(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => fileToDelete && handleDeleteFile(fileToDelete)}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

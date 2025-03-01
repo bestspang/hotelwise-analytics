@@ -155,3 +155,33 @@ export async function deleteUploadedFile(fileId: string) {
     return false;
   }
 }
+
+export async function downloadExtractedData(fileId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('uploaded_files')
+      .select('extracted_data, filename')
+      .eq('id', fileId)
+      .single();
+      
+    if (error) {
+      console.error('Error fetching file data:', error);
+      toast.error('Failed to fetch file data');
+      return null;
+    }
+    
+    if (!data.extracted_data) {
+      toast.error('No extracted data available for this file');
+      return null;
+    }
+    
+    return {
+      filename: data.filename,
+      data: data.extracted_data
+    };
+  } catch (error) {
+    console.error('Unexpected error downloading data:', error);
+    toast.error('An unexpected error occurred while downloading data');
+    return null;
+  }
+}
