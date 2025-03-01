@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,12 +9,37 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/components/ui/use-toast';
-import { Settings as SettingsIcon, Globe, Bell, Shield, Moon, Sun, Save } from 'lucide-react';
+import { Settings as SettingsIcon, Globe, Bell, Shield, Moon, Sun, Save, Palette } from 'lucide-react';
 
 const Settings: React.FC = () => {
   const { toast } = useToast();
   const [isDark, setIsDark] = useState(false);
+  const [layout, setLayout] = useState('standard');
+  const [accentColor, setAccentColor] = useState('blue');
   
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDark]);
+
+  const applyAccentColor = (color: string) => {
+    setAccentColor(color);
+    const root = document.documentElement;
+    
+    if (color === 'blue') {
+      root.style.setProperty('--sidebar-primary', 'hsl(224.3, 76.3%, 48%)');
+    } else if (color === 'purple') {
+      root.style.setProperty('--sidebar-primary', 'hsl(267, 83.6%, 60%)');
+    } else if (color === 'green') {
+      root.style.setProperty('--sidebar-primary', 'hsl(142.1, 76.2%, 36.3%)');
+    } else if (color === 'orange') {
+      root.style.setProperty('--sidebar-primary', 'hsl(24.6, 95%, 53.1%)');
+    }
+  };
+
   const handleSaveSettings = () => {
     toast({
       title: "Settings saved",
@@ -29,7 +53,6 @@ const Settings: React.FC = () => {
       <div className="animate-fade-in space-y-8">
         <Tabs defaultValue="general" className="w-full">
           <div className="flex flex-col md:flex-row gap-8">
-            {/* Sidebar navigation */}
             <div className="w-full md:w-64 flex-shrink-0">
               <Card>
                 <CardHeader>
@@ -64,7 +87,6 @@ const Settings: React.FC = () => {
               </Card>
             </div>
             
-            {/* Content area */}
             <div className="flex-1">
               <TabsContent value="general" className="m-0">
                 <Card>
@@ -226,20 +248,58 @@ const Settings: React.FC = () => {
                       <Separator />
                       
                       <div className="space-y-2">
+                        <Label className="flex items-center gap-2">
+                          <Palette className="h-4 w-4" />
+                          Accent Color
+                        </Label>
+                        <p className="text-sm text-muted-foreground">Choose your preferred accent color</p>
+                        <div className="flex flex-wrap gap-3 pt-2">
+                          <button 
+                            onClick={() => applyAccentColor('blue')} 
+                            className={`w-8 h-8 rounded-full bg-blue-500 ${accentColor === 'blue' ? 'ring-2 ring-offset-2 ring-blue-500' : ''}`}
+                            aria-label="Blue accent color"
+                          />
+                          <button 
+                            onClick={() => applyAccentColor('purple')} 
+                            className={`w-8 h-8 rounded-full bg-purple-500 ${accentColor === 'purple' ? 'ring-2 ring-offset-2 ring-purple-500' : ''}`}
+                            aria-label="Purple accent color"
+                          />
+                          <button 
+                            onClick={() => applyAccentColor('green')} 
+                            className={`w-8 h-8 rounded-full bg-green-500 ${accentColor === 'green' ? 'ring-2 ring-offset-2 ring-green-500' : ''}`}
+                            aria-label="Green accent color"
+                          />
+                          <button 
+                            onClick={() => applyAccentColor('orange')} 
+                            className={`w-8 h-8 rounded-full bg-orange-500 ${accentColor === 'orange' ? 'ring-2 ring-offset-2 ring-orange-500' : ''}`}
+                            aria-label="Orange accent color"
+                          />
+                        </div>
+                      </div>
+                      
+                      <Separator />
+                      
+                      <div className="space-y-2">
                         <Label>Dashboard Layout</Label>
                         <p className="text-sm text-muted-foreground">Choose your preferred dashboard layout</p>
                         <div className="grid grid-cols-2 gap-4 pt-2">
-                          <div className="border rounded-md p-2 cursor-pointer bg-blue-50 border-blue-300">
-                            <div className="h-24 bg-blue-100 rounded flex items-center justify-center">
-                              <span className="text-xs text-blue-600">Standard Layout</span>
+                          <div 
+                            className={`border rounded-md p-2 cursor-pointer transition-all ${layout === 'standard' ? 'bg-blue-50 border-blue-300 dark:bg-blue-900/20 dark:border-blue-700' : 'hover:bg-muted/50'}`}
+                            onClick={() => setLayout('standard')}
+                          >
+                            <div className="h-24 bg-blue-100 dark:bg-blue-900/30 rounded flex items-center justify-center">
+                              <span className={`text-xs ${layout === 'standard' ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground'}`}>Standard Layout</span>
                             </div>
-                            <p className="text-xs mt-2 text-center font-medium">Standard</p>
+                            <p className={`text-xs mt-2 text-center ${layout === 'standard' ? 'font-medium' : ''}`}>Standard</p>
                           </div>
-                          <div className="border rounded-md p-2 cursor-pointer">
-                            <div className="h-24 bg-gray-100 rounded flex items-center justify-center">
-                              <span className="text-xs text-gray-500">Compact Layout</span>
+                          <div 
+                            className={`border rounded-md p-2 cursor-pointer transition-all ${layout === 'compact' ? 'bg-blue-50 border-blue-300 dark:bg-blue-900/20 dark:border-blue-700' : 'hover:bg-muted/50'}`}
+                            onClick={() => setLayout('compact')}
+                          >
+                            <div className="h-24 bg-gray-100 dark:bg-gray-800 rounded flex items-center justify-center">
+                              <span className={`text-xs ${layout === 'compact' ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground'}`}>Compact Layout</span>
                             </div>
-                            <p className="text-xs mt-2 text-center">Compact</p>
+                            <p className={`text-xs mt-2 text-center ${layout === 'compact' ? 'font-medium' : ''}`}>Compact</p>
                           </div>
                         </div>
                       </div>

@@ -37,7 +37,7 @@
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary: 224.3 76.3% 48%;
     --sidebar-primary-foreground: 0 0% 98%;
     --sidebar-accent: 240 4.8% 95.9%;
     --sidebar-accent-foreground: 240 5.9% 10%;
@@ -73,6 +73,7 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
+    
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -143,5 +144,27 @@
   .glass {
     @apply backdrop-blur-lg bg-white/80 dark:bg-black/60;
     box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+  }
+
+  /* Card hover effects */
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-medium;
+  }
+
+  /* Gradient backgrounds */
+  .bg-gradient-blue {
+    @apply bg-gradient-to-br from-blue-500 to-indigo-600;
+  }
+  
+  .bg-gradient-purple {
+    @apply bg-gradient-to-br from-purple-500 to-pink-600;
+  }
+  
+  .bg-gradient-green {
+    @apply bg-gradient-to-br from-green-500 to-emerald-600;
+  }
+  
+  .bg-gradient-orange {
+    @apply bg-gradient-to-br from-orange-500 to-amber-600;
   }
 }
