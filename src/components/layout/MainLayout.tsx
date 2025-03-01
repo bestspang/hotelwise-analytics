@@ -1,47 +1,44 @@
 
-import React, { useState, useEffect } from 'react';
-import Sidebar from './Sidebar';
+import React, { useState } from 'react';
 import Header from './Header';
-import { cn } from '@/lib/utils';
+import Sidebar from './Sidebar';
+import Navbar from './Navbar';
+import { useMobile } from '@/hooks/use-mobile';
 
 interface MainLayoutProps {
   children: React.ReactNode;
-  title: string;
+  title?: string;
   subtitle?: string;
 }
 
-const MainLayout: React.FC<MainLayoutProps> = ({ 
-  children, 
-  title,
-  subtitle 
+const MainLayout: React.FC<MainLayoutProps> = ({
+  children,
+  title = 'Dashboard',
+  subtitle = 'Overview of your hotel performance',
 }) => {
-  const [sidebarWidth, setSidebarWidth] = useState(240);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  
-  useEffect(() => {
-    // Update sidebar width when collapsed state changes
-    setSidebarWidth(isSidebarCollapsed ? 70 : 240);
-  }, [isSidebarCollapsed]);
-  
+  const isMobile = useMobile();
+  const [collapsed, setCollapsed] = useState(false);
+
   return (
-    <div className="min-h-screen bg-gray-50/50 dark:bg-gray-950 transition-colors duration-300">
-      <Sidebar onCollapsedChange={setIsSidebarCollapsed} />
-      <Header 
-        title={title} 
-        subtitle={subtitle}
-        sidebarWidth={sidebarWidth} 
-      />
-      
-      <main 
-        className={cn(
-          "pt-16 transition-all duration-300 min-h-screen bg-gradient-to-br from-transparent to-blue-50/20 dark:to-blue-950/10"
-        )}
-        style={{ marginLeft: `${sidebarWidth}px` }}
-      >
-        <div className="container mx-auto px-6 py-6">
-          {children}
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
+      {/* Sidebar */}
+      {!isMobile && (
+        <div className={`${collapsed ? 'w-20' : 'w-64'} transition-all duration-300 ease-in-out`}>
+          <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
         </div>
-      </main>
+      )}
+
+      {/* Main content */}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {/* Top navigation */}
+        <Header />
+        <Navbar title={title} subtitle={subtitle} />
+
+        {/* Page content */}
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+          {children}
+        </main>
+      </div>
     </div>
   );
 };

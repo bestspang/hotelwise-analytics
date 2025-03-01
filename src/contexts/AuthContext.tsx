@@ -100,6 +100,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           id: userId,
           email: data.email,
           username: data.username,
+          // Map user_role from database to role in our frontend model
           role: data.role as UserRole
         });
       }

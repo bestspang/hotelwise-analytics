@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,6 +20,7 @@ interface UserData {
   username: string | null;
   role: UserRole;
   created_at: string;
+  updated_at: string;
 }
 
 const UserManagement: React.FC = () => {
@@ -47,8 +47,18 @@ const UserManagement: React.FC = () => {
         throw error;
       }
 
-      setUsers(data as UserData[]);
-      setFilteredUsers(data as UserData[]);
+      // Map database fields to our frontend model
+      const mappedData = data.map(user => ({
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+        created_at: user.created_at,
+        updated_at: user.updated_at
+      })) as UserData[];
+
+      setUsers(mappedData);
+      setFilteredUsers(mappedData);
     } catch (error: any) {
       console.error('Error fetching users:', error);
       toast({
