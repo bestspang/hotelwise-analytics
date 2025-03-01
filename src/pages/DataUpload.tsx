@@ -35,7 +35,7 @@ const DataUpload = () => {
   };
 
   return (
-    <MainLayout>
+    <MainLayout title="Data Upload">
       <div className="container mx-auto p-6">
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Data Upload</h1>

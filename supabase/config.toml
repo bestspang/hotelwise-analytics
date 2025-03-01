@@ -1,6 +1,5 @@
 
 project_id = "wyjfdvmzwilcxwuoceti"
 
-[[functions]]
-name = "upload-pdf"
+[functions.upload-pdf]
 verify_jwt = false
