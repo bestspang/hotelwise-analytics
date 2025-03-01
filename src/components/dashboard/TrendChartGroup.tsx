@@ -15,7 +15,7 @@ const TrendChartGroup: React.FC<TrendChartGroupProps> = ({
 }) => {
   return (
     <Card className="mb-6">
-      <CardHeader>
+      <CardHeader className="pb-2">
         <CardTitle className="text-xl font-medium">Revenue & Profit Trends</CardTitle>
       </CardHeader>
       <CardContent>

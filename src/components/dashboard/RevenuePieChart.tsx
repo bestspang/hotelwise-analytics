@@ -24,7 +24,7 @@ const RevenuePieChart: React.FC<RevenuePieChartProps> = ({
   
   return (
     <Card className="animate-slide-up h-full" style={{ animationDelay }}>
-      <CardHeader>
+      <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
       </CardHeader>
       <CardContent>
@@ -59,7 +59,7 @@ const RevenuePieChart: React.FC<RevenuePieChartProps> = ({
                 verticalAlign="bottom" 
                 align="center"
                 formatter={(value, entry, index) => {
-                  const { payload } = entry;
+                  const { payload } = entry as any;
                   const percentage = ((payload.value / data.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(1);
                   return <span className="text-xs">{value} ({percentage}%)</span>;
                 }}

@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Area,
   AreaChart,
@@ -64,6 +63,7 @@ const TrendChart: React.FC<TrendChartProps> = ({
               axisLine={false}
               tickLine={false}
               tickFormatter={(value) => `${prefix}${value}${suffix}`}
+              domain={['dataMin - 10', 'dataMax + 10']}
             />
             <Tooltip 
               contentStyle={{ 
@@ -82,6 +82,7 @@ const TrendChart: React.FC<TrendChartProps> = ({
               strokeWidth={2}
               fill={`url(#gradient-${title.replace(/\s+/g, '-').toLowerCase()})`} 
               animationDuration={1500}
+              activeDot={{ r: 6 }}
             />
           </AreaChart>
         </ResponsiveContainer>

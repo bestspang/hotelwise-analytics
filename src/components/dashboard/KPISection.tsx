@@ -2,6 +2,7 @@
 import React from 'react';
 import KpiCard from '@/components/ui/KpiCard';
 import { HotelKpiData } from '@/utils/mockData';
+import { Card } from '@/components/ui/card';
 
 interface KPISectionProps {
   dashboardData: HotelKpiData;
@@ -15,9 +16,11 @@ const KPISection: React.FC<KPISectionProps> = ({
   formatPercentage 
 }) => {
   return (
-    <>
+    <div className="space-y-6 mb-6">
+      <h2 className="text-xl font-semibold">Key Performance Indicators</h2>
+      
       {/* Primary KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
         <div className="animate-scale-in" style={{ animationDelay: '0.1s' }}>
           <KpiCard
             title="RevPAR"
@@ -30,10 +33,10 @@ const KPISection: React.FC<KPISectionProps> = ({
         
         <div className="animate-scale-in" style={{ animationDelay: '0.2s' }}>
           <KpiCard
-            title="GOPPAR"
-            value={dashboardData.gopPAR}
+            title="ADR"
+            value={dashboardData.adr}
             prefix="$"
-            previousValue={dashboardData.previousGopPAR}
+            previousValue={dashboardData.previousADR}
             formatter={formatCurrency}
           />
         </div>
@@ -50,17 +53,14 @@ const KPISection: React.FC<KPISectionProps> = ({
         
         <div className="animate-scale-in" style={{ animationDelay: '0.4s' }}>
           <KpiCard
-            title="ADR"
-            value={dashboardData.adr}
+            title="GOPPAR"
+            value={dashboardData.gopPAR}
             prefix="$"
-            previousValue={dashboardData.previousADR}
+            previousValue={dashboardData.previousGopPAR}
             formatter={formatCurrency}
           />
         </div>
-      </div>
-      
-      {/* Secondary KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        
         <div className="animate-scale-in" style={{ animationDelay: '0.5s' }}>
           <KpiCard
             title="TRevPAR"
@@ -70,7 +70,10 @@ const KPISection: React.FC<KPISectionProps> = ({
             formatter={formatCurrency}
           />
         </div>
-        
+      </div>
+      
+      {/* Secondary KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div className="animate-scale-in" style={{ animationDelay: '0.6s' }}>
           <KpiCard
             title="Cost Per Occupied Room"
@@ -92,7 +95,7 @@ const KPISection: React.FC<KPISectionProps> = ({
           />
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

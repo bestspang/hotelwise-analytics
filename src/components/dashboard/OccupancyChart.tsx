@@ -13,7 +13,7 @@ const OccupancyChart: React.FC<OccupancyChartProps> = ({
 }) => {
   return (
     <Card className="animate-slide-up h-full" style={{ animationDelay: '0.5s' }}>
-      <CardHeader>
+      <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium">Occupancy Rate Trend</CardTitle>
       </CardHeader>
       <CardContent>
@@ -35,6 +35,7 @@ const OccupancyChart: React.FC<OccupancyChartProps> = ({
                 axisLine={false}
                 tickLine={false}
                 tickFormatter={(value) => `${value}%`}
+                domain={['dataMin - 5', 'dataMax + 5']}
               />
               <Tooltip
                 contentStyle={{ 
@@ -52,6 +53,7 @@ const OccupancyChart: React.FC<OccupancyChartProps> = ({
                 stroke="#10b981" 
                 strokeWidth={2}
                 dot={{ r: 1 }}
+                activeDot={{ r: 6 }}
                 animationDuration={1500}
               />
             </LineChart>
