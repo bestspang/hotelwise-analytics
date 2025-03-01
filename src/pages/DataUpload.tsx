@@ -1,31 +1,63 @@
 
 import React, { useState } from 'react';
-import { AlertTriangle, Upload } from 'lucide-react';
+import { AlertTriangle, Upload, FileText, Trash2 } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import FileDropzone from '@/components/data-upload/FileDropzone';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import UploadedFilesList from '@/components/data-upload/UploadedFilesList';
 import { uploadPdfFile } from '@/services/uploadService';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 
 const DataUpload = () => {
   const [isUploading, setIsUploading] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [progress, setProgress] = useState(0);
+  const [currentFileIndex, setCurrentFileIndex] = useState(0);
 
-  const handleFileDrop = async (acceptedFiles: File[]) => {
+  const handleFileDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
+    setSelectedFiles(prevFiles => [...prevFiles, ...acceptedFiles]);
+    toast.info(`${acceptedFiles.length} file(s) added to queue`);
+  };
+
+  const removeFile = (index: number) => {
+    setSelectedFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
+  };
+
+  const clearAllFiles = () => {
+    setSelectedFiles([]);
+    toast.info('Upload queue cleared');
+  };
+
+  const uploadFiles = async () => {
+    if (selectedFiles.length === 0) {
+      toast.info('No files to upload');
+      return;
+    }
     
     setIsUploading(true);
-    toast.info(`Uploading ${acceptedFiles.length} file(s)`);
+    setProgress(0);
+    setCurrentFileIndex(0);
     
     try {
       // Process files one by one
-      for (const file of acceptedFiles) {
-        toast.info(`Processing ${file.name}`);
+      for (let i = 0; i < selectedFiles.length; i++) {
+        setCurrentFileIndex(i);
+        const file = selectedFiles[i];
+        
+        // Update progress for current file
+        setProgress(Math.round((i / selectedFiles.length) * 100));
+        toast.info(`Processing ${file.name} (${i + 1}/${selectedFiles.length})`);
+        
         await uploadPdfFile(file);
       }
       
-      toast.success(`Successfully uploaded ${acceptedFiles.length} file(s)`);
+      setProgress(100);
+      toast.success(`Successfully uploaded ${selectedFiles.length} file(s)`);
+      setSelectedFiles([]);
     } catch (error) {
       console.error('Error in file upload:', error);
       toast.error('There was an error processing your files');
@@ -65,6 +97,66 @@ const DataUpload = () => {
               </Alert>
               
               <FileDropzone onDrop={handleFileDrop} isUploading={isUploading} />
+              
+              {selectedFiles.length > 0 && (
+                <div className="mt-6 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-medium">Files to Upload ({selectedFiles.length})</h3>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={clearAllFiles}
+                      disabled={isUploading}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Clear All
+                    </Button>
+                  </div>
+                  
+                  <div className="max-h-60 overflow-y-auto rounded-md border p-4">
+                    {selectedFiles.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between py-2 border-b last:border-b-0">
+                        <div className="flex items-center">
+                          <FileText className="h-5 w-5 text-blue-500 mr-2" />
+                          <span className="font-medium">{file.name}</span>
+                          <span className="ml-2 text-sm text-muted-foreground">
+                            ({(file.size / 1024).toFixed(1)} KB)
+                          </span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-500 hover:text-red-700"
+                          onClick={() => removeFile(index)}
+                          disabled={isUploading}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {isUploading && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Uploading {currentFileIndex + 1} of {selectedFiles.length}</span>
+                        <span>{progress}%</span>
+                      </div>
+                      <Progress value={progress} />
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-end mt-4">
+                    <Button 
+                      onClick={uploadFiles} 
+                      disabled={isUploading || selectedFiles.length === 0}
+                    >
+                      <Upload className="mr-2 h-4 w-4" />
+                      {isUploading ? 'Uploading...' : 'Upload All Files'}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
           
