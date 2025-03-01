@@ -1,193 +1,166 @@
 
-import React, { useState, useEffect } from 'react';
-import { 
-  LayoutDashboard, 
-  Calendar, 
-  Upload, 
-  Gauge, 
+import React from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  BarChart4,
+  Calendar,
+  Layers,
+  Package,
   Settings,
-  ChevronLeft,
-  ChevronRight,
+  Upload,
+  Users,
+  LogOut,
+  LineChart,
+  Sparkles,
+  LayoutDashboard,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-interface SidebarProps {
-  onCollapsedChange: (collapsed: boolean) => void;
-}
-
-const Sidebar: React.FC<SidebarProps> = ({ onCollapsedChange }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const navigate = useNavigate();
+const Sidebar = () => {
   const location = useLocation();
-  const pathname = location.pathname;
-  const iconSize = 20;
-  
-  useEffect(() => {
-    onCollapsedChange(isCollapsed);
-  }, [isCollapsed, onCollapsedChange]);
-  
-  const toggleSidebar = () => {
-    setIsCollapsed(!isCollapsed);
-  };
-  
-  const menuItems = [
-    {
-      title: 'Dashboard',
-      icon: <LayoutDashboard size={iconSize} />,
-      path: '/dashboard',
-    },
-    {
-      title: 'Day Summary',
-      icon: <Calendar size={iconSize} />,
-      path: '/day-summary',
-    },
-    {
-      title: 'Data Upload',
-      icon: <Upload size={iconSize} />,
-      path: '/data-upload',
-    },
-    {
-      title: 'Tools',
-      icon: <Gauge size={iconSize} />,
-      path: '/tools',
-      submenu: [
-        {
-          title: 'Forecasting',
-          path: '/tools/forecasting',
-        },
-        {
-          title: 'Graph Builder',
-          path: '/tools/graph-builder',
-        },
-        {
-          title: 'AI Recommendations',
-          path: '/tools/ai-recommendations',
-        },
-      ],
-    },
-    {
-      title: 'Settings',
-      icon: <Settings size={iconSize} />,
-      path: '/settings',
-    },
-  ];
+  const { user, checkPermission, signOut } = useAuth();
 
-  // Check if the current path is a submenu of a given item
-  const isSubMenuActive = (item: typeof menuItems[0]) => {
-    if (!item.submenu) return false;
-    return item.submenu.some(subItem => pathname.startsWith(subItem.path));
+  // Generate navigation items based on user role
+  const getNavItems = () => {
+    const items = [
+      {
+        name: 'Dashboard',
+        path: '/dashboard',
+        icon: <LayoutDashboard className="h-5 w-5" />,
+        requiredRole: 'analyst',
+      },
+      {
+        name: 'Day Summary',
+        path: '/day-summary',
+        icon: <Calendar className="h-5 w-5" />,
+        requiredRole: 'analyst',
+      },
+      {
+        name: 'Data Upload',
+        path: '/data-upload',
+        icon: <Upload className="h-5 w-5" />,
+        requiredRole: 'manager',
+      },
+      {
+        name: 'Tools',
+        path: '/tools',
+        icon: <Package className="h-5 w-5" />,
+        requiredRole: 'analyst',
+        subItems: [
+          {
+            name: 'Graph Builder',
+            path: '/tools/graph-builder',
+            icon: <BarChart4 className="h-5 w-5" />,
+            requiredRole: 'analyst',
+          },
+          {
+            name: 'Forecasting',
+            path: '/tools/forecasting',
+            icon: <LineChart className="h-5 w-5" />,
+            requiredRole: 'analyst',
+          },
+          {
+            name: 'AI Recommendations',
+            path: '/tools/ai-recommendations',
+            icon: <Sparkles className="h-5 w-5" />,
+            requiredRole: 'manager',
+          },
+        ],
+      },
+      {
+        name: 'User Management',
+        path: '/user-management',
+        icon: <Users className="h-5 w-5" />,
+        requiredRole: 'admin',
+      },
+      {
+        name: 'Settings',
+        path: '/settings',
+        icon: <Settings className="h-5 w-5" />,
+        requiredRole: 'admin',
+      },
+    ];
+
+    return items.filter((item) => checkPermission(item.requiredRole as any));
   };
 
-  // Check if a specific path is active
-  const isPathActive = (path: string) => {
-    return pathname === path || pathname.startsWith(path);
-  };
-  
-  // Handle navigation
-  const handleNavigation = (path: string) => {
-    navigate(path);
-  };
-  
+  const navItems = getNavItems();
+
   return (
-    <aside
-      className={cn(
-        "bg-sidebar border-r border-gray-200 dark:border-gray-800 dark:bg-gray-900 transition-all duration-300 fixed top-0 left-0 h-full z-50",
-        isCollapsed ? 'w-[70px]' : 'w-[240px]'
-      )}
-    >
-      <div className="flex flex-col h-full">
-        {/* Header with Collapse Button */}
-        <div className="flex items-center justify-between p-4">
-          <span className={cn("text-lg font-semibold transition-all duration-300", isCollapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto')}>
-            Hotel Analytics
-          </span>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={toggleSidebar} className="min-w-[24px]">
-                  {isCollapsed ? <ChevronRight size={iconSize} /> : <ChevronLeft size={iconSize} />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                <p>{isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-        
-        {/* Menu Items */}
-        <nav className="flex-grow p-4">
-          <ul className="space-y-2">
-            {menuItems.map((item) => (
-              <li key={item.title} className="relative">
-                <TooltipProvider delayDuration={300}>
-                  <Tooltip>
-                    <TooltipTrigger asChild disabled={!isCollapsed}>
-                      <div className="w-full">
-                        <Button
-                          variant="ghost"
-                          className={cn(
-                            "flex items-center justify-start gap-2 w-full rounded-md px-3.5 py-2.5 text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800",
-                            (isPathActive(item.path) || isSubMenuActive(item)) ? 'bg-gray-100 dark:bg-gray-800 font-semibold' : 'text-gray-600 dark:text-gray-400',
-                            isCollapsed ? 'justify-center' : 'justify-start'
-                          )}
-                          onClick={() => handleNavigation(item.path)}
-                          type="button"
-                        >
-                          {item.icon}
-                          <span className={cn("transition-all duration-300", isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto')}>
-                            {item.title}
-                          </span>
-                        </Button>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <p>{item.title}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                
-                {item.submenu && (
-                  <ul className={cn(
-                    "ml-4 mt-1 space-y-1 transition-all duration-300 overflow-hidden", 
-                    isCollapsed ? 'max-h-0 opacity-0' : 'max-h-40 opacity-100'
-                  )}>
-                    {item.submenu.map((subItem) => (
-                      <li key={subItem.title}>
-                        <Button
-                          variant="ghost"
-                          className={cn(
-                            "flex items-center justify-start gap-2 w-full rounded-md px-3.5 py-2 text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800",
-                            pathname.startsWith(subItem.path) ? 'bg-gray-100 dark:bg-gray-800 font-semibold' : 'text-gray-600 dark:text-gray-400'
-                          )}
-                          onClick={() => handleNavigation(subItem.path)}
-                          type="button"
-                        >
-                          {subItem.title}
-                        </Button>
-                      </li>
-                    ))}
+    <div className="bg-sidebar-primary text-white h-screen w-64 flex flex-col overflow-hidden fixed left-0 top-0 z-30">
+      <div className="p-6">
+        <h1 className="text-xl font-bold">Hotel Analytics</h1>
+      </div>
+
+      <nav className="flex-1 overflow-y-auto py-4">
+        <ul className="space-y-1">
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.path || 
+                             (item.subItems && item.subItems.some(subItem => location.pathname === subItem.path));
+            
+            return (
+              <li key={item.path}>
+                <NavLink
+                  to={item.path}
+                  className={`flex items-center px-6 py-3 text-gray-200 hover:bg-opacity-25 hover:bg-white transition-colors ${
+                    isActive 
+                      ? 'bg-white bg-opacity-25 text-white' 
+                      : 'text-gray-300'
+                  }`}
+                >
+                  {item.icon}
+                  <span className="ml-3">{item.name}</span>
+                </NavLink>
+
+                {/* Sub-menu items */}
+                {item.subItems && item.subItems.length > 0 && (
+                  <ul className="pl-12 mt-1 space-y-1">
+                    {item.subItems
+                      .filter((subItem) => checkPermission(subItem.requiredRole as any))
+                      .map((subItem) => {
+                        const isSubActive = location.pathname === subItem.path;
+                        
+                        return (
+                          <li key={subItem.path}>
+                            <NavLink
+                              to={subItem.path}
+                              className={`flex items-center py-2 text-sm ${
+                                isSubActive 
+                                  ? 'text-white font-medium' 
+                                  : 'text-gray-400 hover:text-gray-200 transition-colors'
+                              }`}
+                            >
+                              {subItem.name}
+                            </NavLink>
+                          </li>
+                        );
+                      })}
                   </ul>
                 )}
               </li>
-            ))}
-          </ul>
-        </nav>
-        
-        {/* Footer */}
-        <div className={cn(
-          "p-4 border-t border-gray-200 dark:border-gray-800 transition-all duration-300", 
-          isCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'
-        )}>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            &copy; {new Date().getFullYear()} Hotel Analytics
-          </p>
+            );
+          })}
+        </ul>
+      </nav>
+
+      {user && (
+        <div className="border-t border-gray-700 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">{user.username || user.email}</p>
+              <p className="text-xs text-gray-400 capitalize">{user.role}</p>
+            </div>
+            <button
+              onClick={() => signOut()}
+              className="hover:bg-white hover:bg-opacity-20 p-2 rounded-full transition-colors"
+              aria-label="Sign out"
+            >
+              <LogOut className="h-5 w-5 text-gray-300" />
+            </button>
+          </div>
         </div>
-      </div>
-    </aside>
+      )}
+    </div>
   );
 };
 

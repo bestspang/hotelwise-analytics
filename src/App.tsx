@@ -2,7 +2,10 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sonner';
+import { AuthProvider } from '@/contexts/AuthContext';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Index from '@/pages/Index';
+import Auth from '@/pages/Auth';
 import Dashboard from '@/pages/Dashboard';
 import DataUpload from '@/pages/DataUpload';
 import Settings from '@/pages/Settings';
@@ -12,23 +15,102 @@ import Forecasting from '@/pages/tools/Forecasting';
 import GraphBuilder from '@/pages/tools/GraphBuilder';
 import AIRecommendations from '@/pages/tools/AIRecommendations';
 import DaySummary from '@/pages/DaySummary';
+import UserManagement from '@/pages/UserManagement';
 
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Index />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/data-upload" element={<DataUpload />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/day-summary" element={<DaySummary />} />
-        <Route path="/tools" element={<Tools />} />
-        <Route path="/tools/forecasting" element={<Forecasting />} />
-        <Route path="/tools/graph-builder" element={<GraphBuilder />} />
-        <Route path="/tools/ai-recommendations" element={<AIRecommendations />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-      <Toaster position="top-right" />
+      <AuthProvider>
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/auth" element={<Auth />} />
+          
+          {/* Protected routes with role-based access control */}
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute requiredRole="analyst">
+                <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/day-summary" 
+            element={
+              <ProtectedRoute requiredRole="analyst">
+                <DaySummary />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/data-upload" 
+            element={
+              <ProtectedRoute requiredRole="manager">
+                <DataUpload />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/settings" 
+            element={
+              <ProtectedRoute requiredRole="admin">
+                <Settings />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/tools" 
+            element={
+              <ProtectedRoute requiredRole="analyst">
+                <Tools />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/tools/forecasting" 
+            element={
+              <ProtectedRoute requiredRole="analyst">
+                <Forecasting />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/tools/graph-builder" 
+            element={
+              <ProtectedRoute requiredRole="analyst">
+                <GraphBuilder />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/tools/ai-recommendations" 
+            element={
+              <ProtectedRoute requiredRole="manager">
+                <AIRecommendations />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/user-management" 
+            element={
+              <ProtectedRoute requiredRole="admin">
+                <UserManagement />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+        <Toaster position="top-right" />
+      </AuthProvider>
     </BrowserRouter>
   );
 }
