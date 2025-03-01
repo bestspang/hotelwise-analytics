@@ -1,229 +1,29 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-// Function to classify the PDF document type
-function classifyDocumentType(content: string): string {
-  // This is a simplified classification based on keywords
-  // In a real implementation, you would use more sophisticated NLP techniques
-  
-  const lowerContent = content.toLowerCase();
-  
-  if (lowerContent.includes('expense voucher') || lowerContent.includes('expense report')) {
-    return 'expense_voucher';
-  } else if (lowerContent.includes('monthly statistics') || lowerContent.includes('yearly statistics')) {
-    return 'financial_summary';
-  } else if (lowerContent.includes('no-show') || lowerContent.includes('no show')) {
-    return 'no_show_report';
-  } else if (lowerContent.includes('city ledger')) {
-    return 'city_ledger';
-  } else if (lowerContent.includes('night audit')) {
-    return 'night_audit';
-  } else if (lowerContent.includes('front desk activity') || lowerContent.includes('guest stay')) {
-    return 'guest_stay';
-  } else if (lowerContent.includes('occupancy report') || lowerContent.includes('occupancy rate')) {
-    return 'occupancy_report';
-  } else {
-    return 'unknown';
-  }
-}
-
-// Extract relevant data based on document type (simplified mock implementation)
-function extractDataByType(content: string, docType: string): any {
-  // In a real implementation, you would use more sophisticated extraction techniques
-  // like regex patterns, OCR, or NLP models tailored to each document type
-  
-  // This function returns mock data based on document type
-  // It should be replaced with actual extraction logic for production use
-  
-  const currentDate = new Date().toISOString().split('T')[0];
-  
-  switch (docType) {
-    case 'expense_voucher':
-      return {
-        expense_type: 'Operating Expense',
-        expense_amount: Math.floor(Math.random() * 10000),
-        taxes_included: Math.floor(Math.random() * 1000),
-        remarks: 'Extracted from PDF'
-      };
-      
-    case 'financial_summary':
-      return {
-        report_type: Math.random() > 0.5 ? 'Monthly' : 'Yearly',
-        total_revenue: Math.floor(Math.random() * 1000000),
-        room_revenue: Math.floor(Math.random() * 500000),
-        fnb_revenue: Math.floor(Math.random() * 300000),
-        other_revenue: Math.floor(Math.random() * 200000),
-        operational_expenses: Math.floor(Math.random() * 600000)
-      };
-      
-    case 'no_show_report':
-      return {
-        number_of_no_shows: Math.floor(Math.random() * 10),
-        potential_revenue_loss: Math.floor(Math.random() * 50000)
-      };
-      
-    case 'city_ledger':
-      return {
-        account_name: `Account-${Math.floor(Math.random() * 10000)}`,
-        opening_balance: Math.floor(Math.random() * 50000),
-        charges: Math.floor(Math.random() * 5000),
-        payments: Math.floor(Math.random() * 8000),
-        closing_balance: Math.floor(Math.random() * 50000),
-        reference_number: `REF-${Math.floor(Math.random() * 100000)}`
-      };
-      
-    case 'night_audit':
-      return {
-        revenue: Math.floor(Math.random() * 50000),
-        taxes: Math.floor(Math.random() * 5000),
-        charges: Math.floor(Math.random() * 3000),
-        balance: Math.floor(Math.random() * 2000),
-        notes: 'Extracted from night audit report'
-      };
-      
-    case 'guest_stay':
-      return {
-        guest_name: `Guest-${Math.floor(Math.random() * 1000)}`,
-        arrival_date: currentDate,
-        departure_date: new Date(new Date().setDate(new Date().getDate() + 3)).toISOString().split('T')[0],
-        nights: 3,
-        number_of_guests: Math.floor(Math.random() * 4) + 1,
-        total_amount: Math.floor(Math.random() * 30000),
-        amount_paid: Math.floor(Math.random() * 30000),
-        booking_source: Math.random() > 0.5 ? 'Direct' : 'OTA',
-        voucher_number: `V-${Math.floor(Math.random() * 10000)}`
-      };
-      
-    case 'occupancy_report':
-      return {
-        rooms_available: Math.floor(Math.random() * 100) + 50,
-        rooms_occupied: Math.floor(Math.random() * 50) + 30,
-        occupancy_rate: (Math.random() * 40 + 60).toFixed(2),
-        average_daily_rate: (Math.random() * 10000 + 5000).toFixed(2),
-        revpar: (Math.random() * 8000 + 3000).toFixed(2),
-        average_length_of_stay: Math.floor(Math.random() * 5) + 1
-      };
-      
-    default:
-      return {
-        message: 'Unknown document type, could not extract specific data'
-      };
-  }
-}
-
-// Function to save extracted data to the appropriate table
-async function saveDataToTable(supabase: any, hotelId: string, docType: string, extractedData: any, reportDate: string): Promise<any> {
-  try {
-    let result;
-    
-    switch (docType) {
-      case 'expense_voucher':
-        result = await supabase.from('expense_vouchers').insert({
-          hotel_id: hotelId,
-          expense_date: reportDate,
-          ...extractedData
-        }).select().single();
-        break;
-        
-      case 'financial_summary':
-        result = await supabase.from('financial_summaries').insert({
-          hotel_id: hotelId,
-          report_date: reportDate,
-          ...extractedData
-        }).select().single();
-        break;
-        
-      case 'no_show_report':
-        result = await supabase.from('no_show_reports').insert({
-          hotel_id: hotelId,
-          report_date: reportDate,
-          ...extractedData
-        }).select().single();
-        break;
-        
-      case 'city_ledger':
-        result = await supabase.from('city_ledger').insert({
-          hotel_id: hotelId,
-          ledger_date: reportDate,
-          ...extractedData
-        }).select().single();
-        break;
-        
-      case 'night_audit':
-        result = await supabase.from('night_audit_details').insert({
-          hotel_id: hotelId,
-          audit_date: reportDate,
-          ...extractedData
-        }).select().single();
-        break;
-        
-      case 'guest_stay':
-        // For guest stays, we need to create a room first
-        const roomResult = await supabase.from('room_details').insert({
-          hotel_id: hotelId,
-          room_number: `${Math.floor(Math.random() * 500) + 100}`,
-          room_type: Math.random() > 0.5 ? 'Standard' : 'Deluxe',
-          rate_type: Math.random() > 0.5 ? 'Room Only' : 'Breakfast Included',
-          standard_rate: Math.floor(Math.random() * 10000) + 5000
-        }).select().single();
-        
-        if (roomResult.error) {
-          throw new Error(`Error creating room: ${roomResult.error.message}`);
-        }
-        
-        result = await supabase.from('guest_stays').insert({
-          room_id: roomResult.data.room_id,
-          ...extractedData
-        }).select().single();
-        break;
-        
-      case 'occupancy_report':
-        result = await supabase.from('occupancy_reports').insert({
-          hotel_id: hotelId,
-          report_date: reportDate,
-          ...extractedData
-        }).select().single();
-        break;
-        
-      default:
-        // For unknown document types, just return the extracted data without saving
-        return { data: extractedData, docType: 'unknown' };
-    }
-    
-    if (result.error) {
-      throw new Error(`Error inserting data: ${result.error.message}`);
-    }
-    
-    return { data: result.data, docType };
-    
-  } catch (error) {
-    console.error(`Error saving data to table (${docType}):`, error);
-    throw error;
-  }
-}
+};
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Get request body
-    const { fileId, filePath } = await req.json()
-
-    // Create Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    const supabase = createClient(supabaseUrl, supabaseKey)
-
-    // Get the file info
+    const { fileId, filePath } = await req.json();
+    
+    console.log(`Processing file ID: ${fileId}, path: ${filePath}`);
+    
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // Get file info from database
     const { data: fileData, error: fileError } = await supabase
       .from('uploaded_files')
       .select('*')
@@ -232,104 +32,274 @@ serve(async (req) => {
       
     if (fileError) {
       console.error('Error fetching file data:', fileError);
-      throw new Error(`Failed to fetch file data: ${fileError.message}`);
+      return new Response(
+        JSON.stringify({ error: 'File not found', details: fileError }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+      );
     }
-
-    // For demonstration purposes, we'll use mock text content
-    // In a real implementation, you would download the PDF and extract its content
-    const mockPdfContent = `This is a sample ${[
-      'expense voucher', 'monthly statistics', 'no-show report', 
-      'city ledger', 'night audit', 'front desk activity', 'occupancy report'
-    ][Math.floor(Math.random() * 7)]} document for Hotel XYZ.`;
     
-    // Classify the document type
-    const documentType = classifyDocumentType(mockPdfContent);
+    // Download file from storage for processing
+    const { data: fileContent, error: downloadError } = await supabase.storage
+      .from('pdf_files')
+      .download(filePath);
+      
+    if (downloadError) {
+      console.error('Error downloading file:', downloadError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to download file', details: downloadError }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+    
+    console.log(`File downloaded successfully, size: ${fileContent.size} bytes`);
+    
+    // Mock document classification and data extraction
+    // In a production environment, this would be replaced with actual OCR and text analysis
+    const documentTypes = [
+      'Expense Voucher', 
+      'Monthly Statistics', 
+      'Occupancy Report', 
+      'City Ledger', 
+      'Night Audit', 
+      'No-show Report'
+    ];
+    
+    // Determine document type based on filename patterns
+    // This is a simplified mock implementation
+    const filename = fileData.filename.toLowerCase();
+    let documentType = 'Unknown';
+    
+    if (filename.includes('expense') || filename.includes('voucher')) {
+      documentType = 'Expense Voucher';
+    } else if (filename.includes('monthly') || filename.includes('statistics')) {
+      documentType = 'Monthly Statistics';
+    } else if (filename.includes('occupancy')) {
+      documentType = 'Occupancy Report';
+    } else if (filename.includes('city') || filename.includes('ledger')) {
+      documentType = 'City Ledger';
+    } else if (filename.includes('audit')) {
+      documentType = 'Night Audit';
+    } else if (filename.includes('no-show') || filename.includes('noshow')) {
+      documentType = 'No-show Report';
+    } else {
+      // Random classification for testing if no pattern matched
+      documentType = documentTypes[Math.floor(Math.random() * documentTypes.length)];
+    }
+    
     console.log(`Document classified as: ${documentType}`);
     
     // Extract data based on document type
-    const extractedData = extractDataByType(mockPdfContent, documentType);
-    console.log('Extracted data:', extractedData);
-    
-    // Get a default hotel ID for demonstration
-    // In a real implementation, you would determine this from the document or user selection
-    const { data: hotels, error: hotelsError } = await supabase
-      .from('hotels')
-      .select('hotel_id')
-      .limit(1);
-      
-    if (hotelsError || !hotels || hotels.length === 0) {
-      // If no hotels exist, create a sample one
-      const { data: newHotel, error: newHotelError } = await supabase
-        .from('hotels')
-        .insert({
-          hotel_name: 'Sample Hotel',
-          location: 'Sample Location'
-        })
-        .select()
-        .single();
-        
-      if (newHotelError) {
-        throw new Error(`Failed to create sample hotel: ${newHotelError.message}`);
-      }
-      
-      var hotelId = newHotel.hotel_id;
-    } else {
-      var hotelId = hotels[0].hotel_id;
-    }
-    
-    // Current date for report date
-    const reportDate = new Date().toISOString().split('T')[0];
-    
-    // Save the extracted data to the appropriate table
-    const savedResult = await saveDataToTable(supabase, hotelId, documentType, extractedData, reportDate);
-    
-    // Prepare the response data with more detailed information
-    const processingResult = {
-      document_type: documentType,
-      extracted_data: extractedData,
-      saved_data: savedResult.data,
-      hotel_id: hotelId,
-      report_date: reportDate
+    // This is mock data - in a real implementation, you'd use OCR and NLP to extract actual data
+    let extractedData: any = {
+      documentType: documentType,
+      processingDate: new Date().toISOString(),
+      confidence: Math.floor(Math.random() * 30) + 70, // Mock confidence score between 70-99%
     };
     
-    // Update the file record to mark it as processed
+    // Generate different mock data fields based on document type
+    const mockHotelId = 'f47ac10b-58cc-4372-a567-0e02b2c3d479'; // Random UUID as placeholder
+    
+    switch (documentType) {
+      case 'Expense Voucher':
+        extractedData = {
+          ...extractedData,
+          hotelId: mockHotelId,
+          expenseDate: new Date().toISOString().split('T')[0],
+          expenseType: ['Utilities', 'Maintenance', 'Food & Beverage', 'Housekeeping'][Math.floor(Math.random() * 4)],
+          expenseAmount: parseFloat((Math.random() * 1000 + 100).toFixed(2)),
+          taxesIncluded: parseFloat((Math.random() * 100).toFixed(2)),
+          remarks: 'Automatically extracted from PDF'
+        };
+        
+        // Store in expense_vouchers table
+        const { data: expenseData, error: expenseError } = await supabase
+          .from('expense_vouchers')
+          .insert({
+            hotel_id: extractedData.hotelId,
+            expense_date: extractedData.expenseDate,
+            expense_type: extractedData.expenseType,
+            expense_amount: extractedData.expenseAmount,
+            taxes_included: extractedData.taxesIncluded,
+            remarks: extractedData.remarks
+          })
+          .select();
+          
+        if (expenseError) {
+          console.error('Error storing expense data:', expenseError);
+        } else {
+          extractedData.dbRecordId = expenseData[0].voucher_id;
+          console.log('Expense voucher data stored successfully');
+        }
+        break;
+        
+      case 'Occupancy Report':
+        const totalRooms = Math.floor(Math.random() * 50) + 50;
+        const occupiedRooms = Math.floor(Math.random() * totalRooms);
+        const occupancyRate = parseFloat((occupiedRooms / totalRooms * 100).toFixed(1));
+        
+        extractedData = {
+          ...extractedData,
+          reportDate: new Date().toISOString().split('T')[0],
+          totalRooms: totalRooms,
+          occupiedRooms: occupiedRooms,
+          occupancyRate: occupancyRate,
+          averageRate: parseFloat((Math.random() * 200 + 100).toFixed(2)),
+          revPAR: parseFloat((Math.random() * 150 + 50).toFixed(2))
+        };
+        
+        // We would typically store this data in appropriate tables
+        console.log('Occupancy report data processed');
+        break;
+        
+      case 'City Ledger':
+        extractedData = {
+          ...extractedData,
+          hotelId: mockHotelId,
+          ledgerDate: new Date().toISOString().split('T')[0],
+          accountName: ['Corporate Account 1', 'Travel Agency XYZ', 'Airline ABC'][Math.floor(Math.random() * 3)],
+          openingBalance: parseFloat((Math.random() * 5000 + 1000).toFixed(2)),
+          charges: parseFloat((Math.random() * 2000).toFixed(2)),
+          payments: parseFloat((Math.random() * 3000).toFixed(2)),
+          referenceNumber: `REF-${Math.floor(Math.random() * 10000)}`
+        };
+        
+        extractedData.closingBalance = parseFloat((extractedData.openingBalance + extractedData.charges - extractedData.payments).toFixed(2));
+        
+        // Store in city_ledger table
+        const { data: ledgerData, error: ledgerError } = await supabase
+          .from('city_ledger')
+          .insert({
+            hotel_id: extractedData.hotelId,
+            ledger_date: extractedData.ledgerDate,
+            account_name: extractedData.accountName,
+            opening_balance: extractedData.openingBalance,
+            charges: extractedData.charges,
+            payments: extractedData.payments,
+            closing_balance: extractedData.closingBalance,
+            reference_number: extractedData.referenceNumber
+          })
+          .select();
+          
+        if (ledgerError) {
+          console.error('Error storing ledger data:', ledgerError);
+        } else {
+          extractedData.dbRecordId = ledgerData[0].ledger_id;
+          console.log('City ledger data stored successfully');
+        }
+        break;
+        
+      case 'Night Audit':
+        extractedData = {
+          ...extractedData,
+          hotelId: mockHotelId,
+          auditDate: new Date().toISOString().split('T')[0],
+          totalRevenue: parseFloat((Math.random() * 10000 + 5000).toFixed(2)),
+          roomRevenue: parseFloat((Math.random() * 8000 + 4000).toFixed(2)),
+          fbRevenue: parseFloat((Math.random() * 2000 + 1000).toFixed(2)),
+          otherRevenue: parseFloat((Math.random() * 1000).toFixed(2)),
+          occupancyPercent: parseFloat((Math.random() * 40 + 60).toFixed(1)),
+          adr: parseFloat((Math.random() * 100 + 150).toFixed(2))
+        };
+        
+        // We would typically store detailed audit data in the night_audit_details table
+        console.log('Night audit data processed');
+        break;
+        
+      case 'No-show Report':
+        extractedData = {
+          ...extractedData,
+          hotelId: mockHotelId,
+          reportDate: new Date().toISOString().split('T')[0],
+          numberOfNoShows: Math.floor(Math.random() * 10) + 1,
+          potentialRevenueLoss: parseFloat((Math.random() * 2000 + 500).toFixed(2)),
+          bookingSources: ['OTA', 'Direct', 'Travel Agent', 'Corporate']
+            .slice(0, Math.floor(Math.random() * 3) + 1)
+        };
+        
+        // Store in no_show_reports table
+        const { data: noShowData, error: noShowError } = await supabase
+          .from('no_show_reports')
+          .insert({
+            hotel_id: extractedData.hotelId,
+            report_date: extractedData.reportDate,
+            number_of_no_shows: extractedData.numberOfNoShows,
+            potential_revenue_loss: extractedData.potentialRevenueLoss
+          })
+          .select();
+          
+        if (noShowError) {
+          console.error('Error storing no-show data:', noShowError);
+        } else {
+          extractedData.dbRecordId = noShowData[0].no_show_id;
+          console.log('No-show report data stored successfully');
+        }
+        break;
+        
+      case 'Monthly Statistics':
+        extractedData = {
+          ...extractedData,
+          reportMonth: new Date().toISOString().substring(0, 7),
+          occupancyRate: parseFloat((Math.random() * 30 + 70).toFixed(1)),
+          averageDailyRate: parseFloat((Math.random() * 100 + 150).toFixed(2)),
+          revPAR: parseFloat((Math.random() * 80 + 120).toFixed(2)),
+          totalRevenue: parseFloat((Math.random() * 300000 + 200000).toFixed(2)),
+          revenueBreakdown: {
+            rooms: parseFloat((Math.random() * 0.2 + 0.6).toFixed(2)),
+            foodAndBeverage: parseFloat((Math.random() * 0.1 + 0.2).toFixed(2)),
+            other: parseFloat((Math.random() * 0.1).toFixed(2))
+          }
+        };
+        
+        console.log('Monthly statistics data processed');
+        break;
+        
+      default:
+        extractedData.genericData = {
+          textSample: 'Sample extracted text from the document',
+          keyValuePairs: [
+            { key: 'Date', value: new Date().toISOString().split('T')[0] },
+            { key: 'Total', value: `$${(Math.random() * 1000 + 100).toFixed(2)}` },
+            { key: 'Reference', value: `REF-${Math.floor(Math.random() * 10000)}` }
+          ]
+        };
+    }
+    
+    // Update the file record with the extraction results
     const { error: updateError } = await supabase
       .from('uploaded_files')
       .update({
         processed: true,
-        extracted_data: processingResult
+        extracted_data: extractedData,
+        document_type: documentType,
+        processed_at: new Date().toISOString()
       })
       .eq('id', fileId);
-
+      
     if (updateError) {
-      console.error('Error updating file:', updateError);
-      throw new Error(`Failed to update file processing status: ${updateError.message}`);
+      console.error('Error updating file record:', updateError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to update file record', details: updateError }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
     }
-
-    // Return success response
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'PDF processed successfully',
-        data: processingResult
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200
-      }
-    );
-  } catch (error) {
-    console.error('Error processing PDF:', error);
+    
+    console.log('File processing completed successfully');
     
     return new Response(
       JSON.stringify({
-        error: 'Failed to process PDF',
-        details: error.message
+        success: true,
+        message: 'File processed successfully',
+        documentType,
+        extractedData
       }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+    );
+    
+  } catch (error) {
+    console.error('Unexpected error during processing:', error);
+    return new Response(
+      JSON.stringify({ error: 'An unexpected error occurred', details: error.message }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });
