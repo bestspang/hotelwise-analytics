@@ -1,6 +1,7 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 
 type UserRole = 'admin' | 'manager' | 'analyst';
@@ -19,6 +20,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, username: string) => Promise<void>;
   signOut: () => Promise<void>;
   checkPermission: (requiredRole: UserRole) => boolean;
+  resendConfirmationEmail: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -39,6 +41,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Check for error parameters in URL hash
+  useEffect(() => {
+    const hashParams = new URLSearchParams(location.hash.substring(1));
+    const error = hashParams.get('error');
+    const errorDescription = hashParams.get('error_description');
+    
+    if (error === 'access_denied' && errorDescription) {
+      toast.error(decodeURIComponent(errorDescription));
+      
+      // Clean up the URL
+      const cleanUrl = location.pathname + location.search;
+      window.history.replaceState(null, '', cleanUrl);
+    }
+  }, [location]);
 
   // Check for existing session on mount
   useEffect(() => {
@@ -140,7 +158,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         options: {
           data: {
             username
-          }
+          },
+          emailRedirectTo: window.location.origin + '/auth'
         }
       });
       
@@ -148,10 +167,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         throw error;
       }
       
-      toast.success('Successfully signed up! Please check your email.');
+      toast.success('Successfully signed up! Please check your email for confirmation.');
     } catch (error: any) {
       console.error('Error signing up:', error);
       toast.error(error.message || 'Failed to sign up');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Resend confirmation email
+  const resendConfirmationEmail = async (email: string) => {
+    try {
+      setLoading(true);
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: {
+          emailRedirectTo: window.location.origin + '/auth'
+        }
+      });
+      
+      if (error) {
+        throw error;
+      }
+      
+      toast.success('Confirmation email resent. Please check your inbox.');
+    } catch (error: any) {
+      console.error('Error resending confirmation email:', error);
+      toast.error(error.message || 'Failed to resend confirmation email');
       throw error;
     } finally {
       setLoading(false);
@@ -196,7 +241,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       signIn, 
       signUp, 
       signOut,
-      checkPermission
+      checkPermission,
+      resendConfirmationEmail
     }}>
       {children}
     </AuthContext.Provider>
