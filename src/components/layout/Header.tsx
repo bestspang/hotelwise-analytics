@@ -27,14 +27,9 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle, sidebarWidth }) => {
       style={{ left: `${sidebarWidth}px` }}
     >
       <div className="flex items-center justify-between h-full px-6">
-        <div className="flex items-center gap-6">
-          <Link to="/" className="text-xl font-medium tracking-tight">
-            HotelWise<span className="text-blue-500">.</span>
-          </Link>
-          <div>
-            <h1 className="text-xl font-semibold">{title}</h1>
-            {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
-          </div>
+        <div>
+          <h1 className="text-xl font-semibold">{title}</h1>
+          {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
         </div>
         
         <div className="flex items-center space-x-4">
