@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { cn } from '@/lib/utils';
@@ -16,10 +16,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   subtitle 
 }) => {
   const [sidebarWidth, setSidebarWidth] = useState(240);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  
+  useEffect(() => {
+    // Update sidebar width when collapsed state changes
+    setSidebarWidth(isSidebarCollapsed ? 70 : 240);
+  }, [isSidebarCollapsed]);
   
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <Sidebar />
+      <Sidebar onCollapsedChange={setIsSidebarCollapsed} />
       <Header 
         title={title} 
         subtitle={subtitle}

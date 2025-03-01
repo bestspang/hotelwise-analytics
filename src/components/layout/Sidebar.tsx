@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   Home, 
@@ -14,7 +14,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-const Sidebar: React.FC = () => {
+interface SidebarProps {
+  onCollapsedChange?: (collapsed: boolean) => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ onCollapsedChange }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const location = useLocation();
   
@@ -26,6 +30,17 @@ const Sidebar: React.FC = () => {
     { icon: Brain, label: 'AI Recommendations', path: '/tools/ai-recommendations' },
     { icon: Settings, label: 'Settings', path: '/settings' },
   ];
+  
+  // Notify parent component when collapsed state changes
+  useEffect(() => {
+    if (onCollapsedChange) {
+      onCollapsedChange(isCollapsed);
+    }
+  }, [isCollapsed, onCollapsedChange]);
+  
+  const toggleCollapsed = () => {
+    setIsCollapsed(!isCollapsed);
+  };
   
   return (
     <div 
@@ -52,7 +67,7 @@ const Sidebar: React.FC = () => {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setIsCollapsed(!isCollapsed)}
+          onClick={toggleCollapsed}
           className="flex items-center justify-center"
           aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
