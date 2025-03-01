@@ -1,8 +1,15 @@
 
-import React from 'react';
-import { Bell, Calendar } from 'lucide-react';
+import React, { useState } from 'react';
+import { Bell, Calendar, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface HeaderProps {
   title: string;
@@ -11,6 +18,8 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ title, subtitle, sidebarWidth }) => {
+  const [selectedPeriod, setSelectedPeriod] = useState("30d");
+
   return (
     <header 
       className="fixed top-0 right-0 z-20 h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 transition-all duration-300"
@@ -23,10 +32,23 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle, sidebarWidth }) => {
         </div>
         
         <div className="flex items-center space-x-4">
-          <Button variant="outline" size="sm" className="gap-1.5">
-            <Calendar size={16} />
-            Last 30 Days
-          </Button>
+          <Select 
+            value={selectedPeriod} 
+            onValueChange={setSelectedPeriod}
+          >
+            <SelectTrigger className="w-[140px] gap-1.5">
+              <Calendar size={16} />
+              <SelectValue placeholder="Select Period" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1d">Last 1 Day</SelectItem>
+              <SelectItem value="7d">Last 7 Days</SelectItem>
+              <SelectItem value="30d">Last 30 Days</SelectItem>
+              <SelectItem value="90d">Last Quarter</SelectItem>
+              <SelectItem value="180d">Last 6 Months</SelectItem>
+              <SelectItem value="365d">Last Year</SelectItem>
+            </SelectContent>
+          </Select>
           
           <Button variant="ghost" size="icon" className="relative">
             <Bell size={20} />
