@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, 
@@ -9,10 +10,9 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useRouter } from 'next/navigation';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { usePathname } from 'next/navigation';
 
 interface SidebarProps {
   onCollapsedChange: (collapsed: boolean) => void;
@@ -20,8 +20,9 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ onCollapsedChange }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const router = useRouter();
-  const pathname = usePathname();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const pathname = location.pathname;
   const iconSize = 20;
   
   useEffect(() => {
@@ -30,10 +31,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onCollapsedChange }) => {
   
   const toggleSidebar = () => {
     setIsCollapsed(!isCollapsed);
-  };
-  
-  const navigate = (path: string) => {
-    router.push(path);
   };
   
   const menuItems = [
