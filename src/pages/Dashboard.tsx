@@ -29,11 +29,11 @@ const Dashboard: React.FC = () => {
   
   return (
     <div className="min-h-screen bg-background pt-20">
-      <div className="container mx-auto px-6 py-8">
-        <div className="mb-8 animate-fade-in">
-          <h1 className="text-3xl font-semibold mb-2">Financial Dashboard</h1>
+      <div className="container mx-auto px-4 lg:px-6 py-6">
+        <div className="mb-6 animate-fade-in">
+          <h1 className="text-2xl md:text-3xl font-semibold mb-2">Hotel Performance Dashboard</h1>
           <p className="text-muted-foreground">
-            Overview of key performance indicators and financial metrics
+            Financial KPIs and operational metrics for strategic decision-making
           </p>
         </div>
         

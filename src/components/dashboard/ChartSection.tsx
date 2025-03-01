@@ -22,14 +22,14 @@ const ChartSection: React.FC<ChartSectionProps> = ({
 }) => {
   return (
     <>
-      {/* Trend Charts */}
+      {/* Revenue & Profit Trends */}
       <TrendChartGroup 
         revParTrend={revParTrend}
         gopparTrend={gopparTrend}
       />
       
-      {/* Occupancy and Pie Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      {/* Operational & Channel Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <OccupancyChart occupancyTrend={occupancyTrend} />
         
         <RevenuePieChart
@@ -38,8 +38,10 @@ const ChartSection: React.FC<ChartSectionProps> = ({
           valueLabel="Revenue"
           animationDelay="0.6s"
           formatter={(value) => {
-            // Ensure value is treated as a number before formatting
-            return [`$${typeof value === 'number' ? value.toLocaleString() : value}`, 'Revenue'];
+            if (typeof value === 'number') {
+              return [`$${value.toLocaleString()}`, 'Revenue'];
+            }
+            return [`${value}`, 'Revenue'];
           }}
         />
         
@@ -49,8 +51,10 @@ const ChartSection: React.FC<ChartSectionProps> = ({
           valueLabel="ADR"
           animationDelay="0.7s"
           formatter={(value) => {
-            // Ensure value is treated as a number before formatting
-            return [`$${typeof value === 'number' ? value.toFixed(2) : value}`, 'ADR'];
+            if (typeof value === 'number') {
+              return [`$${value.toFixed(2)}`, 'ADR'];
+            }
+            return [`${value}`, 'ADR'];
           }}
         />
       </div>
