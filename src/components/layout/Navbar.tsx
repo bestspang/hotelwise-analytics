@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { MenuIcon, X, Hotel } from 'lucide-react';
+import { MenuIcon, X, Hotel, BarChart2, LineChart, BrainCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -57,6 +58,27 @@ const Navbar: React.FC = () => {
             <NavLink to="/dashboard" active={location.pathname === "/dashboard"}>Dashboard</NavLink>
             <NavLink to="/analytics" active={location.pathname === "/analytics"}>Analytics</NavLink>
             <NavLink to="/reports" active={location.pathname === "/reports"}>Reports</NavLink>
+            <NavLink 
+              to="/tools/forecasting" 
+              active={location.pathname === "/tools/forecasting"}
+              icon={<LineChart className="w-4 h-4 mr-1" />}
+            >
+              Forecasting
+            </NavLink>
+            <NavLink 
+              to="/tools/graph-builder" 
+              active={location.pathname === "/tools/graph-builder"}
+              icon={<BarChart2 className="w-4 h-4 mr-1" />}
+            >
+              Graph Builder
+            </NavLink>
+            <NavLink 
+              to="/tools/ai-recommendations" 
+              active={location.pathname === "/tools/ai-recommendations"}
+              icon={<BrainCog className="w-4 h-4 mr-1" />}
+            >
+              AI Recommendations
+            </NavLink>
             <Button variant="default" size="sm" className="ml-4 rounded-full px-6 shadow-soft bg-blue-600 hover:bg-blue-700">
               Get Started
             </Button>
@@ -82,6 +104,15 @@ const Navbar: React.FC = () => {
             <MobileNavLink to="/dashboard" active={location.pathname === "/dashboard"}>Dashboard</MobileNavLink>
             <MobileNavLink to="/analytics" active={location.pathname === "/analytics"}>Analytics</MobileNavLink>
             <MobileNavLink to="/reports" active={location.pathname === "/reports"}>Reports</MobileNavLink>
+            <MobileNavLink to="/tools/forecasting" active={location.pathname === "/tools/forecasting"}>
+              <LineChart className="w-5 h-5 mr-2" /> Forecasting
+            </MobileNavLink>
+            <MobileNavLink to="/tools/graph-builder" active={location.pathname === "/tools/graph-builder"}>
+              <BarChart2 className="w-5 h-5 mr-2" /> Graph Builder
+            </MobileNavLink>
+            <MobileNavLink to="/tools/ai-recommendations" active={location.pathname === "/tools/ai-recommendations"}>
+              <BrainCog className="w-5 h-5 mr-2" /> AI Recommendations
+            </MobileNavLink>
             <Button variant="default" size="lg" className="mt-8 w-full rounded-full shadow-soft bg-blue-600 hover:bg-blue-700">
               Get Started
             </Button>
@@ -96,16 +127,18 @@ interface NavLinkProps {
   to: string;
   active: boolean;
   children: React.ReactNode;
+  icon?: React.ReactNode;
 }
 
-const NavLink: React.FC<NavLinkProps> = ({ to, active, children }) => (
+const NavLink: React.FC<NavLinkProps> = ({ to, active, children, icon }) => (
   <Link
     to={to}
     className={cn(
-      "text-sm font-medium transition-colors hover:text-primary relative",
+      "text-sm font-medium transition-colors hover:text-primary relative flex items-center",
       active ? "text-primary" : "text-muted-foreground"
     )}
   >
+    {icon && icon}
     {children}
     {active && (
       <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full mt-0.5" />
@@ -113,14 +146,15 @@ const NavLink: React.FC<NavLinkProps> = ({ to, active, children }) => (
   </Link>
 );
 
-const MobileNavLink: React.FC<NavLinkProps> = ({ to, active, children }) => (
+const MobileNavLink: React.FC<NavLinkProps> = ({ to, active, children, icon }) => (
   <Link
     to={to}
     className={cn(
-      "text-2xl font-medium transition-colors",
+      "text-2xl font-medium transition-colors flex items-center",
       active ? "text-primary" : "text-muted-foreground"
     )}
   >
+    {icon && icon}
     {children}
   </Link>
 );
