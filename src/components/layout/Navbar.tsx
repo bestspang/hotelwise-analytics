@@ -37,9 +37,17 @@ const Navbar: React.FC = () => {
     )}>
       <div className="container mx-auto flex items-center justify-between">
         {/* Logo - Always visible regardless of route */}
-        <Link to="/" className="text-2xl font-medium tracking-tight">
-          HotelWise
-          <span className="text-blue-500">.</span>
+        <Link to="/" className="flex items-center space-x-2 text-2xl font-medium tracking-tight">
+          <div className="w-8 h-8 overflow-hidden rounded">
+            <img 
+              src="https://images.unsplash.com/photo-1496307653780-42ee777d4833?ixlib=rb-1.2.1&auto=format&fit=crop&w=128&q=80" 
+              alt="HotelWise Logo" 
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <span>
+            HotelWise<span className="text-blue-500">.</span>
+          </span>
         </Link>
         
         {/* Desktop Navigation */}
