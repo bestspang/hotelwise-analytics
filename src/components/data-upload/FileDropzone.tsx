@@ -3,6 +3,7 @@ import React from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface FileDropzoneProps {
   onDrop: (acceptedFiles: File[]) => void;
@@ -16,7 +17,18 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({ onDrop, isUploading }) => {
       'application/pdf': ['.pdf'],
     },
     multiple: true,
-    disabled: isUploading
+    disabled: isUploading,
+    onDropRejected: (fileRejections) => {
+      fileRejections.forEach(({ file, errors }) => {
+        errors.forEach(e => {
+          if (e.code === 'file-invalid-type') {
+            toast.error(`${file.name} is not a PDF file`);
+          } else {
+            toast.error(`Error with ${file.name}: ${e.message}`);
+          }
+        });
+      });
+    }
   });
 
   return (

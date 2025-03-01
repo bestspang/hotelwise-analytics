@@ -329,6 +329,36 @@ export type Database = {
         }
         Relationships: []
       }
+      uploaded_files: {
+        Row: {
+          created_at: string | null
+          extracted_data: Json | null
+          file_path: string
+          file_type: string
+          filename: string
+          id: string
+          processed: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          extracted_data?: Json | null
+          file_path: string
+          file_type: string
+          filename: string
+          id?: string
+          processed?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          extracted_data?: Json | null
+          file_path?: string
+          file_type?: string
+          filename?: string
+          id?: string
+          processed?: boolean | null
+        }
+        Relationships: []
+      }
       user_custom_graphs: {
         Row: {
           date_created: string | null
