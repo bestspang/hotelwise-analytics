@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
-import { File, FileCheck, Loader2, RefreshCw, Search, Trash2, AlertTriangle, Download } from 'lucide-react';
-import { getUploadedFiles, deleteUploadedFile } from '@/services/uploadService';
+import { File, FileCheck, Loader2, RefreshCw, Search, Trash2, AlertTriangle, Download, Info } from 'lucide-react';
+import { getUploadedFiles, deleteUploadedFile, downloadExtractedData } from '@/services/uploadService';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -9,6 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 
 interface UploadedFile {
   id: string;
@@ -18,6 +20,42 @@ interface UploadedFile {
   created_at: string;
   extracted_data: any;
 }
+
+const DocumentTypeBadge = ({ type }: { type: string }) => {
+  let color = '';
+  
+  switch (type) {
+    case 'expense_voucher':
+      color = 'bg-red-100 text-red-800';
+      break;
+    case 'financial_summary':
+      color = 'bg-blue-100 text-blue-800';
+      break;
+    case 'no_show_report':
+      color = 'bg-amber-100 text-amber-800';
+      break;
+    case 'city_ledger':
+      color = 'bg-indigo-100 text-indigo-800';
+      break;
+    case 'night_audit':
+      color = 'bg-purple-100 text-purple-800';
+      break;
+    case 'guest_stay':
+      color = 'bg-green-100 text-green-800';
+      break;
+    case 'occupancy_report':
+      color = 'bg-teal-100 text-teal-800';
+      break;
+    default:
+      color = 'bg-gray-100 text-gray-800';
+  }
+  
+  return (
+    <Badge variant="outline" className={`${color} font-medium text-xs`}>
+      {type.replace('_', ' ').toUpperCase()}
+    </Badge>
+  );
+};
 
 const UploadedFilesList = () => {
   const [files, setFiles] = useState<UploadedFile[]>([]);
@@ -200,7 +238,12 @@ const UploadedFilesList = () => {
                       </DialogTrigger>
                       <DialogContent className="max-w-4xl">
                         <DialogHeader>
-                          <DialogTitle>Extracted Data: {file.filename}</DialogTitle>
+                          <DialogTitle className="flex items-center">
+                            Extracted Data: {file.filename}
+                            {file.extracted_data?.document_type && (
+                              <DocumentTypeBadge type={file.extracted_data.document_type} />
+                            )}
+                          </DialogTitle>
                         </DialogHeader>
                         <div className="mt-4 overflow-auto max-h-[70vh]">
                           {file.extracted_data?.error ? (
@@ -211,24 +254,164 @@ const UploadedFilesList = () => {
                               </AlertDescription>
                             </Alert>
                           ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              {file.extracted_data && (
-                                <>
-                                  <Card className="p-4">
-                                    <h4 className="text-lg font-medium mb-3">Financial Data</h4>
-                                    <pre className="text-sm bg-muted p-3 rounded overflow-auto">
-                                      {JSON.stringify(file.extracted_data.financial, null, 2)}
-                                    </pre>
+                            <Tabs defaultValue="overview">
+                              <TabsList className="mb-4">
+                                <TabsTrigger value="overview">Overview</TabsTrigger>
+                                <TabsTrigger value="extracted">Extracted Data</TabsTrigger>
+                                <TabsTrigger value="raw">Raw JSON</TabsTrigger>
+                              </TabsList>
+                              
+                              <TabsContent value="overview">
+                                <Card className="p-4">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                      <h4 className="text-lg font-medium mb-3">Document Information</h4>
+                                      <div className="space-y-2">
+                                        <div>
+                                          <span className="font-medium">Document Type:</span>{' '}
+                                          {file.extracted_data?.document_type ? (
+                                            <DocumentTypeBadge type={file.extracted_data.document_type} />
+                                          ) : (
+                                            'Unknown'
+                                          )}
+                                        </div>
+                                        <div>
+                                          <span className="font-medium">Hotel ID:</span>{' '}
+                                          {file.extracted_data?.hotel_id || 'N/A'}
+                                        </div>
+                                        <div>
+                                          <span className="font-medium">Report Date:</span>{' '}
+                                          {file.extracted_data?.report_date || 'N/A'}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <h4 className="text-lg font-medium mb-3">Processing Details</h4>
+                                      <div className="space-y-2">
+                                        <div>
+                                          <span className="font-medium">Processed:</span>{' '}
+                                          {file.processed ? 'Yes' : 'No'}
+                                        </div>
+                                        <div>
+                                          <span className="font-medium">Upload Date:</span>{' '}
+                                          {new Date(file.created_at).toLocaleString()}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </Card>
+                                
+                                {file.extracted_data?.document_type && (
+                                  <Card className="p-4 mt-4">
+                                    <h4 className="text-lg font-medium mb-3">Key Metrics</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                      {file.extracted_data.document_type === 'financial_summary' && (
+                                        <>
+                                          <div className="bg-blue-50 p-3 rounded-md">
+                                            <div className="text-sm text-blue-700">Total Revenue</div>
+                                            <div className="text-2xl font-bold">
+                                              {typeof file.extracted_data.extracted_data?.total_revenue === 'number' 
+                                                ? `$${file.extracted_data.extracted_data.total_revenue.toLocaleString()}` 
+                                                : 'N/A'}
+                                            </div>
+                                          </div>
+                                          <div className="bg-green-50 p-3 rounded-md">
+                                            <div className="text-sm text-green-700">Room Revenue</div>
+                                            <div className="text-2xl font-bold">
+                                              {typeof file.extracted_data.extracted_data?.room_revenue === 'number' 
+                                                ? `$${file.extracted_data.extracted_data.room_revenue.toLocaleString()}` 
+                                                : 'N/A'}
+                                            </div>
+                                          </div>
+                                          <div className="bg-amber-50 p-3 rounded-md">
+                                            <div className="text-sm text-amber-700">F&B Revenue</div>
+                                            <div className="text-2xl font-bold">
+                                              {typeof file.extracted_data.extracted_data?.fnb_revenue === 'number' 
+                                                ? `$${file.extracted_data.extracted_data.fnb_revenue.toLocaleString()}` 
+                                                : 'N/A'}
+                                            </div>
+                                          </div>
+                                        </>
+                                      )}
+                                      
+                                      {file.extracted_data.document_type === 'occupancy_report' && (
+                                        <>
+                                          <div className="bg-blue-50 p-3 rounded-md">
+                                            <div className="text-sm text-blue-700">Occupancy Rate</div>
+                                            <div className="text-2xl font-bold">
+                                              {file.extracted_data.extracted_data?.occupancy_rate || 'N/A'}%
+                                            </div>
+                                          </div>
+                                          <div className="bg-green-50 p-3 rounded-md">
+                                            <div className="text-sm text-green-700">Average Daily Rate</div>
+                                            <div className="text-2xl font-bold">
+                                              {typeof file.extracted_data.extracted_data?.average_daily_rate === 'string' 
+                                                ? `$${parseFloat(file.extracted_data.extracted_data.average_daily_rate).toLocaleString()}` 
+                                                : 'N/A'}
+                                            </div>
+                                          </div>
+                                          <div className="bg-amber-50 p-3 rounded-md">
+                                            <div className="text-sm text-amber-700">RevPAR</div>
+                                            <div className="text-2xl font-bold">
+                                              {typeof file.extracted_data.extracted_data?.revpar === 'string' 
+                                                ? `$${parseFloat(file.extracted_data.extracted_data.revpar).toLocaleString()}` 
+                                                : 'N/A'}
+                                            </div>
+                                          </div>
+                                        </>
+                                      )}
+                                      
+                                      {file.extracted_data.document_type === 'expense_voucher' && (
+                                        <>
+                                          <div className="bg-red-50 p-3 rounded-md">
+                                            <div className="text-sm text-red-700">Expense Amount</div>
+                                            <div className="text-2xl font-bold">
+                                              {typeof file.extracted_data.extracted_data?.expense_amount === 'number' 
+                                                ? `$${file.extracted_data.extracted_data.expense_amount.toLocaleString()}` 
+                                                : 'N/A'}
+                                            </div>
+                                          </div>
+                                          <div className="bg-purple-50 p-3 rounded-md">
+                                            <div className="text-sm text-purple-700">Taxes Included</div>
+                                            <div className="text-2xl font-bold">
+                                              {typeof file.extracted_data.extracted_data?.taxes_included === 'number' 
+                                                ? `$${file.extracted_data.extracted_data.taxes_included.toLocaleString()}` 
+                                                : 'N/A'}
+                                            </div>
+                                          </div>
+                                          <div className="bg-gray-50 p-3 rounded-md">
+                                            <div className="text-sm text-gray-700">Expense Type</div>
+                                            <div className="text-lg font-bold truncate">
+                                              {file.extracted_data.extracted_data?.expense_type || 'N/A'}
+                                            </div>
+                                          </div>
+                                        </>
+                                      )}
+                                      
+                                      {/* Add more document type specific metric displays as needed */}
+                                    </div>
                                   </Card>
-                                  <Card className="p-4">
-                                    <h4 className="text-lg font-medium mb-3">Occupancy Data</h4>
-                                    <pre className="text-sm bg-muted p-3 rounded overflow-auto">
-                                      {JSON.stringify(file.extracted_data.occupancy, null, 2)}
-                                    </pre>
-                                  </Card>
-                                </>
-                              )}
-                            </div>
+                                )}
+                              </TabsContent>
+                              
+                              <TabsContent value="extracted">
+                                <Card className="p-4">
+                                  <h4 className="text-lg font-medium mb-3">Extracted Data</h4>
+                                  <pre className="text-sm bg-muted p-3 rounded overflow-auto">
+                                    {JSON.stringify(file.extracted_data?.extracted_data || {}, null, 2)}
+                                  </pre>
+                                </Card>
+                              </TabsContent>
+                              
+                              <TabsContent value="raw">
+                                <Card className="p-4">
+                                  <h4 className="text-lg font-medium mb-3">Raw JSON Data</h4>
+                                  <pre className="text-sm bg-muted p-3 rounded overflow-auto">
+                                    {JSON.stringify(file.extracted_data || {}, null, 2)}
+                                  </pre>
+                                </Card>
+                              </TabsContent>
+                            </Tabs>
                           )}
                         </div>
                         <DialogFooter>
@@ -259,14 +442,19 @@ const UploadedFilesList = () => {
                 </div>
               </div>
               <div className="mt-2">
-                <p className="text-xs">
-                  Status: {file.processed ? 
-                    (file.extracted_data?.error ? 
-                      <span className="text-red-600">Processing Error</span> : 
-                      <span className="text-green-600">Processed</span>) : 
-                    <span className="text-amber-600">Processing...</span>
-                  }
-                </p>
+                <div className="flex justify-between items-center">
+                  <p className="text-xs">
+                    Status: {file.processed ? 
+                      (file.extracted_data?.error ? 
+                        <span className="text-red-600">Processing Error</span> : 
+                        <span className="text-green-600">Processed</span>) : 
+                      <span className="text-amber-600">Processing...</span>
+                    }
+                  </p>
+                  {file.processed && file.extracted_data?.document_type && (
+                    <DocumentTypeBadge type={file.extracted_data.document_type} />
+                  )}
+                </div>
               </div>
             </Card>
           ))}
