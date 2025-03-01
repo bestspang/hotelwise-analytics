@@ -17,6 +17,7 @@ const Auth: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('signin');
@@ -68,7 +69,8 @@ const Auth: React.FC = () => {
     try {
       setIsSubmitting(true);
       setAuthError(null);
-      await signIn(email, password);
+      // Pass the rememberMe value to signIn
+      await signIn(email, password, rememberMe);
     } catch (error: any) {
       if (error.message?.includes('Email not confirmed')) {
         setAuthError('Your email is not confirmed. Please check your inbox or resend the confirmation email.');
@@ -189,6 +191,8 @@ const Auth: React.FC = () => {
                     onPasswordChange={(e) => setPassword(e.target.value)}
                     onSubmit={handleSignIn}
                     setResendEmail={setResendEmail}
+                    rememberMe={rememberMe}
+                    setRememberMe={setRememberMe}
                   />
                 </TabsContent>
                 

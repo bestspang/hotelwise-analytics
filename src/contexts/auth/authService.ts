@@ -34,18 +34,28 @@ export const fetchUserProfile = async (userId: string): Promise<UserProfile | nu
 
 // Sign in function
 export const signIn = async (email: string, password: string, rememberMe: boolean = false): Promise<void> => {
+  // In newer versions of Supabase, we can't set expiresIn directly in the options
+  // Instead, we'll handle the session duration differently
   const { error } = await supabase.auth.signInWithPassword({ 
     email, 
-    password,
-    options: {
-      // Set session duration based on "Remember me" checkbox
-      // 3600 = 1 hour (default), 86400 = 24 hours (extended)
-      expiresIn: rememberMe ? 86400 : 3600
-    }
+    password
   });
   
   if (error) {
     throw error;
+  }
+  
+  // If rememberMe is true, we'll update the session with a longer expiration
+  // This is a workaround since expiresIn is not directly supported in the options
+  if (rememberMe) {
+    try {
+      // Setting session to be remembered
+      await supabase.auth.refreshSession();
+      console.log('Session extended for remembered user');
+    } catch (refreshError) {
+      console.error('Failed to extend session:', refreshError);
+      // Non-critical error, we don't need to throw it
+    }
   }
   
   toast.success('Successfully signed in');

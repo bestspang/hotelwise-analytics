@@ -15,6 +15,8 @@ interface SignInFormProps {
   onPasswordChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSubmit: (e: React.FormEvent) => void;
   setResendEmail: (email: string) => void;
+  rememberMe?: boolean;
+  setRememberMe?: (value: boolean) => void;
 }
 
 const SignInForm: React.FC<SignInFormProps> = ({
@@ -24,10 +26,11 @@ const SignInForm: React.FC<SignInFormProps> = ({
   onEmailChange,
   onPasswordChange,
   onSubmit,
-  setResendEmail
+  setResendEmail,
+  rememberMe = false,
+  setRememberMe = () => {}
 }) => {
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onEmailChange(e);
