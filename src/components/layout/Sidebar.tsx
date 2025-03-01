@@ -127,8 +127,8 @@ const Sidebar = ({ collapsed, setCollapsed }: SidebarProps) => {
                       : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800/60'
                   }`}
                 >
-                  <span className="flex-shrink-0 w-5 h-5">{item.icon}</span>
-                  {!collapsed && <span className="ml-3 font-medium">{item.name}</span>}
+                  <span className="flex-shrink-0">{item.icon}</span>
+                  {!collapsed && <span className="ml-3 font-medium text-gray-900 dark:text-white">{item.name}</span>}
                 </NavLink>
 
                 {/* Sub-menu items - only show when not collapsed */}
@@ -146,7 +146,7 @@ const Sidebar = ({ collapsed, setCollapsed }: SidebarProps) => {
                               className={`flex items-center py-2 px-2 text-sm rounded-md ${
                                 isSubActive 
                                   ? 'text-indigo-600 dark:text-indigo-400 font-medium' 
-                                  : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
+                                  : 'text-gray-700 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
                               }`}
                             >
                               {subItem.name}
