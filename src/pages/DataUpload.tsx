@@ -1,13 +1,12 @@
-
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, FileText, CheckCircle, AlertCircle, X, Info } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertCircle, X, Info, FileQuestion } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -55,7 +54,6 @@ const DataUpload: React.FC = () => {
     
     setFiles(prev => [...prev, ...newFiles]);
     
-    // Process each file
     newFiles.forEach(fileObj => {
       handleFileUpload(fileObj);
     });
@@ -71,22 +69,16 @@ const DataUpload: React.FC = () => {
   
   const handleFileUpload = async (fileObj: UploadedFile) => {
     try {
-      // Update status to uploading
       updateFileStatus(fileObj.id, 'uploading', 'Uploading file...');
       
-      // Mock upload progress
       await simulateProgress(fileObj.id);
       
-      // Update status to processing
       updateFileStatus(fileObj.id, 'processing', 'Extracting data...');
       
-      // Mock processing delay
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Mock extracted data (in a real implementation, this would come from the OCR/parsing service)
       const mockExtractedData = generateMockData(fileObj.file.name);
       
-      // Update status to success with extracted data
       updateFileStatus(fileObj.id, 'success', 'Data extracted successfully', mockExtractedData);
       
       toast({
@@ -137,7 +129,6 @@ const DataUpload: React.FC = () => {
   };
   
   const handleImport = () => {
-    // In a real implementation, this would send the selected data to your backend/Supabase
     const fileToImport = files[activeFileIndex];
     
     toast({
@@ -229,7 +220,6 @@ const DataUpload: React.FC = () => {
   const activeFile = files[activeFileIndex];
   const activeData = activeFile?.previewData;
   
-  // Mock data generation for demo purposes
   const generateMockData = (filename: string): ExtractedData => {
     const isOccupancy = filename.toLowerCase().includes('occupancy');
     const isFinancial = filename.toLowerCase().includes('financial') || filename.toLowerCase().includes('expense');
@@ -275,12 +265,10 @@ const DataUpload: React.FC = () => {
       };
     } else {
       return {
-        fileType: 'Unrecognized Report',
+        fileType: 'Unrecognized Document',
         date: new Date().toISOString().split('T')[0],
         records: [],
-        metrics: {
-          unidentified: { value: 'Could not identify specific metrics', selected: false }
-        }
+        metrics: {}
       };
     }
   };
@@ -288,7 +276,6 @@ const DataUpload: React.FC = () => {
   return (
     <MainLayout title="Data Upload" subtitle="Import and process PDF files">
       <div className="grid gap-8">
-        {/* Help section */}
         <Card className="bg-blue-50 border-blue-200">
           <CardContent className="p-6">
             <div className="flex items-start space-x-4">
@@ -305,7 +292,6 @@ const DataUpload: React.FC = () => {
           </CardContent>
         </Card>
         
-        {/* Dropzone */}
         <div
           {...getRootProps()}
           className={cn(
@@ -320,7 +306,6 @@ const DataUpload: React.FC = () => {
           <p className="text-xs text-muted-foreground">Supported file types: PDF</p>
         </div>
         
-        {/* File list */}
         {files.length > 0 && (
           <div className="mt-6">
             <h3 className="text-lg font-medium mb-4">Uploaded Files</h3>
@@ -371,11 +356,16 @@ const DataUpload: React.FC = () => {
           </div>
         )}
         
-        {/* Preview Dialog */}
         <Dialog open={showPreview} onOpenChange={setShowPreview}>
           <DialogContent className="max-w-4xl">
             <DialogHeader>
               <DialogTitle>Data Preview</DialogTitle>
+              {activeData?.fileType === 'Unrecognized Document' && (
+                <DialogDescription className="text-amber-600 mt-2 flex items-center">
+                  <FileQuestion className="h-5 w-5 mr-2" />
+                  This document type could not be recognized. No extractable data was found.
+                </DialogDescription>
+              )}
             </DialogHeader>
             
             {activeData && (
@@ -397,98 +387,117 @@ const DataUpload: React.FC = () => {
                   )}
                 </div>
                 
-                <Tabs defaultValue="metrics" value={currentTab} onValueChange={setCurrentTab}>
-                  <TabsList className="mb-4">
-                    <TabsTrigger value="metrics">Key Metrics</TabsTrigger>
-                    <TabsTrigger value="records">Detailed Records</TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="metrics">
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <h3 className="font-medium">Extracted Metrics</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Select metrics to import
-                        </p>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {activeData.metrics && Object.entries(activeData.metrics).map(([key, { value, selected }]) => (
-                          <div 
-                            key={key} 
-                            className={cn(
-                              "p-4 border rounded-md flex items-center justify-between transition-colors", 
-                              selected ? "border-primary/50 bg-primary/5" : "border-gray-200"
-                            )}
-                          >
-                            <div>
-                              <Label htmlFor={`metric-${key}`} className="text-sm text-muted-foreground capitalize">
-                                {key.replace(/([A-Z])/g, ' $1').trim()}
-                              </Label>
-                              <p className="font-medium">{value}</p>
+                {activeData.fileType === 'Unrecognized Document' ? (
+                  <div className="bg-amber-50 border border-amber-200 rounded-md p-6 text-center">
+                    <FileQuestion className="h-12 w-12 text-amber-500 mx-auto mb-3" />
+                    <h3 className="font-medium text-amber-800 mb-2">Unsupported Document Type</h3>
+                    <p className="text-amber-700 mb-4">
+                      This document doesn't match any of the supported formats for data extraction.
+                    </p>
+                    <p className="text-sm text-amber-600">
+                      Try uploading a file containing recognized keywords like "occupancy", "financial", or "expense".
+                    </p>
+                  </div>
+                ) : (
+                  <Tabs defaultValue="metrics" value={currentTab} onValueChange={setCurrentTab}>
+                    <TabsList className="mb-4">
+                      <TabsTrigger value="metrics">Key Metrics</TabsTrigger>
+                      <TabsTrigger value="records">Detailed Records</TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="metrics">
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <h3 className="font-medium">Extracted Metrics</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Select metrics to import
+                          </p>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {activeData.metrics && Object.keys(activeData.metrics).length > 0 ? (
+                            Object.entries(activeData.metrics).map(([key, { value, selected }]) => (
+                              <div 
+                                key={key} 
+                                className={cn(
+                                  "p-4 border rounded-md flex items-center justify-between transition-colors", 
+                                  selected ? "border-primary/50 bg-primary/5" : "border-gray-200"
+                                )}
+                              >
+                                <div>
+                                  <Label htmlFor={`metric-${key}`} className="text-sm text-muted-foreground capitalize">
+                                    {key.replace(/([A-Z])/g, ' $1').trim()}
+                                  </Label>
+                                  <p className="font-medium">{value}</p>
+                                </div>
+                                <Checkbox
+                                  id={`metric-${key}`}
+                                  checked={selected}
+                                  onCheckedChange={() => toggleMetricSelection(key)}
+                                />
+                              </div>
+                            ))
+                          ) : (
+                            <div className="col-span-2 text-center py-8 text-muted-foreground">
+                              No metrics found in this document
                             </div>
-                            <Checkbox
-                              id={`metric-${key}`}
-                              checked={selected}
-                              onCheckedChange={() => toggleMetricSelection(key)}
-                            />
-                          </div>
-                        ))}
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="records">
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <h3 className="font-medium">Detailed Records</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Select records to import
-                        </p>
-                      </div>
-                      
-                      {activeData.records.length > 0 ? (
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead className="w-12"></TableHead>
-                              {Object.keys(activeData.records[0])
-                                .filter(key => key !== '_selected')
-                                .map(key => (
-                                  <TableHead key={key} className="capitalize">
-                                    {key}
-                                  </TableHead>
-                                ))
-                              }
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {activeData.records.map((record, index) => (
-                              <TableRow key={index}>
-                                <TableCell>
-                                  <Checkbox
-                                    checked={record._selected}
-                                    onCheckedChange={() => toggleRowSelection(index)}
-                                  />
-                                </TableCell>
-                                {Object.entries(record)
-                                  .filter(([key]) => key !== '_selected')
-                                  .map(([key, value]) => (
-                                    <TableCell key={key}>{value}</TableCell>
+                    </TabsContent>
+                    
+                    <TabsContent value="records">
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <h3 className="font-medium">Detailed Records</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Select records to import
+                          </p>
+                        </div>
+                        
+                        {activeData.records.length > 0 ? (
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-12"></TableHead>
+                                {Object.keys(activeData.records[0])
+                                  .filter(key => key !== '_selected')
+                                  .map(key => (
+                                    <TableHead key={key} className="capitalize">
+                                      {key}
+                                    </TableHead>
                                   ))
                                 }
                               </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      ) : (
-                        <div className="text-center py-8 text-muted-foreground">
-                          No detailed records found in this file
-                        </div>
-                      )}
-                    </div>
-                  </TabsContent>
-                </Tabs>
+                            </TableHeader>
+                            <TableBody>
+                              {activeData.records.map((record, index) => (
+                                <TableRow key={index}>
+                                  <TableCell>
+                                    <Checkbox
+                                      checked={record._selected}
+                                      onCheckedChange={() => toggleRowSelection(index)}
+                                    />
+                                  </TableCell>
+                                  {Object.entries(record)
+                                    .filter(([key]) => key !== '_selected')
+                                    .map(([key, value]) => (
+                                      <TableCell key={key}>{value}</TableCell>
+                                    ))
+                                  }
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        ) : (
+                          <div className="text-center py-8 text-muted-foreground">
+                            No detailed records found in this file
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                )}
               </div>
             )}
             
@@ -496,18 +505,20 @@ const DataUpload: React.FC = () => {
               <DialogClose asChild>
                 <Button variant="outline">Cancel</Button>
               </DialogClose>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button onClick={handleImport}>
-                      Import Selected Data
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>This will add the selected data to your database</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              {activeData?.fileType !== 'Unrecognized Document' && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button onClick={handleImport}>
+                        Import Selected Data
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>This will add the selected data to your database</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>
