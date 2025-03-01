@@ -61,9 +61,17 @@ export async function uploadPdfFile(file: File) {
       toast.error(`Failed to process ${file.name}`);
       
       // Update file status to error
+      // Since 'processing_error' doesn't exist in our schema, we'll use 'extracted_data' 
+      // to store error information
       await supabase
         .from('uploaded_files')
-        .update({ processing_error: processingError.message })
+        .update({ 
+          processed: true, 
+          extracted_data: { 
+            error: true, 
+            message: processingError.message 
+          } 
+        })
         .eq('id', fileData.id);
         
       return null;
