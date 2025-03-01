@@ -1,9 +1,9 @@
-
 import React, { useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
+import { LineChart } from 'lucide-react';
 
 // Import forecasting components
 import ForecastSettings from '@/components/forecasting/ForecastSettings';
@@ -53,11 +53,14 @@ const Forecasting: React.FC = () => {
       <div className="grid gap-6 animate-fade-in">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-            <div>
-              <h2 className="text-2xl font-semibold">Forecasting Tool</h2>
-              <p className="text-muted-foreground mt-1">
-                Predict future performance using advanced algorithms
-              </p>
+            <div className="flex items-center gap-3">
+              <LineChart className="h-7 w-7 text-primary" />
+              <div>
+                <h2 className="text-2xl font-semibold">Forecasting Tool</h2>
+                <p className="text-muted-foreground mt-1">
+                  Predict future performance using advanced algorithms
+                </p>
+              </div>
             </div>
             
             <TabsList className="grid grid-cols-3 w-full md:w-auto">

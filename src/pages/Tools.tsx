@@ -3,7 +3,15 @@ import React from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, BarChart, TrendingUp, Brain, FileSpreadsheet, Award } from 'lucide-react';
+import { 
+  ArrowRight, 
+  LineChart, 
+  BarChart3, 
+  PieChart, 
+  Sparkles, 
+  FileSpreadsheet, 
+  Award 
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const ToolCard: React.FC<{
@@ -66,21 +74,21 @@ const Tools: React.FC = () => {
           <ToolCard
             title="Custom Graph Builder"
             description="Create personalized visualizations by combining different metrics and dimensions."
-            icon={<BarChart className="h-6 w-6" />}
+            icon={<BarChart3 className="h-6 w-6" />}
             route="/tools/graph-builder"
           />
           
           <ToolCard
             title="Forecasting Tool"
             description="Predict future performance using advanced statistical and machine learning algorithms."
-            icon={<TrendingUp className="h-6 w-6" />}
+            icon={<LineChart className="h-6 w-6" />}
             route="/tools/forecasting"
           />
           
           <ToolCard
             title="AI Recommendations"
             description="Get AI-powered insights and strategic recommendations based on your hotel data."
-            icon={<Brain className="h-6 w-6" />}
+            icon={<Sparkles className="h-6 w-6" />}
             route="/tools/ai-recommendations"
           />
           

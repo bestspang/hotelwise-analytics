@@ -11,7 +11,17 @@ import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Info, Plus, Trash2, BarChart as BarChartIcon, LineChart as LineChartIcon, PieChart as PieChartIcon, AreaChart as AreaChartIcon, Save, Download } from 'lucide-react';
+import { 
+  Info, 
+  Plus, 
+  Trash2, 
+  BarChart3, 
+  LineChart as LineChartIcon, 
+  PieChart as PieChartIcon, 
+  AreaChart as AreaChartIcon, 
+  Save, 
+  Download 
+} from 'lucide-react';
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 
@@ -166,6 +176,16 @@ const GraphBuilder: React.FC = () => {
   return (
     <MainLayout title="Custom Graph Builder" subtitle="Create your own visualizations">
       <div className="animate-fade-in">
+        <div className="flex items-center gap-3 mb-6">
+          <BarChart3 className="h-7 w-7 text-primary" />
+          <div>
+            <h2 className="text-2xl font-semibold">Custom Graph Builder</h2>
+            <p className="text-muted-foreground mt-1">
+              Create personalized visualizations of your hotel data
+            </p>
+          </div>
+        </div>
+        
         <div className="flex flex-col md:flex-row gap-6 md:items-start">
           {/* Control Panel */}
           <Card className="w-full md:w-1/3 lg:w-1/4">
