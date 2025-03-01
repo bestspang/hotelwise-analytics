@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { 
   BarChart3, 
-  Brain, The 
+  Brain,
   Calculator, 
   TrendingUp, 
   LineChart, 
