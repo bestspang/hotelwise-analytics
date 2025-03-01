@@ -32,21 +32,23 @@ const Dashboard: React.FC = () => {
       title="Hotel Performance Dashboard" 
       subtitle="Financial KPIs and operational metrics for strategic decision-making"
     >
-      {/* KPI Cards */}
-      <KPISection 
-        dashboardData={dashboardData} 
-        formatCurrency={formatCurrency} 
-        formatPercentage={formatPercentage} 
-      />
-      
-      {/* Charts */}
-      <ChartSection 
-        revParTrend={revParTrend}
-        gopparTrend={gopparTrend}
-        occupancyTrend={occupancyTrend}
-        revenueSegments={revenueSegments}
-        adrBySegment={adrBySegment}
-      />
+      <div className="space-y-8 animate-fade-in">
+        {/* KPI Cards */}
+        <KPISection 
+          dashboardData={dashboardData} 
+          formatCurrency={formatCurrency} 
+          formatPercentage={formatPercentage} 
+        />
+        
+        {/* Charts */}
+        <ChartSection 
+          revParTrend={revParTrend}
+          gopparTrend={gopparTrend}
+          occupancyTrend={occupancyTrend}
+          revenueSegments={revenueSegments}
+          adrBySegment={adrBySegment}
+        />
+      </div>
     </MainLayout>
   );
 };

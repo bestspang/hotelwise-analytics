@@ -43,7 +43,13 @@ const KpiCard: React.FC<KpiCardProps> = ({
   const formattedValue = typeof value === 'number' ? formatter(value) : value;
   
   return (
-    <Card className={cn("overflow-hidden transition-all duration-300 hover:shadow-medium", className)}>
+    <Card className={cn(
+      "overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-gray-100 dark:border-gray-800",
+      determinedTrend === 'up' && "bg-gradient-to-br from-white to-green-50 dark:from-gray-900 dark:to-green-950/30",
+      determinedTrend === 'down' && "bg-gradient-to-br from-white to-red-50 dark:from-gray-900 dark:to-red-950/30",
+      determinedTrend === 'neutral' && "bg-gradient-to-br from-white to-blue-50 dark:from-gray-900 dark:to-blue-950/30",
+      className
+    )}>
       <CardContent className="p-6">
         <div className="flex flex-col space-y-2">
           <div className="text-sm font-medium text-muted-foreground">{title}</div>

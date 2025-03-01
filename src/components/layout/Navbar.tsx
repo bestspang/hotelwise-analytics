@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { MenuIcon, X } from 'lucide-react';
+import { MenuIcon, X, Hotel } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -30,21 +30,18 @@ const Navbar: React.FC = () => {
   return (
     <header className={cn(
       "fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-in-out px-6 py-4",
-      isDashboard ? "bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800" : 
-      (isScrolled ? "glass shadow-soft" : "bg-transparent")
+      isDashboard 
+        ? "bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 shadow-sm" 
+        : (isScrolled ? "glass shadow-soft" : "bg-transparent")
     )}>
       <div className="container mx-auto flex items-center justify-between">
         <div className="flex flex-col items-start">
           <Link to="/" className="flex items-center space-x-2 text-2xl font-medium tracking-tight">
-            <div className="w-8 h-8 overflow-hidden rounded">
-              <img 
-                src="https://images.unsplash.com/photo-1496307653780-42ee777d4833?ixlib=rb-1.2.1&auto=format&fit=crop&w=128&q=80" 
-                alt="HotelWise Logo" 
-                className="w-full h-full object-cover"
-              />
+            <div className="w-9 h-9 bg-blue-600 flex items-center justify-center text-white rounded-lg shadow-md">
+              <Hotel className="w-5 h-5" />
             </div>
-            <span>
-              HotelWise<span className="text-blue-500">.</span>
+            <span className="font-semibold">
+              Hotel<span className="text-blue-600">Wise</span>
             </span>
           </Link>
           {isDashboard && (
@@ -60,7 +57,7 @@ const Navbar: React.FC = () => {
             <NavLink to="/dashboard" active={location.pathname === "/dashboard"}>Dashboard</NavLink>
             <NavLink to="/analytics" active={location.pathname === "/analytics"}>Analytics</NavLink>
             <NavLink to="/reports" active={location.pathname === "/reports"}>Reports</NavLink>
-            <Button variant="default" size="sm" className="ml-4 rounded-full px-6 shadow-soft">
+            <Button variant="default" size="sm" className="ml-4 rounded-full px-6 shadow-soft bg-blue-600 hover:bg-blue-700">
               Get Started
             </Button>
           </nav>
@@ -85,7 +82,7 @@ const Navbar: React.FC = () => {
             <MobileNavLink to="/dashboard" active={location.pathname === "/dashboard"}>Dashboard</MobileNavLink>
             <MobileNavLink to="/analytics" active={location.pathname === "/analytics"}>Analytics</MobileNavLink>
             <MobileNavLink to="/reports" active={location.pathname === "/reports"}>Reports</MobileNavLink>
-            <Button variant="default" size="lg" className="mt-8 w-full rounded-full shadow-soft">
+            <Button variant="default" size="lg" className="mt-8 w-full rounded-full shadow-soft bg-blue-600 hover:bg-blue-700">
               Get Started
             </Button>
           </nav>

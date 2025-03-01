@@ -24,7 +24,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   }, [isSidebarCollapsed]);
   
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-gray-50/50 dark:bg-gray-950 transition-colors duration-300">
       <Sidebar onCollapsedChange={setIsSidebarCollapsed} />
       <Header 
         title={title} 
@@ -34,7 +34,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       
       <main 
         className={cn(
-          "pt-16 transition-all duration-300 min-h-screen"
+          "pt-16 transition-all duration-300 min-h-screen bg-gradient-to-br from-transparent to-blue-50/20 dark:to-blue-950/10"
         )}
         style={{ marginLeft: `${sidebarWidth}px` }}
       >
