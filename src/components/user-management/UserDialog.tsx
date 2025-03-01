@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { UserData } from '@/types/user';
+import { UserData, UserRole } from '@/types/user';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -18,7 +18,7 @@ interface UserDialogProps {
   formData: {
     email: string;
     username: string;
-    role: string;
+    role: UserRole;
   };
   onFormChange: (e: React.ChangeEvent<HTMLInputElement> | { name: string; value: string }) => void;
   onSave: () => void;

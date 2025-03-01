@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { UserData, UserFormData } from '@/types/user';
+import { UserData, UserFormData, UserRole } from '@/types/user';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -45,8 +45,8 @@ const UserManagement: React.FC = () => {
         id: user.id,
         email: user.email,
         username: user.username,
-        role: user.role,
-        created_at: user.created_at,
+        role: user.user_role as UserRole, // Use user_role from database
+        created_at: user.updated_at, // Use updated_at as created_at if not available
         updated_at: user.updated_at
       })) as UserData[];
 
@@ -82,7 +82,7 @@ const UserManagement: React.FC = () => {
     e: React.ChangeEvent<HTMLInputElement> | { name: string; value: string }
   ) => {
     const { name, value } = 'target' in e ? e.target : e;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => ({ ...prev, [name]: value as any }));
   };
 
   const handleSave = async () => {
@@ -93,7 +93,7 @@ const UserManagement: React.FC = () => {
           .from('profiles')
           .update({
             username: formData.username,
-            role: formData.role
+            user_role: formData.role // Use user_role for database
           })
           .eq('id', editingUser.id);
           

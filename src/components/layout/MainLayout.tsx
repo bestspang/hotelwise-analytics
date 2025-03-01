@@ -26,7 +26,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         <div className={`${collapsed ? 'w-20' : 'w-64'} transition-all duration-300 ease-in-out`}>
           <Sidebar 
             collapsed={collapsed} 
-            onToggleCollapse={() => setCollapsed(!collapsed)} 
+            setCollapsed={setCollapsed} 
           />
         </div>
       )}
