@@ -3,9 +3,12 @@ import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RevenueSegment } from '@/utils/mockData';
+import { Info } from 'lucide-react';
+import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface RevenuePieChartProps {
   title: string;
+  tooltipInfo?: string;
   data: RevenueSegment[];
   valueLabel: string;
   animationDelay: string;
@@ -14,6 +17,7 @@ interface RevenuePieChartProps {
 
 const RevenuePieChart: React.FC<RevenuePieChartProps> = ({ 
   title, 
+  tooltipInfo,
   data, 
   valueLabel,
   animationDelay,
@@ -25,7 +29,23 @@ const RevenuePieChart: React.FC<RevenuePieChartProps> = ({
   return (
     <Card className="animate-slide-up h-full" style={{ animationDelay }}>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <div className="flex items-center gap-2">
+          <CardTitle className="text-sm font-medium">{title}</CardTitle>
+          {tooltipInfo && (
+            <TooltipProvider>
+              <UITooltip>
+                <TooltipTrigger asChild>
+                  <button className="inline-flex">
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs">
+                  <p className="text-sm">{tooltipInfo}</p>
+                </TooltipContent>
+              </UITooltip>
+            </TooltipProvider>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <div className="h-[220px]">

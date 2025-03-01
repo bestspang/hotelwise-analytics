@@ -3,18 +3,38 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { TrendDataPoint } from '@/utils/mockData';
+import { Info } from 'lucide-react';
+import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface OccupancyChartProps {
   occupancyTrend: TrendDataPoint[];
+  tooltipInfo?: string;
 }
 
 const OccupancyChart: React.FC<OccupancyChartProps> = ({
-  occupancyTrend
+  occupancyTrend,
+  tooltipInfo
 }) => {
   return (
     <Card className="animate-slide-up h-full" style={{ animationDelay: '0.5s' }}>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">Occupancy Rate Trend</CardTitle>
+        <div className="flex items-center gap-2">
+          <CardTitle className="text-sm font-medium">Occupancy Rate Trend</CardTitle>
+          {tooltipInfo && (
+            <TooltipProvider>
+              <UITooltip>
+                <TooltipTrigger asChild>
+                  <button className="inline-flex">
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs">
+                  <p className="text-sm">{tooltipInfo}</p>
+                </TooltipContent>
+              </UITooltip>
+            </TooltipProvider>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <div className="h-[220px]">

@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { ArrowUpIcon, ArrowDownIcon } from 'lucide-react';
 
 interface KpiCardProps {
-  title: string;
+  title: string | React.ReactNode;
   value: number | string;
   prefix?: string;
   suffix?: string;
@@ -46,7 +46,7 @@ const KpiCard: React.FC<KpiCardProps> = ({
     <Card className={cn("overflow-hidden transition-all duration-300 hover:shadow-medium", className)}>
       <CardContent className="p-6">
         <div className="flex flex-col space-y-2">
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
+          <div className="text-sm font-medium text-muted-foreground">{title}</div>
           
           <div className="flex items-baseline">
             {prefix && <span className="text-muted-foreground mr-1 text-sm">{prefix}</span>}
