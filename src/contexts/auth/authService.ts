@@ -33,8 +33,16 @@ export const fetchUserProfile = async (userId: string): Promise<UserProfile | nu
 };
 
 // Sign in function
-export const signIn = async (email: string, password: string): Promise<void> => {
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+export const signIn = async (email: string, password: string, rememberMe: boolean = false): Promise<void> => {
+  const { error } = await supabase.auth.signInWithPassword({ 
+    email, 
+    password,
+    options: {
+      // Set session duration based on "Remember me" checkbox
+      // 3600 = 1 hour (default), 86400 = 24 hours (extended)
+      expiresIn: rememberMe ? 86400 : 3600
+    }
+  });
   
   if (error) {
     throw error;
@@ -89,6 +97,32 @@ export const signOut = async (): Promise<void> => {
   }
   
   toast.success('Successfully signed out');
+};
+
+// Request password reset email
+export const requestPasswordReset = async (email: string): Promise<void> => {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + '/auth?reset=true',
+  });
+  
+  if (error) {
+    throw error;
+  }
+  
+  toast.success('Password reset email sent. Please check your inbox.');
+};
+
+// Update password with reset token
+export const updatePassword = async (password: string): Promise<void> => {
+  const { error } = await supabase.auth.updateUser({
+    password
+  });
+  
+  if (error) {
+    throw error;
+  }
+  
+  toast.success('Password successfully updated. You can now sign in with your new password.');
 };
 
 // Check permission based on role hierarchy

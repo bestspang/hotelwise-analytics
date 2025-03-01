@@ -11,6 +11,7 @@ export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sessionChecked, setSessionChecked] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -39,6 +40,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session) {
+          console.log('Found existing session:', session.user.id);
           const userProfile = await authService.fetchUserProfile(session.user.id);
           setUser(userProfile);
           
@@ -47,6 +49,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             navigate('/dashboard');
           }
         } else {
+          console.log('No active session found');
           setUser(null);
         }
       } catch (error) {
@@ -54,6 +57,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(null);
       } finally {
         setLoading(false);
+        setSessionChecked(true);
       }
     };
     
@@ -69,6 +73,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           navigate('/dashboard');
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
+          navigate('/auth');
+        } else if (event === 'USER_UPDATED' && session) {
+          const userProfile = await authService.fetchUserProfile(session.user.id);
+          setUser(userProfile);
         }
       }
     );
@@ -79,10 +87,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
   }, [navigate, location.pathname]);
 
-  const handleSignIn = async (email: string, password: string) => {
+  const handleSignIn = async (email: string, password: string, rememberMe: boolean = false) => {
     try {
       setLoading(true);
-      await authService.signIn(email, password);
+      await authService.signIn(email, password, rememberMe);
       // The redirect will be handled by the onAuthStateChange listener
     } catch (error: any) {
       console.error('Error signing in:', error);
@@ -132,6 +140,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const handleRequestPasswordReset = async (email: string) => {
+    try {
+      setLoading(true);
+      await authService.requestPasswordReset(email);
+    } catch (error: any) {
+      console.error('Error requesting password reset:', error);
+      toast.error(error.message || 'Failed to request password reset');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdatePassword = async (password: string) => {
+    try {
+      setLoading(true);
+      await authService.updatePassword(password);
+    } catch (error: any) {
+      console.error('Error updating password:', error);
+      toast.error(error.message || 'Failed to update password');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCheckPermission = (requiredRole: UserRole): boolean => {
     if (!user) return false;
     return authService.checkPermission(user.role, requiredRole);
@@ -140,12 +174,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   return (
     <AuthContext.Provider value={{ 
       user, 
-      loading, 
+      loading,
+      sessionChecked,
       signIn: handleSignIn, 
       signUp: handleSignUp, 
       signOut: handleSignOut,
       checkPermission: handleCheckPermission,
-      resendConfirmationEmail: handleResendConfirmation
+      resendConfirmationEmail: handleResendConfirmation,
+      requestPasswordReset: handleRequestPasswordReset,
+      updatePassword: handleUpdatePassword
     }}>
       {children}
     </AuthContext.Provider>
