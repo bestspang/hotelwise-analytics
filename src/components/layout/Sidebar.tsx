@@ -1,188 +1,165 @@
-
-import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import {
-  BarChart3,
-  Home,
+import React, { useState, useEffect } from 'react';
+import { 
+  LayoutDashboard, 
+  Calendar, 
+  Upload, 
+  Gauge, 
   Settings,
   ChevronLeft,
   ChevronRight,
-  LineChart,
-  Lightbulb,
-  Upload,
-  Hotel
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { usePathname } from 'next/navigation';
 
 interface SidebarProps {
-  onCollapsedChange?: (collapsed: boolean) => void;
-  className?: string;
+  onCollapsedChange: (collapsed: boolean) => void;
 }
 
-interface SidebarItemProps {
-  icon: React.ComponentType<any>;
-  text: string;
-  href: string;
-  active: boolean;
-  expanded: boolean;
-}
-
-const SidebarItem: React.FC<SidebarItemProps> = ({
-  icon: Icon,
-  text,
-  href,
-  active,
-  expanded
-}) => {
-  return (
-    <li>
-      <Link
-        to={href}
-        className={cn(
-          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
-          active 
-            ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" 
-            : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
-          !expanded && "justify-center px-2"
-        )}
-      >
-        <Icon className={cn(
-          "h-5 w-5", 
-          active 
-            ? "text-blue-600 dark:text-blue-400" 
-            : "text-sidebar-foreground/70"
-        )} />
-        <span className={cn(
-          "truncate transition-opacity duration-200",
-          !expanded && "opacity-0 w-0"
-        )}>
-          {text}
-        </span>
-      </Link>
-    </li>
-  );
-};
-
-const Sidebar: React.FC<SidebarProps> = ({ onCollapsedChange, className, ...props }) => {
-  const [collapsed, setCollapsed] = useState(false);
-  const location = useLocation();
+const Sidebar: React.FC<SidebarProps> = ({ onCollapsedChange }) => {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
+  const iconSize = 20;
   
-  const handleToggle = () => {
-    setCollapsed(!collapsed);
-    onCollapsedChange?.(!collapsed);
+  useEffect(() => {
+    onCollapsedChange(isCollapsed);
+  }, [isCollapsed, onCollapsedChange]);
+  
+  const toggleSidebar = () => {
+    setIsCollapsed(!isCollapsed);
   };
-
+  
+  const navigate = (path: string) => {
+    router.push(path);
+  };
+  
+  const menuItems = [
+    {
+      title: 'Dashboard',
+      icon: <LayoutDashboard size={iconSize} />,
+      path: '/dashboard',
+    },
+    {
+      title: 'Day Summary',
+      icon: <Calendar size={iconSize} />,
+      path: '/day-summary',
+    },
+    {
+      title: 'Data Upload',
+      icon: <Upload size={iconSize} />,
+      path: '/data-upload',
+    },
+    {
+      title: 'Tools',
+      icon: <Gauge size={iconSize} />,
+      path: '/tools',
+      submenu: [
+        {
+          title: 'Forecasting',
+          path: '/tools/forecasting',
+        },
+        {
+          title: 'Graph Builder',
+          path: '/tools/graph-builder',
+        },
+        {
+          title: 'AI Recommendations',
+          path: '/tools/ai-recommendations',
+        },
+      ],
+    },
+    {
+      title: 'Settings',
+      icon: <Settings size={iconSize} />,
+      path: '/settings',
+    },
+  ];
+  
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 z-30 flex h-screen flex-col border-r transition-all duration-300",
-        "bg-white dark:bg-gray-900 shadow-sm border-gray-200 dark:border-gray-800",
-        collapsed ? "w-[70px]" : "w-[240px]",
-        className
+        "bg-sidebar border-r border-gray-200 dark:border-gray-800 dark:bg-gray-900 transition-all duration-300 fixed top-0 left-0 h-full z-50",
+        isCollapsed ? 'w-[70px]' : 'w-[240px]'
       )}
-      {...props}
     >
-      <div className="flex h-16 items-center px-4">
-        <div className={cn(
-          "flex items-center transition-all duration-300",
-          collapsed ? "justify-center w-full" : "justify-start"
-        )}>
-          <div className="w-9 h-9 bg-blue-600 flex items-center justify-center text-white rounded-lg shadow-md">
-            <Hotel className="w-5 h-5" />
-          </div>
-          <span className={cn(
-            "ml-2 text-xl font-semibold transition-opacity duration-200",
-            collapsed && "opacity-0 w-0"
-          )}>
-            Hotel<span className="text-blue-600">Wise</span>
+      <div className="flex flex-col h-full">
+        {/* Header with Collapse Button */}
+        <div className="flex items-center justify-between p-4">
+          <span className={cn("text-lg font-semibold transition-all duration-300", isCollapsed ? 'opacity-0' : 'opacity-100')}>
+            Hotel Analytics
           </span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" onClick={toggleSidebar}>
+                  {isCollapsed ? <ChevronRight size={iconSize} /> : <ChevronLeft size={iconSize} />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
-      </div>
-      
-      <div className="flex flex-1 flex-col gap-2 px-3 py-4">
-        <Button
-          variant="outline"
-          size="icon"
-          className="absolute -right-3 top-20 hidden h-6 w-6 rounded-full border bg-background sm:flex shadow-md"
-          onClick={handleToggle}
-        >
-          {collapsed ? (
-            <ChevronRight className="h-3 w-3" />
-          ) : (
-            <ChevronLeft className="h-3 w-3" />
-          )}
-        </Button>
         
-        <nav className="flex flex-1 flex-col gap-1">
-          <ul className="flex flex-col gap-1">
-            <SidebarItem
-              icon={Home}
-              text="Dashboard"
-              href="/dashboard"
-              active={location.pathname === '/dashboard'}
-              expanded={!collapsed}
-            />
-
-            <SidebarItem
-              icon={Upload}
-              text="Data Upload"
-              href="/data-upload"
-              active={location.pathname === '/data-upload'}
-              expanded={!collapsed}
-            />
-          </ul>
-          
-          <div className="mt-3 px-2">
-            <div className={cn(
-              "mb-2 flex h-px rounded-full bg-gray-200 dark:bg-gray-700",
-              collapsed ? "w-5 mx-auto" : "w-full"
-            )} />
-            <h4 className={cn(
-              "mb-2 px-2 text-xs font-semibold uppercase text-sidebar-foreground/50 transition-opacity duration-200",
-              collapsed && "opacity-0"
-            )}>
-              Tools
-            </h4>
-          </div>
-          
-          <ul className="flex flex-col gap-1">
-            <SidebarItem
-              icon={BarChart3}
-              text="Graph Builder"
-              href="/tools/graph-builder"
-              active={location.pathname === '/tools/graph-builder'}
-              expanded={!collapsed}
-            />
-            
-            <SidebarItem
-              icon={LineChart}
-              text="Forecasting"
-              href="/tools/forecasting"
-              active={location.pathname === '/tools/forecasting'}
-              expanded={!collapsed}
-            />
-            
-            <SidebarItem
-              icon={Lightbulb}
-              text="AI Recommendations"
-              href="/tools/ai-recommendations"
-              active={location.pathname === '/tools/ai-recommendations'}
-              expanded={!collapsed}
-            />
+        {/* Menu Items */}
+        <nav className="flex-grow p-4">
+          <ul>
+            {menuItems.map((item) => (
+              <li key={item.title} className="mb-2 last:mb-0">
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild disabled={!isCollapsed}>
+                      <Button
+                        variant="ghost"
+                        className={cn(
+                          "flex items-center justify-start gap-2 w-full rounded-md px-3.5 py-2.5 text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800",
+                          pathname === item.path ? 'bg-gray-100 dark:bg-gray-800 font-semibold' : 'text-gray-600 dark:text-gray-400',
+                          isCollapsed ? 'justify-center' : 'justify-start'
+                        )}
+                        onClick={() => navigate(item.path)}
+                      >
+                        {item.icon}
+                        <span className={cn("transition-all duration-300", isCollapsed ? 'opacity-0' : 'opacity-100')}>{item.title}</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{item.title}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                
+                {item.submenu && (
+                  <ul className={cn("ml-4 mt-1 space-y-1 transition-all duration-300 overflow-hidden", isCollapsed ? 'max-h-0' : 'max-h-40')}>
+                    {item.submenu.map((subItem) => (
+                      <li key={subItem.title}>
+                        <Button
+                          variant="ghost"
+                          className={cn(
+                            "flex items-center justify-start gap-2 w-full rounded-md px-3.5 py-2 text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800",
+                            pathname === subItem.path ? 'bg-gray-100 dark:bg-gray-800 font-semibold' : 'text-gray-600 dark:text-gray-400'
+                          )}
+                          onClick={() => navigate(subItem.path)}
+                        >
+                          {subItem.title}
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
           </ul>
         </nav>
         
-        <div className="mt-auto">
-          <ul>
-            <SidebarItem
-              icon={Settings}
-              text="Settings"
-              href="/settings"
-              active={location.pathname === '/settings'}
-              expanded={!collapsed}
-            />
-          </ul>
+        {/* Footer */}
+        <div className={cn("p-4 border-t border-gray-200 dark:border-gray-800 transition-all duration-300", isCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100')}>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            &copy; {new Date().getFullYear()} Hotel Analytics
+          </p>
         </div>
       </div>
     </aside>
