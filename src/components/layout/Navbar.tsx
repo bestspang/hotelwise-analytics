@@ -9,6 +9,11 @@ const Navbar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
+  const isDashboard = location.pathname.includes('/dashboard') || 
+                      location.pathname.includes('/analytics') || 
+                      location.pathname.includes('/reports') ||
+                      location.pathname.includes('/tools') ||
+                      location.pathname.includes('/settings');
   
   useEffect(() => {
     const handleScroll = () => {
@@ -27,7 +32,8 @@ const Navbar: React.FC = () => {
   return (
     <header className={cn(
       "fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-in-out px-6 py-4",
-      isScrolled ? "glass shadow-soft" : "bg-transparent"
+      isDashboard ? "bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800" : 
+      (isScrolled ? "glass shadow-soft" : "bg-transparent")
     )}>
       <div className="container mx-auto flex items-center justify-between">
         <Link to="/" className="text-2xl font-medium tracking-tight">
@@ -36,29 +42,33 @@ const Navbar: React.FC = () => {
         </Link>
         
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center space-x-8">
-          <NavLink to="/" active={location.pathname === "/"}>Home</NavLink>
-          <NavLink to="/dashboard" active={location.pathname === "/dashboard"}>Dashboard</NavLink>
-          <NavLink to="/analytics" active={location.pathname === "/analytics"}>Analytics</NavLink>
-          <NavLink to="/reports" active={location.pathname === "/reports"}>Reports</NavLink>
-          <Button variant="default" size="sm" className="ml-4 rounded-full px-6 shadow-soft">
-            Get Started
-          </Button>
-        </nav>
+        {!isDashboard && (
+          <nav className="hidden md:flex items-center space-x-8">
+            <NavLink to="/" active={location.pathname === "/"}>Home</NavLink>
+            <NavLink to="/dashboard" active={location.pathname === "/dashboard"}>Dashboard</NavLink>
+            <NavLink to="/analytics" active={location.pathname === "/analytics"}>Analytics</NavLink>
+            <NavLink to="/reports" active={location.pathname === "/reports"}>Reports</NavLink>
+            <Button variant="default" size="sm" className="ml-4 rounded-full px-6 shadow-soft">
+              Get Started
+            </Button>
+          </nav>
+        )}
         
         {/* Mobile Menu Button */}
-        <Button 
-          onClick={() => setIsMenuOpen(!isMenuOpen)} 
-          variant="ghost" 
-          size="icon"
-          className="md:hidden"
-        >
-          {isMenuOpen ? <X size={24} /> : <MenuIcon size={24} />}
-        </Button>
+        {!isDashboard && (
+          <Button 
+            onClick={() => setIsMenuOpen(!isMenuOpen)} 
+            variant="ghost" 
+            size="icon"
+            className="md:hidden"
+          >
+            {isMenuOpen ? <X size={24} /> : <MenuIcon size={24} />}
+          </Button>
+        )}
       </div>
       
       {/* Mobile Navigation */}
-      {isMenuOpen && (
+      {isMenuOpen && !isDashboard && (
         <div className="md:hidden fixed inset-0 top-16 z-40 bg-background animate-fade-in">
           <nav className="flex flex-col items-center justify-center h-full space-y-8 p-8">
             <MobileNavLink to="/" active={location.pathname === "/"}>Home</MobileNavLink>
