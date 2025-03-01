@@ -74,6 +74,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onCollapsedChange }) => {
       path: '/settings',
     },
   ];
+
+  // Check if the current path is a submenu of a given item
+  const isSubMenuActive = (item: typeof menuItems[0]) => {
+    if (!item.submenu) return false;
+    return item.submenu.some(subItem => pathname === subItem.path);
+  };
   
   return (
     <aside
@@ -114,7 +120,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onCollapsedChange }) => {
                         variant="ghost"
                         className={cn(
                           "flex items-center justify-start gap-2 w-full rounded-md px-3.5 py-2.5 text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800",
-                          pathname === item.path ? 'bg-gray-100 dark:bg-gray-800 font-semibold' : 'text-gray-600 dark:text-gray-400',
+                          (pathname === item.path || isSubMenuActive(item)) ? 'bg-gray-100 dark:bg-gray-800 font-semibold' : 'text-gray-600 dark:text-gray-400',
                           isCollapsed ? 'justify-center' : 'justify-start'
                         )}
                         onClick={() => navigate(item.path)}
@@ -130,7 +136,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onCollapsedChange }) => {
                 </TooltipProvider>
                 
                 {item.submenu && (
-                  <ul className={cn("ml-4 mt-1 space-y-1 transition-all duration-300 overflow-hidden", isCollapsed ? 'max-h-0' : 'max-h-40')}>
+                  <ul className={cn("ml-4 mt-1 space-y-1 transition-all duration-300 overflow-hidden", 
+                    isCollapsed ? 'max-h-0' : 'max-h-40')}>
                     {item.submenu.map((subItem) => (
                       <li key={subItem.title}>
                         <Button
