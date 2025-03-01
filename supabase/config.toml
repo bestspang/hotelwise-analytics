@@ -24,11 +24,8 @@ enabled = true
 [realtime]
 enabled = true
 
-[[functions]]
-name = "upload-pdf"
+[functions.upload-pdf]
 verify_jwt = false
 
-[[functions]]
-name = "process-pdf"
+[functions.process-pdf]
 verify_jwt = false
-
