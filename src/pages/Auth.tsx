@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/auth';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,26 +23,19 @@ const Auth: React.FC = () => {
   const [emailSent, setEmailSent] = useState(false);
   const [resendEmail, setResendEmail] = useState('');
 
-  // Check for URL error parameters on mount
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const hashParams = new URLSearchParams(location.hash.substring(1));
     
-    // Check for error in hash (common with Supabase redirects)
-    const hashError = hashParams.get('error');
-    const hashErrorDescription = hashParams.get('error_description');
-    
-    if (hashError && hashErrorDescription) {
-      setAuthError(decodeURIComponent(hashErrorDescription));
+    if (hashParams.get('error') && hashParams.get('error_description')) {
+      setAuthError(decodeURIComponent(hashParams.get('error_description')));
     }
     
-    // Clean up URL if needed
-    if (hashError) {
+    if (hashParams.get('error')) {
       window.history.replaceState(null, '', location.pathname);
     }
   }, [location]);
 
-  // If user is already logged in, redirect to dashboard
   if (!loading && user) {
     return <Navigate to="/dashboard" replace />;
   }
