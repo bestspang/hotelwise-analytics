@@ -563,7 +563,8 @@ const renderChartByType = (
               dataKey="value"
               nameKey="name"
               label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-              labelLine={{ stroke: '#ccc', strokeWidth: 1, length: 10 }}
+              // Fix: Remove the 'length' property from labelLine and use a boolean or proper properties
+              labelLine={false}
             >
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
