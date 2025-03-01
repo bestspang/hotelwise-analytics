@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
-import { useMobile } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -16,7 +16,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   title = 'Dashboard',
   subtitle = 'Overview of your hotel performance',
 }) => {
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -24,14 +24,20 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       {/* Sidebar */}
       {!isMobile && (
         <div className={`${collapsed ? 'w-20' : 'w-64'} transition-all duration-300 ease-in-out`}>
-          <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+          <Sidebar 
+            collapsed={collapsed} 
+            onToggleCollapse={() => setCollapsed(!collapsed)} 
+          />
         </div>
       )}
 
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top navigation */}
-        <Header />
+        <Header 
+          title={title}
+          sidebarWidth={collapsed ? 80 : 256} 
+        />
         <Navbar title={title} subtitle={subtitle} />
 
         {/* Page content */}

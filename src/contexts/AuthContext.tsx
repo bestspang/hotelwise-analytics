@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -101,7 +100,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           email: data.email,
           username: data.username,
           // Map user_role from database to role in our frontend model
-          role: data.role as UserRole
+          role: data.user_role as UserRole
         });
       }
     } catch (error) {

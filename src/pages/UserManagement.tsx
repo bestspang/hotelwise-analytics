@@ -1,274 +1,285 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useEffect, useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
-import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell
+} from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Pencil, RefreshCw, Search, UserPlus } from 'lucide-react';
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
+} from '@/components/ui/select';
+import { toast } from 'sonner';
+import { User, Edit, Trash2 } from 'lucide-react';
 
-type UserRole = 'admin' | 'manager' | 'analyst';
-
-interface UserData {
+type ProfileData = {
   id: string;
   email: string;
-  username: string | null;
-  role: UserRole;
-  created_at: string;
+  username: string;
+  user_role: string;
   updated_at: string;
-}
+};
 
-const UserManagement: React.FC = () => {
-  const { checkPermission } = useAuth();
-  const { toast } = useToast();
-  const [users, setUsers] = useState<UserData[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<UserData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [editingUser, setEditingUser] = useState<UserData | null>(null);
-  const [selectedRole, setSelectedRole] = useState<UserRole>('analyst');
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+const UserManagement = () => {
+  const { user, checkPermission } = useAuth();
+  const [users, setUsers] = useState<ProfileData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<ProfileData | null>(null);
+  const [formData, setFormData] = useState({
+    email: '',
+    username: '',
+    user_role: 'analyst' as 'admin' | 'manager' | 'analyst'
+  });
 
-  // Fetch all users
+  useEffect(() => {
+    if (user && checkPermission('admin')) {
+      fetchUsers();
+    }
+  }, [user]);
+
   const fetchUsers = async () => {
     try {
-      setIsLoading(true);
+      setLoading(true);
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        throw error;
-      }
-
-      // Map database fields to our frontend model
-      const mappedData = data.map(user => ({
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        role: user.role,
-        created_at: user.created_at,
-        updated_at: user.updated_at
-      })) as UserData[];
-
-      setUsers(mappedData);
-      setFilteredUsers(mappedData);
+        .select('*');
+        
+      if (error) throw error;
+      
+      setUsers(data || []);
     } catch (error: any) {
-      console.error('Error fetching users:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to fetch users',
-        variant: 'destructive',
-      });
+      toast.error(`Error fetching users: ${error.message}`);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  // Filter users based on search query
-  useEffect(() => {
-    if (searchQuery) {
-      const filtered = users.filter(
-        (user) =>
-          user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (user.username && user.username.toLowerCase().includes(searchQuery.toLowerCase()))
-      );
-      setFilteredUsers(filtered);
-    } else {
-      setFilteredUsers(users);
-    }
-  }, [searchQuery, users]);
-
-  // Edit user role
-  const handleEditUser = (user: UserData) => {
-    setEditingUser(user);
-    setSelectedRole(user.role);
-    setIsEditDialogOpen(true);
-  };
-
-  const handleSaveUserRole = async () => {
-    if (!editingUser) return;
-
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role: selectedRole })
-        .eq('id', editingUser.id);
-
-      if (error) {
-        throw error;
-      }
-
-      toast({
-        title: 'Success',
-        description: `User role updated to ${selectedRole}`,
-      });
-
-      // Update local state
-      setUsers(
-        users.map((user) =>
-          user.id === editingUser.id ? { ...user, role: selectedRole } : user
-        )
-      );
-
-      setIsEditDialogOpen(false);
-    } catch (error: any) {
-      console.error('Error updating user role:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to update user role',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  // Format date for display
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleString();
   };
+
+  const handleOpenEditDialog = (user: ProfileData) => {
+    setEditingUser(user);
+    setFormData({
+      email: user.email,
+      username: user.username,
+      user_role: user.user_role as 'admin' | 'manager' | 'analyst'
+    });
+    setDialogOpen(true);
+  };
+
+  const handleOpenNewUserDialog = () => {
+    setEditingUser(null);
+    setFormData({
+      email: '',
+      username: '',
+      user_role: 'analyst'
+    });
+    setDialogOpen(true);
+  };
+
+  const handleFormChange = (
+    e: React.ChangeEvent<HTMLInputElement> | { name: string; value: string }
+  ) => {
+    const { name, value } = 'target' in e ? e.target : e;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSave = async () => {
+    try {
+      if (editingUser) {
+        // Update existing user
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            username: formData.username,
+            user_role: formData.user_role
+          })
+          .eq('id', editingUser.id);
+          
+        if (error) throw error;
+        toast.success('User updated successfully');
+      } else {
+        // Create new user
+        // In a real app, you would implement a proper user creation flow
+        // including auth.signUp and user profile creation
+        toast.info('User creation would be implemented here');
+      }
+      
+      setDialogOpen(false);
+      fetchUsers();
+    } catch (error: any) {
+      toast.error(`Error saving user: ${error.message}`);
+    }
+  };
+
+  const handleDelete = async (userId: string) => {
+    // In a real app, this would handle proper user deletion
+    toast.info(`User deletion would be implemented for ID: ${userId}`);
+    // You'd need to handle auth.admin.deleteUser and profile deletion
+  };
+
+  if (!user || !checkPermission('admin')) {
+    return (
+      <MainLayout title="Access Denied" subtitle="You don't have permission to access this page">
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Card className="w-full max-w-md">
+            <CardContent className="pt-6">
+              <div className="text-center space-y-4">
+                <User className="mx-auto h-12 w-12 text-muted-foreground" />
+                <h3 className="text-xl font-medium">Access Restricted</h3>
+                <p className="text-muted-foreground">
+                  You need administrator privileges to access user management.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
-    <MainLayout title="User Management" subtitle="Manage users and roles">
-      <div className="space-y-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>User Management</CardTitle>
-              <CardDescription>Manage user accounts and roles for the application</CardDescription>
-            </div>
-            <Button variant="outline" onClick={fetchUsers} disabled={isLoading}>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Refresh
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-6 flex items-center gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Search by email or username..."
-                  className="pl-8"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Username</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Created On</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+    <MainLayout title="User Management" subtitle="Manage user accounts and permissions">
+      <Card className="mb-6">
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-xl font-medium">Users</CardTitle>
+          <Button onClick={handleOpenNewUserDialog}>Add User</Button>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="text-center py-4">Loading users...</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Username</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Last Updated</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {users.map(user => (
+                  <TableRow key={user.id}>
+                    <TableCell className="font-medium">{user.username}</TableCell>
+                    <TableCell>{user.email}</TableCell>
+                    <TableCell className="capitalize">{user.user_role}</TableCell>
+                    <TableCell>{formatDate(user.updated_at)}</TableCell>
+                    <TableCell className="text-right space-x-2">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => handleOpenEditDialog(user)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleDelete(user.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8">
-                        Loading users...
-                      </TableCell>
-                    </TableRow>
-                  ) : filteredUsers.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8">
-                        No users found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredUsers.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell>{user.email}</TableCell>
-                        <TableCell>{user.username || '-'}</TableCell>
-                        <TableCell>
-                          <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                              user.role === 'admin'
-                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
-                                : user.role === 'manager'
-                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-                                : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                            }`}
-                          >
-                            {user.role}
-                          </span>
-                        </TableCell>
-                        <TableCell>{formatDate(user.created_at)}</TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditUser(user)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                            <span className="sr-only">Edit</span>
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+                ))}
+                {users.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-4">
+                      No users found
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
-        {/* Edit User Dialog */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Edit User Role</DialogTitle>
-              <DialogDescription>
-                Change the role for {editingUser?.email}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="role" className="text-right">
-                  Role
-                </Label>
-                <Select
-                  value={selectedRole}
-                  onValueChange={(value) => setSelectedRole(value as UserRole)}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select a role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="manager">Manager</SelectItem>
-                    <SelectItem value="analyst">Analyst</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingUser ? 'Edit User' : 'Add New User'}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                name="email"
+                value={formData.email}
+                onChange={handleFormChange}
+                disabled={!!editingUser}
+                placeholder="user@example.com"
+              />
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleSaveUserRole}>Save Changes</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                name="username"
+                value={formData.username}
+                onChange={handleFormChange}
+                placeholder="username"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="role">Role</Label>
+              <Select
+                value={formData.user_role}
+                onValueChange={value => handleFormChange({ name: 'user_role', value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="manager">Manager</SelectItem>
+                  <SelectItem value="analyst">Analyst</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave}>
+              {editingUser ? 'Update' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 };
