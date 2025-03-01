@@ -21,7 +21,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
-      {/* Sidebar - Fixed position */}
+      {/* Sidebar */}
       <Sidebar 
         collapsed={collapsed} 
         setCollapsed={setCollapsed} 

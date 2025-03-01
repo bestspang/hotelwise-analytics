@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -13,6 +14,8 @@ import {
   LineChart,
   Sparkles,
   LayoutDashboard,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -91,34 +94,46 @@ const Sidebar = ({ collapsed, setCollapsed }: SidebarProps) => {
   const navItems = getNavItems();
 
   return (
-    <div className="bg-sidebar-primary text-white h-screen w-64 flex flex-col overflow-hidden fixed left-0 top-0 z-30">
-      <div className="p-6">
-        <h1 className="text-xl font-bold">Hotel Analytics</h1>
+    <aside 
+      className={`fixed left-0 top-0 z-30 h-screen bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 transition-all duration-300 ${
+        collapsed ? 'w-20' : 'w-64'
+      }`}
+    >
+      {/* Logo and collapsible toggle */}
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
+        {!collapsed && <h1 className="text-xl font-bold text-gray-900 dark:text-white">Hotel Analytics</h1>}
+        <button 
+          onClick={() => setCollapsed(!collapsed)}
+          className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"
+        >
+          {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+        </button>
       </div>
 
-      <nav className="flex-1 overflow-y-auto py-4">
+      {/* Navigation Links */}
+      <nav className="mt-2 px-2">
         <ul className="space-y-1">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path || 
-                             (item.subItems && item.subItems.some(subItem => location.pathname === subItem.path));
+                            (item.subItems && item.subItems.some(subItem => location.pathname === subItem.path));
             
             return (
               <li key={item.path}>
                 <NavLink
                   to={item.path}
-                  className={`flex items-center px-6 py-3 text-gray-200 hover:bg-opacity-25 hover:bg-white transition-colors ${
+                  className={`flex items-center py-2.5 px-3 rounded-lg transition-colors ${
                     isActive 
-                      ? 'bg-white bg-opacity-25 text-white' 
-                      : 'text-gray-300'
+                      ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400' 
+                      : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800/60'
                   }`}
                 >
-                  {item.icon}
-                  <span className="ml-3">{item.name}</span>
+                  <span className="flex-shrink-0 w-5 h-5">{item.icon}</span>
+                  {!collapsed && <span className="ml-3 font-medium">{item.name}</span>}
                 </NavLink>
 
-                {/* Sub-menu items */}
-                {item.subItems && item.subItems.length > 0 && (
-                  <ul className="pl-12 mt-1 space-y-1">
+                {/* Sub-menu items - only show when not collapsed */}
+                {!collapsed && item.subItems && item.subItems.length > 0 && (
+                  <ul className="pl-10 mt-1 space-y-1">
                     {item.subItems
                       .filter((subItem) => checkPermission(subItem.requiredRole as any))
                       .map((subItem) => {
@@ -128,10 +143,10 @@ const Sidebar = ({ collapsed, setCollapsed }: SidebarProps) => {
                           <li key={subItem.path}>
                             <NavLink
                               to={subItem.path}
-                              className={`flex items-center py-2 text-sm ${
+                              className={`flex items-center py-2 px-2 text-sm rounded-md ${
                                 isSubActive 
-                                  ? 'text-white font-medium' 
-                                  : 'text-gray-400 hover:text-gray-200 transition-colors'
+                                  ? 'text-indigo-600 dark:text-indigo-400 font-medium' 
+                                  : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
                               }`}
                             >
                               {subItem.name}
@@ -147,24 +162,27 @@ const Sidebar = ({ collapsed, setCollapsed }: SidebarProps) => {
         </ul>
       </nav>
 
+      {/* User profile at bottom */}
       {user && (
-        <div className="border-t border-gray-700 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">{user.username || user.email}</p>
-              <p className="text-xs text-gray-400 capitalize">{user.role}</p>
-            </div>
+        <div className="absolute bottom-0 left-0 right-0 border-t border-gray-200 dark:border-gray-800 p-4">
+          <div className={`flex items-center ${collapsed ? 'justify-center' : 'justify-between'}`}>
+            {!collapsed && (
+              <div className="overflow-hidden">
+                <p className="text-sm font-medium truncate text-gray-900 dark:text-white">{user.username || user.email}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 capitalize truncate">{user.role}</p>
+              </div>
+            )}
             <button
               onClick={() => signOut()}
-              className="hover:bg-white hover:bg-opacity-20 p-2 rounded-full transition-colors"
+              className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"
               aria-label="Sign out"
             >
-              <LogOut className="h-5 w-5 text-gray-300" />
+              <LogOut className="h-4 w-4" />
             </button>
           </div>
         </div>
       )}
-    </div>
+    </aside>
   );
 };
 
