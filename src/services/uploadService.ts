@@ -21,6 +21,22 @@ export async function uploadPdfFile(file: File) {
     const fileName = `${Date.now()}_${file.name}`;
     const filePath = `uploads/${fileName}`;
     
+    // Create the storage bucket if it doesn't exist
+    const { data: bucketData, error: bucketError } = await supabase.storage
+      .getBucket('pdf_files');
+      
+    if (bucketError && bucketError.message.includes('The resource was not found')) {
+      const { error: createBucketError } = await supabase.storage
+        .createBucket('pdf_files', { public: false });
+        
+      if (createBucketError) {
+        console.error('Error creating bucket:', createBucketError);
+        toast.error(`Failed to create storage bucket: ${createBucketError.message}`);
+        return null;
+      }
+    }
+    
+    // Upload the file
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('pdf_files')
       .upload(filePath, file);
@@ -50,37 +66,43 @@ export async function uploadPdfFile(file: File) {
       return null;
     }
     
-    // Call the Edge Function to process the PDF
-    const { data: processingData, error: processingError } = await supabase.functions
-      .invoke('upload-pdf', {
-        body: { fileId: fileData.id, filePath }
-      });
-      
-    if (processingError) {
-      console.error('Error processing file:', processingError);
-      toast.error(`Failed to process ${file.name}`);
-      
-      // Update file status to error
-      // Since 'processing_error' doesn't exist in our schema, we'll use 'extracted_data' 
-      // to store error information
-      await supabase
-        .from('uploaded_files')
-        .update({ 
-          processed: true, 
-          extracted_data: { 
-            error: true, 
-            message: processingError.message 
-          } 
-        })
-        .eq('id', fileData.id);
+    // Call the Edge Function to process the PDF if it exists
+    try {
+      const { data: processingData, error: processingError } = await supabase.functions
+        .invoke('upload-pdf', {
+          body: { fileId: fileData.id, filePath }
+        });
         
-      return null;
+      if (processingError) {
+        console.error('Error processing file:', processingError);
+        toast.error(`Failed to process ${file.name}`);
+        
+        // Update file status to error
+        await supabase
+          .from('uploaded_files')
+          .update({ 
+            processed: true, 
+            extracted_data: { 
+              error: true, 
+              message: processingError.message 
+            } 
+          })
+          .eq('id', fileData.id);
+          
+        return null;
+      }
+      
+      return {
+        ...fileData,
+        processingResult: processingData
+      };
+    } catch (functionError) {
+      console.error('Edge function error:', functionError);
+      toast.warning(`File uploaded, but automatic processing failed. Manual processing may be required.`);
+      
+      // Even if processing fails, return the file data
+      return fileData;
     }
-    
-    return {
-      ...fileData,
-      processingResult: processingData
-    };
   } catch (error) {
     console.error('Unexpected error during upload:', error);
     toast.error(`An unexpected error occurred with ${file.name}`);
