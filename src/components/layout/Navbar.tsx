@@ -36,6 +36,7 @@ const Navbar: React.FC = () => {
       (isScrolled ? "glass shadow-soft" : "bg-transparent")
     )}>
       <div className="container mx-auto flex items-center justify-between">
+        {/* Logo - Always visible regardless of route */}
         <Link to="/" className="text-2xl font-medium tracking-tight">
           HotelWise
           <span className="text-blue-500">.</span>
