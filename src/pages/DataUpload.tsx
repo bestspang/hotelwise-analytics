@@ -1,48 +1,18 @@
+
 import React, { useState, useCallback } from 'react';
-import { useDropzone } from 'react-dropzone';
-import { Upload, FileText, CheckCircle, AlertCircle, X, Info, FileQuestion } from 'lucide-react';
+import { Info } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
-import { Button } from '@/components/ui/button';
-import { toast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
-
-type FileStatus = 'idle' | 'uploading' | 'processing' | 'success' | 'error';
-
-type UploadedFile = {
-  id: string;
-  file: File;
-  status: FileStatus;
-  progress: number;
-  message?: string;
-  previewData?: ExtractedData;
-};
-
-type ExtractedData = {
-  fileType: string;
-  date: string;
-  hotelName?: string;
-  records: Record<string, any>[];
-  metrics?: {
-    [key: string]: {
-      value: string | number;
-      selected: boolean;
-    };
-  };
-};
+import { toast } from '@/hooks/use-toast';
+import FileDropzone from '@/components/data-upload/FileDropzone';
+import FileList, { UploadedFile, FileStatus } from '@/components/data-upload/FileList';
+import DataPreviewDialog from '@/components/data-upload/DataPreviewDialog';
+import { generateMockData } from '@/components/data-upload/mockDataGenerator';
 
 const DataUpload: React.FC = () => {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [showPreview, setShowPreview] = useState(false);
   const [activeFileIndex, setActiveFileIndex] = useState(0);
-  const [currentTab, setCurrentTab] = useState('metrics');
   
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const newFiles = acceptedFiles.map(file => ({
@@ -58,14 +28,6 @@ const DataUpload: React.FC = () => {
       handleFileUpload(fileObj);
     });
   }, []);
-  
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'application/pdf': ['.pdf'],
-    },
-    multiple: true
-  });
   
   const handleFileUpload = async (fileObj: UploadedFile) => {
     try {
@@ -101,7 +63,7 @@ const DataUpload: React.FC = () => {
     id: string, 
     status: FileStatus, 
     message?: string, 
-    previewData?: ExtractedData
+    previewData?: UploadedFile['previewData']
   ) => {
     setFiles(prevFiles => 
       prevFiles.map(file => 
@@ -189,89 +151,7 @@ const DataUpload: React.FC = () => {
     );
   };
   
-  const getStatusIcon = (status: FileStatus) => {
-    switch (status) {
-      case 'uploading':
-      case 'processing':
-        return <Upload className="animate-pulse text-blue-500" />;
-      case 'success':
-        return <CheckCircle className="text-green-500" />;
-      case 'error':
-        return <AlertCircle className="text-red-500" />;
-      default:
-        return <FileText className="text-gray-500" />;
-    }
-  };
-  
-  const getStatusColor = (status: FileStatus) => {
-    switch (status) {
-      case 'uploading':
-      case 'processing':
-        return 'text-blue-700';
-      case 'success':
-        return 'text-green-700';
-      case 'error':
-        return 'text-red-700';
-      default:
-        return 'text-gray-700';
-    }
-  };
-  
   const activeFile = files[activeFileIndex];
-  const activeData = activeFile?.previewData;
-  
-  const generateMockData = (filename: string): ExtractedData => {
-    const isOccupancy = filename.toLowerCase().includes('occupancy');
-    const isFinancial = filename.toLowerCase().includes('financial') || filename.toLowerCase().includes('expense');
-    
-    if (isOccupancy) {
-      return {
-        fileType: 'Occupancy Report',
-        date: new Date().toISOString().split('T')[0],
-        hotelName: 'Grand Luxury Hotel',
-        records: Array(5).fill(0).map((_, i) => ({
-          _selected: true,
-          date: new Date(2023, 0, i + 1).toISOString().split('T')[0],
-          available: 120,
-          occupied: 85 + Math.floor(Math.random() * 20),
-          rate: (70.8 + Math.random() * 5).toFixed(1)
-        })),
-        metrics: {
-          occupancyRate: { value: '78.3%', selected: true },
-          averageDailyRate: { value: '$189.50', selected: true },
-          revPAR: { value: '$148.37', selected: true },
-          averageLOS: { value: '2.4 nights', selected: true }
-        }
-      };
-    } else if (isFinancial) {
-      return {
-        fileType: 'Financial Report',
-        date: new Date().toISOString().split('T')[0],
-        hotelName: 'Grand Luxury Hotel',
-        records: Array(5).fill(0).map((_, i) => ({
-          _selected: true,
-          category: ['Room Revenue', 'F&B Revenue', 'Other Revenue', 'Staff Expenses', 'Operating Expenses'][i],
-          amount: (10000 + Math.random() * 50000).toFixed(2),
-          percentage: (5 + Math.random() * 30).toFixed(1) + '%'
-        })),
-        metrics: {
-          totalRevenue: { value: '$245,867.00', selected: true },
-          roomRevenue: { value: '$175,432.00', selected: true },
-          fnbRevenue: { value: '$42,785.00', selected: true },
-          otherRevenue: { value: '$27,650.00', selected: true },
-          operationalExpenses: { value: '$138,945.00', selected: true },
-          netProfit: { value: '$106,922.00', selected: true }
-        }
-      };
-    } else {
-      return {
-        fileType: 'Unrecognized Document',
-        date: new Date().toISOString().split('T')[0],
-        records: [],
-        metrics: {}
-      };
-    }
-  };
   
   return (
     <MainLayout title="Data Upload" subtitle="Import and process PDF files">
@@ -292,236 +172,24 @@ const DataUpload: React.FC = () => {
           </CardContent>
         </Card>
         
-        <div
-          {...getRootProps()}
-          className={cn(
-            "border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition-colors",
-            isDragActive ? "border-primary bg-primary/5" : "border-gray-300 hover:border-primary/50"
-          )}
-        >
-          <input {...getInputProps()} />
-          <Upload className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-          <h3 className="text-lg font-medium mb-2">Drag & Drop PDF Files Here</h3>
-          <p className="text-muted-foreground mb-3">Or click to browse your files</p>
-          <p className="text-xs text-muted-foreground">Supported file types: PDF</p>
-        </div>
+        <FileDropzone onDrop={onDrop} />
         
         {files.length > 0 && (
-          <div className="mt-6">
-            <h3 className="text-lg font-medium mb-4">Uploaded Files</h3>
-            <div className="space-y-3">
-              {files.map((fileObj, index) => (
-                <Card key={fileObj.id} className="border overflow-hidden">
-                  <div className="p-4 flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      {getStatusIcon(fileObj.status)}
-                      <div>
-                        <p className="font-medium truncate max-w-md">{fileObj.file.name}</p>
-                        <p className={cn("text-sm", getStatusColor(fileObj.status))}>
-                          {fileObj.status === 'idle' ? 'Ready to upload' : fileObj.message}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      {fileObj.status === 'success' && (
-                        <Button 
-                          variant="outline" 
-                          onClick={() => handlePreview(index)}
-                          size="sm"
-                        >
-                          Preview
-                        </Button>
-                      )}
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => handleRemoveFile(fileObj.id)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  {fileObj.status === 'uploading' && (
-                    <div className="h-1 bg-gray-100">
-                      <div 
-                        className="h-full bg-blue-500 transition-all duration-300"
-                        style={{ width: `${fileObj.progress}%` }}
-                      />
-                    </div>
-                  )}
-                </Card>
-              ))}
-            </div>
-          </div>
+          <FileList 
+            files={files} 
+            onPreview={handlePreview} 
+            onRemove={handleRemoveFile} 
+          />
         )}
         
-        <Dialog open={showPreview} onOpenChange={setShowPreview}>
-          <DialogContent className="max-w-4xl">
-            <DialogHeader>
-              <DialogTitle>Data Preview</DialogTitle>
-              {activeData?.fileType === 'Unrecognized Document' && (
-                <DialogDescription className="text-amber-600 mt-2 flex items-center">
-                  <FileQuestion className="h-5 w-5 mr-2" />
-                  This document type could not be recognized. No extractable data was found.
-                </DialogDescription>
-              )}
-            </DialogHeader>
-            
-            {activeData && (
-              <div className="mt-4">
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div>
-                    <p className="text-sm text-muted-foreground">File Type</p>
-                    <p className="font-medium">{activeData.fileType}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Report Date</p>
-                    <p className="font-medium">{activeData.date}</p>
-                  </div>
-                  {activeData.hotelName && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Hotel</p>
-                      <p className="font-medium">{activeData.hotelName}</p>
-                    </div>
-                  )}
-                </div>
-                
-                {activeData.fileType === 'Unrecognized Document' ? (
-                  <div className="bg-amber-50 border border-amber-200 rounded-md p-6 text-center">
-                    <FileQuestion className="h-12 w-12 text-amber-500 mx-auto mb-3" />
-                    <h3 className="font-medium text-amber-800 mb-2">Unsupported Document Type</h3>
-                    <p className="text-amber-700 mb-4">
-                      This document doesn't match any of the supported formats for data extraction.
-                    </p>
-                    <p className="text-sm text-amber-600">
-                      Try uploading a file containing recognized keywords like "occupancy", "financial", or "expense".
-                    </p>
-                  </div>
-                ) : (
-                  <Tabs defaultValue="metrics" value={currentTab} onValueChange={setCurrentTab}>
-                    <TabsList className="mb-4">
-                      <TabsTrigger value="metrics">Key Metrics</TabsTrigger>
-                      <TabsTrigger value="records">Detailed Records</TabsTrigger>
-                    </TabsList>
-                    
-                    <TabsContent value="metrics">
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                          <h3 className="font-medium">Extracted Metrics</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Select metrics to import
-                          </p>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {activeData.metrics && Object.keys(activeData.metrics).length > 0 ? (
-                            Object.entries(activeData.metrics).map(([key, { value, selected }]) => (
-                              <div 
-                                key={key} 
-                                className={cn(
-                                  "p-4 border rounded-md flex items-center justify-between transition-colors", 
-                                  selected ? "border-primary/50 bg-primary/5" : "border-gray-200"
-                                )}
-                              >
-                                <div>
-                                  <Label htmlFor={`metric-${key}`} className="text-sm text-muted-foreground capitalize">
-                                    {key.replace(/([A-Z])/g, ' $1').trim()}
-                                  </Label>
-                                  <p className="font-medium">{value}</p>
-                                </div>
-                                <Checkbox
-                                  id={`metric-${key}`}
-                                  checked={selected}
-                                  onCheckedChange={() => toggleMetricSelection(key)}
-                                />
-                              </div>
-                            ))
-                          ) : (
-                            <div className="col-span-2 text-center py-8 text-muted-foreground">
-                              No metrics found in this document
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </TabsContent>
-                    
-                    <TabsContent value="records">
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                          <h3 className="font-medium">Detailed Records</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Select records to import
-                          </p>
-                        </div>
-                        
-                        {activeData.records.length > 0 ? (
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead className="w-12"></TableHead>
-                                {Object.keys(activeData.records[0])
-                                  .filter(key => key !== '_selected')
-                                  .map(key => (
-                                    <TableHead key={key} className="capitalize">
-                                      {key}
-                                    </TableHead>
-                                  ))
-                                }
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {activeData.records.map((record, index) => (
-                                <TableRow key={index}>
-                                  <TableCell>
-                                    <Checkbox
-                                      checked={record._selected}
-                                      onCheckedChange={() => toggleRowSelection(index)}
-                                    />
-                                  </TableCell>
-                                  {Object.entries(record)
-                                    .filter(([key]) => key !== '_selected')
-                                    .map(([key, value]) => (
-                                      <TableCell key={key}>{value}</TableCell>
-                                    ))
-                                  }
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        ) : (
-                          <div className="text-center py-8 text-muted-foreground">
-                            No detailed records found in this file
-                          </div>
-                        )}
-                      </div>
-                    </TabsContent>
-                  </Tabs>
-                )}
-              </div>
-            )}
-            
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button variant="outline">Cancel</Button>
-              </DialogClose>
-              {activeData?.fileType !== 'Unrecognized Document' && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button onClick={handleImport}>
-                        Import Selected Data
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>This will add the selected data to your database</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <DataPreviewDialog 
+          open={showPreview} 
+          onOpenChange={setShowPreview}
+          activeFile={activeFile}
+          onImport={handleImport}
+          onToggleMetric={toggleMetricSelection}
+          onToggleRow={toggleRowSelection}
+        />
       </div>
     </MainLayout>
   );
