@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { MenuIcon, X } from 'lucide-react';
@@ -24,7 +23,6 @@ const Navbar: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Close mobile menu when route changes
   useEffect(() => {
     setIsMenuOpen(false);
   }, [location.pathname]);
@@ -36,21 +34,26 @@ const Navbar: React.FC = () => {
       (isScrolled ? "glass shadow-soft" : "bg-transparent")
     )}>
       <div className="container mx-auto flex items-center justify-between">
-        {/* Logo - Always visible regardless of route */}
-        <Link to="/" className="flex items-center space-x-2 text-2xl font-medium tracking-tight">
-          <div className="w-8 h-8 overflow-hidden rounded">
-            <img 
-              src="https://images.unsplash.com/photo-1496307653780-42ee777d4833?ixlib=rb-1.2.1&auto=format&fit=crop&w=128&q=80" 
-              alt="HotelWise Logo" 
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <span>
-            HotelWise<span className="text-blue-500">.</span>
-          </span>
-        </Link>
+        <div className="flex flex-col items-start">
+          <Link to="/" className="flex items-center space-x-2 text-2xl font-medium tracking-tight">
+            <div className="w-8 h-8 overflow-hidden rounded">
+              <img 
+                src="https://images.unsplash.com/photo-1496307653780-42ee777d4833?ixlib=rb-1.2.1&auto=format&fit=crop&w=128&q=80" 
+                alt="HotelWise Logo" 
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <span>
+              HotelWise<span className="text-blue-500">.</span>
+            </span>
+          </Link>
+          {isDashboard && (
+            <div className="text-sm font-medium text-muted-foreground mt-1 ml-10">
+              Dashboard
+            </div>
+          )}
+        </div>
         
-        {/* Desktop Navigation */}
         {!isDashboard && (
           <nav className="hidden md:flex items-center space-x-8">
             <NavLink to="/" active={location.pathname === "/"}>Home</NavLink>
@@ -63,7 +66,6 @@ const Navbar: React.FC = () => {
           </nav>
         )}
         
-        {/* Mobile Menu Button */}
         {!isDashboard && (
           <Button 
             onClick={() => setIsMenuOpen(!isMenuOpen)} 
@@ -76,7 +78,6 @@ const Navbar: React.FC = () => {
         )}
       </div>
       
-      {/* Mobile Navigation */}
       {isMenuOpen && !isDashboard && (
         <div className="md:hidden fixed inset-0 top-16 z-40 bg-background animate-fade-in">
           <nav className="flex flex-col items-center justify-center h-full space-y-8 p-8">
@@ -94,7 +95,6 @@ const Navbar: React.FC = () => {
   );
 };
 
-// Desktop NavLink component
 interface NavLinkProps {
   to: string;
   active: boolean;
@@ -116,7 +116,6 @@ const NavLink: React.FC<NavLinkProps> = ({ to, active, children }) => (
   </Link>
 );
 
-// Mobile NavLink component
 const MobileNavLink: React.FC<NavLinkProps> = ({ to, active, children }) => (
   <Link
     to={to}
