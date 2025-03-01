@@ -66,16 +66,23 @@ export async function uploadPdfFile(file: File) {
       return null;
     }
     
-    // Call the Edge Function to process the PDF if it exists
+    // Show toast indicating that processing is starting
+    toast.info(`Processing ${file.name} with AI data extraction...`);
+    
+    // Call the new Edge Function to process the PDF with OpenAI
     try {
       const { data: processingData, error: processingError } = await supabase.functions
-        .invoke('upload-pdf', {
-          body: { fileId: fileData.id, filePath }
+        .invoke('process-pdf', {
+          body: { 
+            fileId: fileData.id, 
+            filePath,
+            filename: file.name 
+          }
         });
         
       if (processingError) {
-        console.error('Error processing file:', processingError);
-        toast.error(`Failed to process ${file.name}`);
+        console.error('Error processing file with AI:', processingError);
+        toast.error(`AI processing failed for ${file.name}`);
         
         // Update file status to error
         await supabase
@@ -91,6 +98,8 @@ export async function uploadPdfFile(file: File) {
           
         return null;
       }
+      
+      toast.success(`Successfully extracted data from ${file.name}`);
       
       return {
         ...fileData,

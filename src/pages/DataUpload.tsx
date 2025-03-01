@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { AlertTriangle, Upload, FileText, Trash2 } from 'lucide-react';
+import { AlertTriangle, Upload, FileText, Trash2, Brain } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import FileDropzone from '@/components/data-upload/FileDropzone';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +16,7 @@ const DataUpload = () => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [progress, setProgress] = useState(0);
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
+  const [processingStage, setProcessingStage] = useState<'uploading' | 'processing' | 'idle'>('idle');
 
   const handleFileDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
@@ -50,17 +51,29 @@ const DataUpload = () => {
         
         // Update progress for current file
         setProgress(Math.round((i / selectedFiles.length) * 100));
-        toast.info(`Processing ${file.name} (${i + 1}/${selectedFiles.length})`);
+        
+        // Set upload stage
+        setProcessingStage('uploading');
+        toast.info(`Uploading ${file.name} (${i + 1}/${selectedFiles.length})`);
+        
+        // Short delay to show uploading stage
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Set processing stage
+        setProcessingStage('processing');
+        toast.info(`AI processing ${file.name} (${i + 1}/${selectedFiles.length})`);
         
         await uploadPdfFile(file);
       }
       
       setProgress(100);
-      toast.success(`Successfully uploaded ${selectedFiles.length} file(s)`);
+      setProcessingStage('idle');
+      toast.success(`Successfully uploaded and processed ${selectedFiles.length} file(s)`);
       setSelectedFiles([]);
     } catch (error) {
       console.error('Error in file upload:', error);
       toast.error('There was an error processing your files');
+      setProcessingStage('idle');
     } finally {
       setIsUploading(false);
     }
@@ -72,7 +85,7 @@ const DataUpload = () => {
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Data Upload</h1>
           <p className="text-muted-foreground mt-2">
-            Upload PDF financial reports to automatically extract and analyze data
+            Upload PDF financial reports to automatically extract and analyze data using AI
           </p>
         </div>
         
@@ -84,7 +97,7 @@ const DataUpload = () => {
                 Upload Financial Reports
               </CardTitle>
               <CardDescription>
-                Drag and drop PDF files containing financial data to analyze
+                Drag and drop PDF files containing financial data for AI-powered analysis
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -93,6 +106,7 @@ const DataUpload = () => {
                 <AlertTitle>Important</AlertTitle>
                 <AlertDescription>
                   Supported formats include expense vouchers, monthly statistics, occupancy reports, and more.
+                  Our AI will automatically detect the document type and extract relevant data.
                 </AlertDescription>
               </Alert>
               
@@ -139,10 +153,30 @@ const DataUpload = () => {
                   {isUploading && (
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
-                        <span>Uploading {currentFileIndex + 1} of {selectedFiles.length}</span>
+                        <div className="flex items-center">
+                          <span>
+                            {processingStage === 'uploading' 
+                              ? `Uploading ${currentFileIndex + 1} of ${selectedFiles.length}` 
+                              : processingStage === 'processing' 
+                                ? (
+                                  <span className="flex items-center">
+                                    <Brain className="h-4 w-4 mr-2 text-purple-500 animate-pulse" />
+                                    AI processing {currentFileIndex + 1} of {selectedFiles.length}
+                                  </span>
+                                )
+                                : `Processing ${currentFileIndex + 1} of ${selectedFiles.length}`}
+                          </span>
+                        </div>
                         <span>{progress}%</span>
                       </div>
-                      <Progress value={progress} />
+                      <Progress value={progress} 
+                        className={processingStage === 'processing' ? "bg-purple-100" : ""}
+                      />
+                      {processingStage === 'processing' && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          AI is analyzing and extracting data from your document...
+                        </p>
+                      )}
                     </div>
                   )}
                   
@@ -150,9 +184,19 @@ const DataUpload = () => {
                     <Button 
                       onClick={uploadFiles} 
                       disabled={isUploading || selectedFiles.length === 0}
+                      className={processingStage === 'processing' ? "bg-purple-600 hover:bg-purple-700" : ""}
                     >
-                      <Upload className="mr-2 h-4 w-4" />
-                      {isUploading ? 'Uploading...' : 'Upload All Files'}
+                      {processingStage === 'processing' ? (
+                        <>
+                          <Brain className="mr-2 h-4 w-4 animate-pulse" />
+                          AI Processing...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="mr-2 h-4 w-4" />
+                          {isUploading ? 'Uploading...' : 'Upload & Process with AI'}
+                        </>
+                      )}
                     </Button>
                   </div>
                 </div>
