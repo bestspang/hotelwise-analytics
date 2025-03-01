@@ -1,249 +1,313 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Create a Supabase client
-const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
-const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-const openaiApiKey = Deno.env.get("OPENAI_API_KEY") || "";
+// Document type detection system prompts
+const SYSTEM_PROMPTS = {
+  default: "You are an expert financial document analyzer. Extract all relevant financial information from this hotel document image. Return the data in a JSON format.",
+  
+  // Specific document type prompts
+  "expense_voucher": `
+    You are a financial document analyzer for a hotel. 
+    Analyze this expense voucher image carefully and extract the following information:
+    - Document type (confirm if it's an Expense Voucher)
+    - Expense date
+    - Expense amount (numeric value)
+    - Expense type/category
+    - Taxes included (if available)
+    - Payment method (if available)
+    - Department charged (if available)
+    - Approver information (if available)
+    
+    Return a clean, structured JSON with these fields. Use null for any missing values.
+    Format numeric values without currency symbols. Use YYYY-MM-DD for dates.
+  `,
+  
+  "occupancy_report": `
+    You are a hotel operations analyst. 
+    Examine this occupancy report image and extract the following data points:
+    - Document type (confirm if it's an Occupancy Report)
+    - Report date
+    - Occupancy rate (percentage)
+    - Total rooms
+    - Occupied rooms
+    - Average Rate (ADR)
+    - RevPAR
+    - Breakdown by room types (if available)
+    - Comparison to forecast or budget (if available)
+    
+    Return a clean, structured JSON with these fields. Use null for any missing values.
+    Format numeric values without currency symbols. Use YYYY-MM-DD for dates.
+  `,
+  
+  "monthly_statistics": `
+    You are a hotel financial analyst.
+    Examine this monthly statistics report image and extract the following KPIs:
+    - Document type (confirm if it's a Monthly Statistics Report)
+    - Report month (YYYY-MM format)
+    - Occupancy rate (percentage)
+    - Average Daily Rate (ADR)
+    - RevPAR
+    - Total revenue
+    - Revenue breakdown (rooms, F&B, other) as percentages
+    - Year-over-year comparisons (if available)
+    - GOPPAR (if available)
+    
+    Return a clean, structured JSON with these fields. Use null for any missing values.
+    Format all monetary values without currency symbols. Express percentages as decimal values.
+  `,
+  
+  "night_audit": `
+    You are a hotel night auditor.
+    Analyze this night audit report image and extract the following information:
+    - Document type (confirm if it's a Night Audit Report)
+    - Audit date
+    - Total revenue
+    - Room revenue
+    - F&B revenue
+    - Other revenue
+    - Occupancy percent
+    - ADR
+    - Number of check-ins
+    - Number of check-outs
+    - Number of no-shows (if available)
+    
+    Return a clean, structured JSON with these fields. Use null for any missing values.
+    Format all monetary values without currency symbols.
+  `,
+  
+  "city_ledger": `
+    You are a hotel accounts receivable analyst.
+    Examine this city ledger report image and extract the following data:
+    - Document type (confirm if it's a City Ledger Report)
+    - Account name
+    - Reference number
+    - Opening balance
+    - Charges
+    - Payments
+    - Closing balance
+    - Aging breakdown (if available)
+    - Credit status (if available)
+    
+    Return a clean, structured JSON with these fields. Use null for any missing values.
+    Format all monetary values without currency symbols.
+  `,
+  
+  "no_show_report": `
+    You are a hotel revenue manager.
+    Analyze this no-show report image and extract the following information:
+    - Document type (confirm if it's a No-show Report)
+    - Report date
+    - Number of no-shows
+    - Potential revenue loss
+    - Booking sources (array of sources)
+    - No-show rate (if available)
+    - Actions taken or recommended (if available)
+    
+    Return a clean, structured JSON with these fields. Use null for any missing values.
+    Format all monetary values without currency symbols. Use YYYY-MM-DD for dates.
+  `
+};
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-async function fetchPdfFromStorage(filePath: string): Promise<ArrayBuffer> {
-  console.log(`Fetching PDF from storage: ${filePath}`);
-  
-  const { data, error } = await supabase.storage
-    .from("pdf_files")
-    .download(filePath);
-  
-  if (error) {
-    console.error("Error downloading PDF:", error);
-    throw new Error(`Failed to download PDF: ${error.message}`);
-  }
-  
-  if (!data) {
-    throw new Error("No data returned from storage");
-  }
-  
-  return await data.arrayBuffer();
-}
-
-async function pdfToImages(pdfBuffer: ArrayBuffer): Promise<string[]> {
+// Helper function to detect document type from image content
+async function detectDocumentType(base64Image: string, openaiApiKey: string): Promise<string> {
   try {
-    console.log("Converting PDF to images...");
-    
-    // We'll use PDFium to convert the PDF to images
-    // The PDF data needs to be sent to an API endpoint that can handle PDF rendering
-    // For this implementation, we'll use a simple approach 
-    // In a production environment, you might want to use a more robust solution
-    
-    // Convert the PDF buffer to base64
-    const base64Pdf = btoa(
-      new Uint8Array(pdfBuffer)
-        .reduce((data, byte) => data + String.fromCharCode(byte), "")
-    );
-    
-    // In a real implementation, you would process the PDF to extract multiple images
-    // For now, we'll just use the base64 PDF directly
-    // In production, you might use a PDF rendering service or library
-    
-    console.log("PDF converted to base64");
-    
-    // Return the base64 PDF as a single "image"
-    // In a real implementation, this would return multiple images, one for each page
-    return [base64Pdf];
-  } catch (error) {
-    console.error("Error converting PDF to images:", error);
-    throw new Error(`Failed to convert PDF to images: ${error.message}`);
-  }
-}
-
-async function extractDataWithOpenAI(
-  base64Images: string[],
-  documentType: string
-): Promise<any> {
-  console.log(`Extracting data with OpenAI for ${documentType}...`);
-  
-  try {
-    // Create a system prompt based on the document type
-    const systemPrompt = getSystemPromptForDocumentType(documentType);
-    
-    // Prepare the messages for OpenAI
-    const messages = [
-      {
-        role: "system",
-        content: systemPrompt,
-      },
-      {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: "Extract all relevant structured data from this document. Return the data as a clean JSON object with appropriate keys and values.",
-          },
-          ...base64Images.map((image) => ({
-            type: "image_url",
-            image_url: {
-              url: `data:application/pdf;base64,${image}`,
-            },
-          })),
-        ],
-      },
-    ];
-    
-    console.log("Sending request to OpenAI...");
-    
-    // Call the OpenAI API
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${openaiApiKey}`,
+        "Authorization": `Bearer ${openaiApiKey}`
       },
       body: JSON.stringify({
         model: "gpt-4o",
-        messages,
-        max_tokens: 4000,
-        temperature: 0.2,
-      }),
+        messages: [
+          {
+            role: "system",
+            content: "You are a document classification expert. Identify the type of hotel financial document in this image. Respond ONLY with one of these exact categories: 'Expense Voucher', 'Monthly Statistics', 'Occupancy Report', 'City Ledger', 'Night Audit', 'No-show Report', or 'Unknown'."
+          },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "What type of hotel financial document is this?" },
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:image/jpeg;base64,${base64Image}`
+                }
+              }
+            ]
+          }
+        ],
+        max_tokens: 50
+      })
     });
+
+    const data = await response.json();
     
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("OpenAI API error:", errorText);
-      throw new Error(`OpenAI API error: ${response.status} ${errorText}`);
+    if (data.error) {
+      console.error("OpenAI document type detection error:", data.error);
+      return "Unknown";
     }
     
-    const result = await response.json();
-    console.log("OpenAI response received");
+    // Extract document type from response
+    const docType = data.choices[0].message.content.trim();
+    console.log("Detected document type:", docType);
     
-    // Extract the JSON from the text response
-    const content = result.choices[0].message.content;
-    console.log("OpenAI content:", content);
-    
-    // Try to parse the JSON from the response
-    try {
-      // Look for JSON in the response
-      const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || 
-                        content.match(/```([\s\S]*?)```/) ||
-                        content.match(/(\{[\s\S]*\})/);
-      
-      const jsonStr = jsonMatch ? jsonMatch[1] : content;
-      const extracted = JSON.parse(jsonStr);
-      
-      // Add metadata about the extraction
-      const enhancedData = {
-        ...extracted,
-        documentType: documentType,
-        confidence: 95, // Placeholder, in real app would calculate based on API response
-        processingDate: new Date().toISOString(),
-      };
-      
-      return enhancedData;
-    } catch (parseError) {
-      console.error("Error parsing JSON from OpenAI response:", parseError);
-      throw new Error(`Failed to parse data from OpenAI: ${parseError.message}`);
-    }
+    return docType;
   } catch (error) {
-    console.error("Error in OpenAI extraction:", error);
-    throw new Error(`OpenAI extraction failed: ${error.message}`);
+    console.error("Error detecting document type:", error);
+    return "Unknown";
   }
 }
 
-function getSystemPromptForDocumentType(documentType: string): string {
-  // Base prompt for all document types
-  const basePrompt = `You are an AI assistant specialized in extracting data from hotel financial documents. 
-Extract all relevant information from the document image and return a structured JSON object.
-Your output must be valid, parseable JSON - nothing else. Wrap the JSON response in \`\`\`json\n\`\`\` code blocks.`;
-  
-  // Document-specific prompts
-  const documentPrompts: Record<string, string> = {
-    "Expense Voucher": `${basePrompt}
-For expense vouchers, include:
-- expenseType (string): The type of expense
-- expenseDate (ISO date string): The date of the expense
-- expenseAmount (number): The total amount
-- taxesIncluded (number): Amount of taxes included
-- remarks (string): Any additional notes
-- dbRecordId (string): a UUID generated for this record`,
+// Helper function to extract data from image using GPT-4 Vision
+async function extractDataFromImage(base64Image: string, documentType: string, openaiApiKey: string): Promise<any> {
+  try {
+    // Select appropriate system prompt based on document type
+    let systemPrompt = SYSTEM_PROMPTS.default;
     
-    "Monthly Statistics": `${basePrompt}
-For monthly statistics reports, include:
-- reportMonth (string in format 'YYYY-MM'): The month and year
-- occupancyRate (number): The occupancy rate as a percentage
-- averageDailyRate (number): The average daily rate
-- revPAR (number): Revenue per available room
-- totalRevenue (number): The total revenue
-- revenueBreakdown (object): With fields for rooms, foodAndBeverage, and other as decimal percentages (0.70 for 70%)
-- dbRecordId (string): a UUID generated for this record`,
+    // Convert document type to lowercase and replace spaces with underscores for prompt lookup
+    const promptKey = documentType.toLowerCase().replace(/\s+/g, "_");
+    if (SYSTEM_PROMPTS[promptKey]) {
+      systemPrompt = SYSTEM_PROMPTS[promptKey];
+    }
     
-    "Occupancy Report": `${basePrompt}
-For occupancy reports, include:
-- reportDate (ISO date string): The date of the report
-- occupancyRate (number): The occupancy rate as a percentage
-- averageRate (number): The average rate
-- revPAR (number): Revenue per available room
-- totalRooms (number): Total number of rooms
-- occupiedRooms (number): Number of occupied rooms
-- dbRecordId (string): a UUID generated for this record`,
+    console.log(`Using prompt for document type: ${documentType}`);
     
-    "City Ledger": `${basePrompt}
-For city ledger summaries, include:
-- accountName (string): The name of the account
-- referenceNumber (string): The reference number
-- openingBalance (number): The opening balance
-- charges (number): The charges
-- payments (number): The payments
-- closingBalance (number): The closing balance
-- dbRecordId (string): a UUID generated for this record`,
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${openaiApiKey}`
+      },
+      body: JSON.stringify({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: systemPrompt
+          },
+          {
+            role: "user",
+            content: [
+              { 
+                type: "text", 
+                text: "Extract all structured financial data from this document image and return it in JSON format." 
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:image/jpeg;base64,${base64Image}`
+                }
+              }
+            ]
+          }
+        ],
+        response_format: { type: "json_object" },
+        max_tokens: 1000
+      })
+    });
+
+    const data = await response.json();
     
-    "Night Audit": `${basePrompt}
-For night audit reports, include:
-- auditDate (ISO date string): The date of the audit
-- totalRevenue (number): The total revenue
-- roomRevenue (number): The room revenue
-- fbRevenue (number): The food and beverage revenue
-- occupancyPercent (number): The occupancy percentage
-- adr (number): The average daily rate
-- dbRecordId (string): a UUID generated for this record`,
+    if (data.error) {
+      console.error("OpenAI data extraction error:", data.error);
+      throw new Error(data.error.message);
+    }
     
-    "No-show Report": `${basePrompt}
-For no-show reports, include:
-- reportDate (ISO date string): The date of the report
-- numberOfNoShows (number): The number of no-shows
-- potentialRevenueLoss (number): The potential revenue loss
-- bookingSources (array of strings): The booking sources
-- dbRecordId (string): a UUID generated for this record`,
-  };
-  
-  return documentPrompts[documentType] || basePrompt;
+    // Parse the JSON string from the response
+    try {
+      const extractedData = JSON.parse(data.choices[0].message.content);
+      return extractedData;
+    } catch (parseError) {
+      console.error("Error parsing extracted data:", parseError);
+      console.log("Raw content:", data.choices[0].message.content);
+      return { error: "Failed to parse extracted data", raw: data.choices[0].message.content };
+    }
+  } catch (error) {
+    console.error("Error during extraction:", error);
+    return { error: error.message };
+  }
 }
 
-function detectDocumentType(filename: string): string {
-  // Simple document type detection based on filename
-  // In a real application, this would be more sophisticated
-  const lowerFilename = filename.toLowerCase();
-  
-  if (lowerFilename.includes("expense") || lowerFilename.includes("voucher")) {
-    return "Expense Voucher";
-  } else if (lowerFilename.includes("monthly") || lowerFilename.includes("statistics")) {
-    return "Monthly Statistics";
-  } else if (lowerFilename.includes("occupancy")) {
-    return "Occupancy Report";
-  } else if (lowerFilename.includes("ledger") || lowerFilename.includes("city")) {
-    return "City Ledger";
-  } else if (lowerFilename.includes("audit") || lowerFilename.includes("night")) {
-    return "Night Audit";
-  } else if (lowerFilename.includes("no-show") || lowerFilename.includes("noshow")) {
-    return "No-show Report";
-  } else {
-    return "Unknown";
+// Main function to process PDF file
+async function processPdfFile(fileId: string, filePath: string, filename: string, supabase: any, openaiApiKey: string) {
+  try {
+    console.log(`Processing PDF file: ${filename}, ID: ${fileId}`);
+    
+    // Download the file from storage
+    const { data: fileData, error: downloadError } = await supabase.storage
+      .from("pdf_files")
+      .download(filePath);
+      
+    if (downloadError) {
+      throw new Error(`Failed to download PDF: ${downloadError.message}`);
+    }
+    
+    // Convert the blob to base64
+    const arrayBuffer = await fileData.arrayBuffer();
+    const buffer = new Uint8Array(arrayBuffer);
+    const base64String = btoa(String.fromCharCode.apply(null, buffer));
+    
+    console.log(`PDF converted to base64, size: ${base64String.length} characters`);
+    
+    // For simplicity, we'll skip the PDF to image conversion step and use the PDF directly
+    // In a production environment, you'd want to convert the PDF to images first
+    
+    // Detect document type
+    const documentType = await detectDocumentType(base64String, openaiApiKey);
+    
+    // Extract data using OpenAI
+    const extractedData = await extractDataFromImage(base64String, documentType, openaiApiKey);
+    
+    // Add metadata to extracted data
+    const enrichedData = {
+      ...extractedData,
+      documentType: documentType,
+      confidence: 95, // Placeholder confidence score
+      processingDate: new Date().toISOString(),
+      dbRecordId: fileId,
+    };
+    
+    // Store the extracted data in the database
+    const { error: updateError } = await supabase
+      .from("uploaded_files")
+      .update({ 
+        document_type: documentType,
+        processed: true, 
+        extracted_data: enrichedData 
+      })
+      .eq("id", fileId);
+      
+    if (updateError) {
+      throw new Error(`Failed to update database: ${updateError.message}`);
+    }
+    
+    console.log(`Successfully processed file ${filename}, document type: ${documentType}`);
+    
+    return { success: true, documentType, extractedData: enrichedData };
+    
+  } catch (error) {
+    console.error(`Error processing file ${filename}:`, error);
+    
+    // Update the database with the error
+    await supabase
+      .from("uploaded_files")
+      .update({ 
+        processed: true, 
+        extracted_data: { 
+          error: true, 
+          message: error.message 
+        } 
+      })
+      .eq("id", fileId);
+      
+    return { success: false, error: error.message };
   }
 }
 
@@ -252,68 +316,50 @@ serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
-  
+
   try {
+    // Get OpenAI API key from environment variables
+    const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
+    if (!openaiApiKey) {
+      throw new Error("OPENAI_API_KEY is not set in environment variables");
+    }
+
+    // Create Supabase client
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error("Supabase environment variables are not set");
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Get request body
     const { fileId, filePath, filename } = await req.json();
     
-    if (!fileId || !filePath) {
-      return new Response(
-        JSON.stringify({ error: "Missing required parameters" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (!fileId || !filePath || !filename) {
+      throw new Error("Missing required parameters: fileId, filePath, or filename");
     }
     
-    console.log(`Processing file: ${filename || filePath} (ID: ${fileId})`);
+    // Process the PDF file
+    const result = await processPdfFile(fileId, filePath, filename, supabase, openaiApiKey);
     
-    // 1. Get the PDF from storage
-    const pdfBuffer = await fetchPdfFromStorage(filePath);
-    
-    // 2. Convert PDF to images
-    console.log("Starting PDF to image conversion");
-    const base64Images = await pdfToImages(pdfBuffer);
-    console.log(`Converted PDF to ${base64Images.length} images`);
-    
-    // 3. Detect document type
-    const documentType = detectDocumentType(filename || filePath);
-    console.log(`Detected document type: ${documentType}`);
-    
-    // 4. Extract data using OpenAI
-    console.log("Starting data extraction with OpenAI");
-    const extractedData = await extractDataWithOpenAI(base64Images, documentType);
-    console.log("Data extraction complete");
-    
-    // 5. Update the database with the extracted data
-    const { error: updateError } = await supabase
-      .from("uploaded_files")
-      .update({ 
-        processed: true,
-        extracted_data: extractedData,
-      })
-      .eq("id", fileId);
-    
-    if (updateError) {
-      console.error("Error updating database:", updateError);
-      return new Response(
-        JSON.stringify({ error: "Failed to update database", details: updateError }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-    
-    // 6. Return success response
+    // Return the result
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: "PDF processed successfully",
-        documentType,
-        extractedData,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify(result),
+      { 
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: result.success ? 200 : 500 
+      }
     );
   } catch (error) {
-    console.error("Error processing PDF:", error);
+    console.error("Error in process-pdf function:", error);
+    
     return new Response(
-      JSON.stringify({ error: "Failed to process PDF", details: error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: error.message }),
+      { 
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500 
+      }
     );
   }
 });

@@ -23,6 +23,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <div className="flex h-screen items-center justify-center">Loading...</div>;
   }
 
+  // TEMPORARY: Bypass authentication for testing
+  // Remove this line when you want to re-enable authentication
+  return <>{children}</>;
+
+  // The code below is the original authentication logic - currently bypassed
+  // It will be skipped due to the early return above
   if (!user) {
     // Redirect to login if not authenticated
     toast.error('Please log in to access this page');

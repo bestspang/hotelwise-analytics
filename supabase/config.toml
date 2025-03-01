@@ -31,3 +31,4 @@ verify_jwt = false
 [[functions]]
 name = "process-pdf"
 verify_jwt = false
+
