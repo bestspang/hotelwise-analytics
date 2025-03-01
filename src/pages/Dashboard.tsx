@@ -218,7 +218,10 @@ const Dashboard: React.FC = () => {
                         ))}
                       </Pie>
                       <Tooltip
-                        formatter={(value) => [`$${value.toLocaleString()}`, 'Revenue']}
+                        formatter={(value) => {
+                          // Ensure value is treated as a number before formatting
+                          return [`$${typeof value === 'number' ? value.toLocaleString() : value}`, 'Revenue'];
+                        }}
                         contentStyle={{
                           borderRadius: '0.5rem',
                           boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
@@ -257,7 +260,10 @@ const Dashboard: React.FC = () => {
                         ))}
                       </Pie>
                       <Tooltip
-                        formatter={(value) => [`$${value.toFixed(2)}`, 'ADR']}
+                        formatter={(value) => {
+                          // Ensure value is treated as a number before formatting
+                          return [`$${typeof value === 'number' ? value.toFixed(2) : value}`, 'ADR'];
+                        }}
                         contentStyle={{
                           borderRadius: '0.5rem',
                           boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
