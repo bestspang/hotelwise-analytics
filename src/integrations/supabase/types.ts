@@ -47,6 +47,53 @@ export type Database = {
           },
         ]
       }
+      city_ledger: {
+        Row: {
+          account_name: string
+          charges: number | null
+          closing_balance: number | null
+          created_at: string | null
+          hotel_id: string
+          ledger_date: string
+          ledger_id: string
+          opening_balance: number | null
+          payments: number | null
+          reference_number: string | null
+        }
+        Insert: {
+          account_name: string
+          charges?: number | null
+          closing_balance?: number | null
+          created_at?: string | null
+          hotel_id: string
+          ledger_date: string
+          ledger_id?: string
+          opening_balance?: number | null
+          payments?: number | null
+          reference_number?: string | null
+        }
+        Update: {
+          account_name?: string
+          charges?: number | null
+          closing_balance?: number | null
+          created_at?: string | null
+          hotel_id?: string
+          ledger_date?: string
+          ledger_id?: string
+          opening_balance?: number | null
+          payments?: number | null
+          reference_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "city_ledger_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["hotel_id"]
+          },
+        ]
+      }
       expense_details: {
         Row: {
           cost_per_occupied_room: number
@@ -78,6 +125,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "expense_details_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["hotel_id"]
+          },
+        ]
+      }
+      expense_vouchers: {
+        Row: {
+          created_at: string | null
+          expense_amount: number | null
+          expense_date: string
+          expense_type: string
+          hotel_id: string
+          remarks: string | null
+          taxes_included: number | null
+          voucher_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          expense_amount?: number | null
+          expense_date: string
+          expense_type: string
+          hotel_id: string
+          remarks?: string | null
+          taxes_included?: number | null
+          voucher_id?: string
+        }
+        Update: {
+          created_at?: string | null
+          expense_amount?: number | null
+          expense_date?: string
+          expense_type?: string
+          hotel_id?: string
+          remarks?: string | null
+          taxes_included?: number | null
+          voucher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_vouchers_hotel_id_fkey"
             columns: ["hotel_id"]
             isOneToOne: false
             referencedRelation: "hotels"
@@ -176,6 +264,62 @@ export type Database = {
           },
         ]
       }
+      guest_stays: {
+        Row: {
+          amount_paid: number | null
+          arrival_date: string
+          booking_source: string | null
+          created_at: string | null
+          departure_date: string
+          guest_name: string
+          nights: number
+          number_of_guests: number | null
+          remarks: string | null
+          room_id: string | null
+          stay_id: string
+          total_amount: number | null
+          voucher_number: string | null
+        }
+        Insert: {
+          amount_paid?: number | null
+          arrival_date: string
+          booking_source?: string | null
+          created_at?: string | null
+          departure_date: string
+          guest_name: string
+          nights: number
+          number_of_guests?: number | null
+          remarks?: string | null
+          room_id?: string | null
+          stay_id?: string
+          total_amount?: number | null
+          voucher_number?: string | null
+        }
+        Update: {
+          amount_paid?: number | null
+          arrival_date?: string
+          booking_source?: string | null
+          created_at?: string | null
+          departure_date?: string
+          guest_name?: string
+          nights?: number
+          number_of_guests?: number | null
+          remarks?: string | null
+          room_id?: string | null
+          stay_id?: string
+          total_amount?: number | null
+          voucher_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_stays_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "room_details"
+            referencedColumns: ["room_id"]
+          },
+        ]
+      }
       hotel_chains: {
         Row: {
           chain_id: string
@@ -223,6 +367,95 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hotel_chains"
             referencedColumns: ["chain_id"]
+          },
+        ]
+      }
+      night_audit_details: {
+        Row: {
+          audit_date: string
+          audit_id: string
+          balance: number | null
+          charges: number | null
+          created_at: string | null
+          hotel_id: string
+          notes: string | null
+          revenue: number | null
+          room_id: string | null
+          taxes: number | null
+        }
+        Insert: {
+          audit_date: string
+          audit_id?: string
+          balance?: number | null
+          charges?: number | null
+          created_at?: string | null
+          hotel_id: string
+          notes?: string | null
+          revenue?: number | null
+          room_id?: string | null
+          taxes?: number | null
+        }
+        Update: {
+          audit_date?: string
+          audit_id?: string
+          balance?: number | null
+          charges?: number | null
+          created_at?: string | null
+          hotel_id?: string
+          notes?: string | null
+          revenue?: number | null
+          room_id?: string | null
+          taxes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "night_audit_details_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "night_audit_details_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "room_details"
+            referencedColumns: ["room_id"]
+          },
+        ]
+      }
+      no_show_reports: {
+        Row: {
+          created_at: string | null
+          hotel_id: string
+          no_show_id: string
+          number_of_no_shows: number | null
+          potential_revenue_loss: number | null
+          report_date: string
+        }
+        Insert: {
+          created_at?: string | null
+          hotel_id: string
+          no_show_id?: string
+          number_of_no_shows?: number | null
+          potential_revenue_loss?: number | null
+          report_date: string
+        }
+        Update: {
+          created_at?: string | null
+          hotel_id?: string
+          no_show_id?: string
+          number_of_no_shows?: number | null
+          potential_revenue_loss?: number | null
+          report_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "no_show_reports_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["hotel_id"]
           },
         ]
       }
@@ -328,6 +561,44 @@ export type Database = {
           username?: string | null
         }
         Relationships: []
+      }
+      room_details: {
+        Row: {
+          created_at: string | null
+          hotel_id: string
+          rate_type: string | null
+          room_id: string
+          room_number: string
+          room_type: string
+          standard_rate: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          hotel_id: string
+          rate_type?: string | null
+          room_id?: string
+          room_number: string
+          room_type: string
+          standard_rate?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          hotel_id?: string
+          rate_type?: string | null
+          room_id?: string
+          room_number?: string
+          room_type?: string
+          standard_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_details_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["hotel_id"]
+          },
+        ]
       }
       uploaded_files: {
         Row: {
