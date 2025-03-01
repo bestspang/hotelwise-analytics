@@ -83,10 +83,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onCollapsedChange }) => {
 
   // Check if a specific path is active
   const isPathActive = (path: string) => {
-    if (path === '/dashboard' || path === '/tools') {
-      return pathname === path;
-    }
-    return pathname.startsWith(path);
+    return pathname === path || pathname.startsWith(path);
   };
   
   return (
