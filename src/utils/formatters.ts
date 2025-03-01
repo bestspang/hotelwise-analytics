@@ -1,4 +1,3 @@
-
 /**
  * Formats a number as currency
  */
@@ -20,4 +19,12 @@ export const formatPercent = (value: number): string => {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1
   }).format(value / 100);
+};
+
+/**
+ * Formats a date string
+ */
+export const formatDate = (dateString: string) => {
+  if (!dateString) return 'N/A';
+  return new Date(dateString).toLocaleString();
 };

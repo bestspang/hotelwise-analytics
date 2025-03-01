@@ -1,11 +1,15 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { MenuIcon, X, Hotel, BarChart2, LineChart, BrainCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-const Navbar: React.FC = () => {
+interface NavbarProps {
+  title?: string;
+  subtitle?: string;
+}
+
+const Navbar: React.FC<NavbarProps> = ({ title, subtitle }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
