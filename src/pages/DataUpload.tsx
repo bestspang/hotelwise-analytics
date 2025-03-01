@@ -5,16 +5,19 @@ import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
 import FileDropzone from '@/components/data-upload/FileDropzone';
-import FileList, { UploadedFile, FileStatus } from '@/components/data-upload/FileList';
+import FileList, { UploadedFile, FileStatus, ExtractedData } from '@/components/data-upload/FileList';
 import DataPreviewDialog from '@/components/data-upload/DataPreviewDialog';
-import { generateMockData } from '@/components/data-upload/mockDataGenerator';
+import { supabase } from '@/integrations/supabase/client';
 
 const DataUpload: React.FC = () => {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [showPreview, setShowPreview] = useState(false);
   const [activeFileIndex, setActiveFileIndex] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
   
   const onDrop = useCallback((acceptedFiles: File[]) => {
+    if (isUploading) return;
+    
     const newFiles = acceptedFiles.map(file => ({
       id: crypto.randomUUID(),
       file,
@@ -27,21 +30,49 @@ const DataUpload: React.FC = () => {
     newFiles.forEach(fileObj => {
       handleFileUpload(fileObj);
     });
-  }, []);
+  }, [isUploading]);
   
   const handleFileUpload = async (fileObj: UploadedFile) => {
     try {
+      setIsUploading(true);
       updateFileStatus(fileObj.id, 'uploading', 'Uploading file...');
       
-      await simulateProgress(fileObj.id);
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        setFiles(prevFiles => 
+          prevFiles.map(file => 
+            file.id === fileObj.id ? 
+              { ...file, progress: Math.min(file.progress + 10, 90) } : 
+              file
+          )
+        );
+      }, 300);
       
-      updateFileStatus(fileObj.id, 'processing', 'Extracting data...');
+      // Create form data
+      const formData = new FormData();
+      formData.append('file', fileObj.file);
       
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Upload to Supabase Edge Function
+      const response = await fetch('https://wyjfdvmzwilcxwuoceti.supabase.co/functions/v1/upload-pdf', {
+        method: 'POST',
+        body: formData,
+      });
       
-      const mockExtractedData = generateMockData(fileObj.file.name);
+      clearInterval(progressInterval);
       
-      updateFileStatus(fileObj.id, 'success', 'Data extracted successfully', mockExtractedData);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to upload file');
+      }
+      
+      const data = await response.json();
+      
+      updateFileStatus(
+        fileObj.id, 
+        'success', 
+        'Data extracted successfully', 
+        data.extractedData as ExtractedData
+      );
       
       toast({
         title: "File processed",
@@ -49,13 +80,15 @@ const DataUpload: React.FC = () => {
       });
     } catch (error) {
       console.error('Error processing file:', error);
-      updateFileStatus(fileObj.id, 'error', 'Failed to process file');
+      updateFileStatus(fileObj.id, 'error', error instanceof Error ? error.message : 'Failed to process file');
       
       toast({
         title: "Error",
         description: `Failed to process ${fileObj.file.name}`,
         variant: "destructive",
       });
+    } finally {
+      setIsUploading(false);
     }
   };
   
@@ -68,21 +101,10 @@ const DataUpload: React.FC = () => {
     setFiles(prevFiles => 
       prevFiles.map(file => 
         file.id === id 
-          ? { ...file, status, message, previewData: previewData || file.previewData } 
+          ? { ...file, status, message, previewData: previewData || file.previewData, progress: status === 'success' ? 100 : file.progress } 
           : file
       )
     );
-  };
-  
-  const simulateProgress = async (id: string) => {
-    for (let progress = 0; progress <= 100; progress += 10) {
-      await new Promise(resolve => setTimeout(resolve, 200));
-      setFiles(prevFiles => 
-        prevFiles.map(file => 
-          file.id === id ? { ...file, progress } : file
-        )
-      );
-    }
   };
   
   const handlePreview = (index: number) => {
@@ -90,15 +112,77 @@ const DataUpload: React.FC = () => {
     setShowPreview(true);
   };
   
-  const handleImport = () => {
+  const handleImport = async () => {
     const fileToImport = files[activeFileIndex];
     
-    toast({
-      title: "Data imported",
-      description: `Successfully imported data from ${fileToImport.file.name} to database`,
-    });
+    if (!fileToImport?.previewData) {
+      toast({
+        title: "Error",
+        description: "No data available to import",
+        variant: "destructive",
+      });
+      return;
+    }
     
-    setShowPreview(false);
+    try {
+      // Extract the selected metrics and records
+      const extractedData = fileToImport.previewData;
+      const fileType = extractedData.fileType;
+      
+      let selectedMetrics = {};
+      if (extractedData.metrics) {
+        Object.entries(extractedData.metrics).forEach(([key, { value, selected }]) => {
+          if (selected) {
+            selectedMetrics[key] = value;
+          }
+        });
+      }
+      
+      const selectedRecords = extractedData.records.filter(record => record._selected);
+      
+      // Based on the file type, insert data into the appropriate table
+      if (fileType === 'Financial Report') {
+        // For financial reports, we might insert into a financial_reports table
+        // This is simplified - in a real app, you'd parse the values properly
+        await supabase.from('financial_reports').insert({
+          report_date: extractedData.date,
+          hotel_id: '00000000-0000-0000-0000-000000000000', // Replace with actual hotel ID
+          report_type: 'Monthly',
+          total_revenue: parseNumericValue(selectedMetrics['totalRevenue']),
+          room_revenue: parseNumericValue(selectedMetrics['roomRevenue']),
+          fnb_revenue: parseNumericValue(selectedMetrics['fnbRevenue']),
+          other_revenue: parseNumericValue(selectedMetrics['otherRevenue']),
+          operational_expenses: parseNumericValue(selectedMetrics['operationalExpenses']),
+          net_profit: parseNumericValue(selectedMetrics['netProfit'])
+        });
+      } else if (fileType === 'Occupancy Report') {
+        // For occupancy reports
+        await supabase.from('occupancy_reports').insert({
+          date: extractedData.date,
+          hotel_id: '00000000-0000-0000-0000-000000000000', // Replace with actual hotel ID
+          total_rooms_available: parseInt(String(selectedMetrics['totalRoomsAvailable']).replace(/,/g, '')),
+          total_rooms_occupied: parseInt(String(selectedMetrics['totalRoomsOccupied']).replace(/,/g, '')),
+          occupancy_rate: parsePercentage(selectedMetrics['occupancyRate']),
+          average_daily_rate: parseNumericValue(selectedMetrics['averageDailyRate']),
+          revenue_per_available_room: parseNumericValue(selectedMetrics['revenuePerAvailableRoom']),
+          average_length_of_stay: parseFloat(String(selectedMetrics['averageLengthOfStay']).replace(' nights', ''))
+        });
+      }
+      
+      toast({
+        title: "Data imported",
+        description: `Successfully imported data from ${fileToImport.file.name} to database`,
+      });
+      
+      setShowPreview(false);
+    } catch (error) {
+      console.error('Error importing data:', error);
+      toast({
+        title: "Import failed",
+        description: error instanceof Error ? error.message : "An error occurred during import",
+        variant: "destructive",
+      });
+    }
   };
   
   const handleRemoveFile = (id: string) => {
@@ -151,6 +235,20 @@ const DataUpload: React.FC = () => {
     );
   };
   
+  // Helper function to parse currency values
+  const parseNumericValue = (value: any): number => {
+    if (typeof value === 'number') return value;
+    if (!value) return 0;
+    return parseFloat(String(value).replace(/[$,]/g, ''));
+  };
+  
+  // Helper function to parse percentage values
+  const parsePercentage = (value: any): number => {
+    if (typeof value === 'number') return value;
+    if (!value) return 0;
+    return parseFloat(String(value).replace('%', '')) / 100;
+  };
+  
   const activeFile = files[activeFileIndex];
   
   return (
@@ -172,7 +270,7 @@ const DataUpload: React.FC = () => {
           </CardContent>
         </Card>
         
-        <FileDropzone onDrop={onDrop} />
+        <FileDropzone onDrop={onDrop} isUploading={isUploading} />
         
         {files.length > 0 && (
           <FileList 

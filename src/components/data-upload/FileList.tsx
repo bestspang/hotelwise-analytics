@@ -39,8 +39,9 @@ const FileList: React.FC<FileListProps> = ({ files, onPreview, onRemove }) => {
   const getStatusIcon = (status: FileStatus) => {
     switch (status) {
       case 'uploading':
-      case 'processing':
         return <Upload className="animate-pulse text-blue-500" />;
+      case 'processing':
+        return <Upload className="animate-pulse text-purple-500" />;
       case 'success':
         return <CheckCircle className="text-green-500" />;
       case 'error':
@@ -53,8 +54,9 @@ const FileList: React.FC<FileListProps> = ({ files, onPreview, onRemove }) => {
   const getStatusColor = (status: FileStatus) => {
     switch (status) {
       case 'uploading':
-      case 'processing':
         return 'text-blue-700';
+      case 'processing':
+        return 'text-purple-700';
       case 'success':
         return 'text-green-700';
       case 'error':
@@ -94,16 +96,20 @@ const FileList: React.FC<FileListProps> = ({ files, onPreview, onRemove }) => {
                   variant="ghost" 
                   size="icon" 
                   onClick={() => onRemove(fileObj.id)}
+                  disabled={fileObj.status === 'uploading' || fileObj.status === 'processing'}
                 >
                   <X className="h-4 w-4" />
                 </Button>
               </div>
             </div>
             
-            {fileObj.status === 'uploading' && (
+            {(fileObj.status === 'uploading' || fileObj.status === 'processing') && (
               <div className="h-1 bg-gray-100">
                 <div 
-                  className="h-full bg-blue-500 transition-all duration-300"
+                  className={cn(
+                    "h-full transition-all duration-300",
+                    fileObj.status === 'uploading' ? "bg-blue-500" : "bg-purple-500"
+                  )}
                   style={{ width: `${fileObj.progress}%` }}
                 />
               </div>
