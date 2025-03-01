@@ -3,7 +3,7 @@ import React from 'react';
 import { Users, DollarSign, BarChart } from 'lucide-react';
 import { SummaryData } from '@/hooks/use-daily-summary-data';
 import KpiCard from '@/components/ui/KpiCard';
-import { Skeleton } from '@/components/ui/skeleton';
+import Skeleton from '@/components/ui/skeleton';
 
 interface KeyMetricsPanelProps {
   isLoading: boolean;
@@ -69,8 +69,7 @@ const KeyMetricsPanel: React.FC<KeyMetricsPanelProps> = ({
         trend="up"
         trendColor={true}
         formatter={(val) => val.toLocaleString()}
-        className="animate-slide-up"
-        style={{ animationDelay: '0.1s' }}
+        className="animate-slide-up delay-100"
       />
       
       <KpiCard
@@ -86,11 +85,10 @@ const KeyMetricsPanel: React.FC<KeyMetricsPanelProps> = ({
         trend="down"
         trendColor={true}
         formatter={(val) => val.toFixed(2)}
-        className="animate-slide-up"
-        style={{ animationDelay: '0.2s' }}
+        className="animate-slide-up delay-200"
       />
       
-      <div className="md:col-span-3 flex flex-col md:flex-row justify-between items-center gap-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 animate-slide-up" style={{ animationDelay: '0.3s' }}>
+      <div className="md:col-span-3 flex flex-col md:flex-row justify-between items-center gap-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 animate-slide-up delay-300">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium">Room Statistics:</span>
         </div>

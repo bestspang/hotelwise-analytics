@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sonner';
@@ -7,9 +8,9 @@ import DataUpload from '@/pages/DataUpload';
 import Settings from '@/pages/Settings';
 import NotFound from '@/pages/NotFound';
 import Tools from '@/pages/Tools';
-import Forecasting from '@/pages/Forecasting';
-import GraphBuilder from '@/pages/GraphBuilder';
-import AIRecommendations from '@/pages/AIRecommendations';
+import Forecasting from '@/pages/tools/Forecasting';
+import GraphBuilder from '@/pages/tools/GraphBuilder';
+import AIRecommendations from '@/pages/tools/AIRecommendations';
 import DaySummary from '@/pages/DaySummary';
 
 function App() {

@@ -1,8 +1,7 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RevenueItem } from '@/hooks/use-daily-summary-data';
-import { Skeleton } from '@/components/ui/skeleton';
+import Skeleton from '@/components/ui/skeleton';
 import { formatCurrency } from '@/utils/formatters';
 
 interface RevenueBreakdownProps {
