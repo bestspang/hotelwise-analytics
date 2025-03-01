@@ -41,6 +41,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (session) {
           const userProfile = await authService.fetchUserProfile(session.user.id);
           setUser(userProfile);
+          
+          // Redirect to dashboard if on auth page and user is authenticated
+          if (location.pathname === '/auth') {
+            navigate('/dashboard');
+          }
         } else {
           setUser(null);
         }
@@ -57,9 +62,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session);
         if (event === 'SIGNED_IN' && session) {
           const userProfile = await authService.fetchUserProfile(session.user.id);
           setUser(userProfile);
+          navigate('/dashboard');
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
         }
@@ -70,13 +77,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [navigate, location.pathname]);
 
   const handleSignIn = async (email: string, password: string) => {
     try {
       setLoading(true);
       await authService.signIn(email, password);
-      navigate('/dashboard');
+      // The redirect will be handled by the onAuthStateChange listener
     } catch (error: any) {
       console.error('Error signing in:', error);
       toast.error(error.message || 'Failed to sign in');

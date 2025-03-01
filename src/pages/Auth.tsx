@@ -35,7 +35,17 @@ const Auth: React.FC = () => {
     }
   }, [location]);
 
+  // Add a useEffect to check authentication and redirect
+  useEffect(() => {
+    if (!loading && user) {
+      console.log('User authenticated, redirecting to dashboard');
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, loading, navigate]);
+
+  // This also redirects if user is already authenticated
   if (!loading && user) {
+    console.log('User already authenticated, redirecting to dashboard');
     return <Navigate to="/dashboard" replace />;
   }
 
