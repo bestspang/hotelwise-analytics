@@ -86,6 +86,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onCollapsedChange }) => {
     return pathname === path || pathname.startsWith(path);
   };
   
+  // Handle navigation
+  const handleNavigation = (path: string) => {
+    navigate(path);
+  };
+  
   return (
     <aside
       className={cn(
@@ -121,20 +126,23 @@ const Sidebar: React.FC<SidebarProps> = ({ onCollapsedChange }) => {
                 <TooltipProvider delayDuration={300}>
                   <Tooltip>
                     <TooltipTrigger asChild disabled={!isCollapsed}>
-                      <Button
-                        variant="ghost"
-                        className={cn(
-                          "flex items-center justify-start gap-2 w-full rounded-md px-3.5 py-2.5 text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800",
-                          (isPathActive(item.path) || isSubMenuActive(item)) ? 'bg-gray-100 dark:bg-gray-800 font-semibold' : 'text-gray-600 dark:text-gray-400',
-                          isCollapsed ? 'justify-center' : 'justify-start'
-                        )}
-                        onClick={() => navigate(item.path)}
-                      >
-                        {item.icon}
-                        <span className={cn("transition-all duration-300", isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto')}>
-                          {item.title}
-                        </span>
-                      </Button>
+                      <div className="w-full">
+                        <Button
+                          variant="ghost"
+                          className={cn(
+                            "flex items-center justify-start gap-2 w-full rounded-md px-3.5 py-2.5 text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800",
+                            (isPathActive(item.path) || isSubMenuActive(item)) ? 'bg-gray-100 dark:bg-gray-800 font-semibold' : 'text-gray-600 dark:text-gray-400',
+                            isCollapsed ? 'justify-center' : 'justify-start'
+                          )}
+                          onClick={() => handleNavigation(item.path)}
+                          type="button"
+                        >
+                          {item.icon}
+                          <span className={cn("transition-all duration-300", isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto')}>
+                            {item.title}
+                          </span>
+                        </Button>
+                      </div>
                     </TooltipTrigger>
                     <TooltipContent side="right">
                       <p>{item.title}</p>
@@ -155,7 +163,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onCollapsedChange }) => {
                             "flex items-center justify-start gap-2 w-full rounded-md px-3.5 py-2 text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800",
                             pathname.startsWith(subItem.path) ? 'bg-gray-100 dark:bg-gray-800 font-semibold' : 'text-gray-600 dark:text-gray-400'
                           )}
-                          onClick={() => navigate(subItem.path)}
+                          onClick={() => handleNavigation(subItem.path)}
+                          type="button"
                         >
                           {subItem.title}
                         </Button>
