@@ -81,6 +81,45 @@ export const signUp = async (email: string, password: string, username: string):
   toast.success('Successfully signed up! Please check your email for confirmation.');
 };
 
+// Create test account function (bypasses email verification)
+export const createTestAccount = async (email: string, password: string, username: string, role: UserRole = 'analyst'): Promise<void> => {
+  try {
+    // First, create the auth user
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true, // This is the key - set email as already confirmed
+      user_metadata: { username }
+    });
+    
+    if (authError) throw authError;
+    
+    if (!authData.user) throw new Error('Failed to create user');
+    
+    // Now, create the profile with the specified role
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .insert({
+        id: authData.user.id,
+        email,
+        username,
+        user_role: role
+      });
+    
+    if (profileError) throw profileError;
+    
+    toast.success(`Test account created successfully: ${email}`);
+    
+    // Auto sign in with the new account
+    await signIn(email, password);
+    
+  } catch (error: any) {
+    console.error('Error creating test account:', error);
+    toast.error(`Failed to create test account: ${error.message}`);
+    throw error;
+  }
+};
+
 // Resend confirmation email
 export const resendConfirmationEmail = async (email: string): Promise<void> => {
   const { error } = await supabase.auth.resend({
