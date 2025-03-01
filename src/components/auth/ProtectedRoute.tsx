@@ -19,15 +19,16 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const location = useLocation();
   const isDevelopment = import.meta.env.DEV;
 
+  // For development mode, bypass all authentication requirements
+  if (isDevelopment) {
+    console.log('Development mode: Bypassing authentication checks');
+    return <>{children}</>;
+  }
+  
+  // In production, show loading state while checking auth
   if (loading) {
     // Could replace with a loading spinner component
     return <div className="flex h-screen items-center justify-center">Loading...</div>;
-  }
-
-  // For development mode, bypass authentication requirement
-  if (isDevelopment) {
-    console.log('Development mode: Bypassing authentication check');
-    return <>{children}</>;
   }
   
   // Authentication check for production mode
