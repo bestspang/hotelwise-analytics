@@ -21,18 +21,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
-      {/* Sidebar */}
-      {!isMobile && (
-        <div className={`${collapsed ? 'w-20' : 'w-64'} transition-all duration-300 ease-in-out`}>
-          <Sidebar 
-            collapsed={collapsed} 
-            setCollapsed={setCollapsed} 
-          />
-        </div>
-      )}
+      {/* Sidebar - Fixed position */}
+      <Sidebar 
+        collapsed={collapsed} 
+        setCollapsed={setCollapsed} 
+      />
 
-      {/* Main content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      {/* Main content - Adjusted for sidebar width */}
+      <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${collapsed ? 'ml-20' : 'ml-64'}`}>
         {/* Top navigation */}
         <Header 
           title={title}
