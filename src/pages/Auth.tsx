@@ -5,6 +5,7 @@ import AuthContainer from '@/components/auth/AuthContainer';
 import CreateTestAccount from '@/components/auth/CreateTestAccount';
 import { useAuthPage } from '@/hooks/useAuthPage';
 import { Button } from '@/components/ui/button';
+import { Wand2 } from 'lucide-react';
 
 const Auth: React.FC = () => {
   const {
@@ -57,11 +58,34 @@ const Auth: React.FC = () => {
           <p className="text-muted-foreground">Advanced analytics for hotel management</p>
           
           {isDevelopment && (
-            <div className="mt-4">
+            <div className="mt-4 flex flex-col gap-2">
               <Button asChild variant="secondary" className="bg-blue-100 text-blue-800 hover:bg-blue-200">
                 <Link to="/dashboard">
                   Enter Dev Mode (Skip Authentication)
                 </Link>
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="bg-amber-100 text-amber-800 hover:bg-amber-200 border-amber-300"
+                onClick={() => {
+                  // Auto create and sign in with a test account
+                  const testEmail = `test_${Math.floor(Math.random() * 10000)}@example.com`;
+                  const testPassword = 'password123';
+                  const testUsername = `TestUser${Math.floor(Math.random() * 10000)}`;
+                  
+                  handleEmailChange({ target: { value: testEmail } } as React.ChangeEvent<HTMLInputElement>);
+                  handlePasswordChange({ target: { value: testPassword } } as React.ChangeEvent<HTMLInputElement>);
+                  handleUsernameChange({ target: { value: testUsername } } as React.ChangeEvent<HTMLInputElement>);
+                  setActiveTab('signup');
+                  
+                  // Give state time to update
+                  setTimeout(() => {
+                    handleSignUp(new Event('submit') as React.FormEvent);
+                  }, 100);
+                }}
+              >
+                <Wand2 className="mr-2 h-4 w-4" /> Create & Login with Test Account
               </Button>
             </div>
           )}

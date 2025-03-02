@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, LogIn, Mail } from 'lucide-react';
+import { Eye, EyeOff, LogIn, Mail, Wand2 } from 'lucide-react';
 import { Checkbox } from "@/components/ui/checkbox";
 
 interface SignInFormProps {
@@ -31,6 +31,7 @@ const SignInForm: React.FC<SignInFormProps> = ({
   setRememberMe = () => {}
 }) => {
   const [showPassword, setShowPassword] = useState(false);
+  const isDevelopment = import.meta.env.DEV;
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onEmailChange(e);
@@ -116,6 +117,28 @@ const SignInForm: React.FC<SignInFormProps> = ({
               Forgot password?
             </a>
           </div>
+          
+          {isDevelopment && (
+            <div className="pt-2">
+              <Button 
+                type="button" 
+                variant="outline"
+                className="w-full bg-amber-100 text-amber-800 hover:bg-amber-200 border-amber-300"
+                onClick={() => {
+                  // Fill in some default login details
+                  onEmailChange({ target: { value: 'dev@example.com' } } as React.ChangeEvent<HTMLInputElement>);
+                  onPasswordChange({ target: { value: 'password123' } } as React.ChangeEvent<HTMLInputElement>);
+                  setRememberMe(true);
+                  // Submit the form after a short delay to allow state to update
+                  setTimeout(() => {
+                    document.forms[0].dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                  }, 100);
+                }}
+              >
+                <Wand2 className="mr-2 h-4 w-4" /> Developer Quick Login
+              </Button>
+            </div>
+          )}
         </CardContent>
         <CardFooter>
           <Button 
