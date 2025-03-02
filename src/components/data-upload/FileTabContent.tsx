@@ -9,14 +9,21 @@ interface FileTabContentProps {
   files: any[];
   onViewRawData: (file: any) => void;
   onDelete: (fileId: string) => void;
+  isActive: boolean; // Add this prop to check if tab is active
 }
 
 const FileTabContent: React.FC<FileTabContentProps> = ({ 
   tabValue, 
   files, 
   onViewRawData,
-  onDelete
+  onDelete,
+  isActive
 }) => {
+  // Only render if this tab is active to avoid TabsContent context issue
+  if (!isActive) {
+    return null;
+  }
+
   return (
     <TabsContent value={tabValue} className="mt-0">
       <div className="grid grid-cols-1 gap-4">

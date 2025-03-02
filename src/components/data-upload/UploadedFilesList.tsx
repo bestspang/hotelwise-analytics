@@ -8,6 +8,7 @@ import { AlertTriangle, RefreshCw, FileText } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import FileFilterTabs from './FileFilterTabs';
 import FileTabContent from './FileTabContent';
+import { Tabs } from '@/components/ui/tabs';
 
 const UploadedFilesList = () => {
   const [files, setFiles] = useState<any[]>([]);
@@ -101,7 +102,7 @@ const UploadedFilesList = () => {
       </CardHeader>
       <CardContent>
         {files.length > 0 ? (
-          <>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             <FileFilterTabs
               activeTab={activeTab}
               setActiveTab={setActiveTab}
@@ -115,6 +116,7 @@ const UploadedFilesList = () => {
               files={filterFilesByStatus('all')}
               onViewRawData={handleViewData}
               onDelete={handleDelete}
+              isActive={activeTab === 'all'}
             />
             
             <FileTabContent
@@ -122,6 +124,7 @@ const UploadedFilesList = () => {
               files={filterFilesByStatus('processed')}
               onViewRawData={handleViewData}
               onDelete={handleDelete}
+              isActive={activeTab === 'processed'}
             />
             
             <FileTabContent
@@ -129,6 +132,7 @@ const UploadedFilesList = () => {
               files={filterFilesByStatus('unprocessed')}
               onViewRawData={handleViewData}
               onDelete={handleDelete}
+              isActive={activeTab === 'unprocessed'}
             />
             
             {documentTypes.map((type) => (
@@ -138,9 +142,10 @@ const UploadedFilesList = () => {
                 files={filterFilesByStatus(type)}
                 onViewRawData={handleViewData}
                 onDelete={handleDelete}
+                isActive={activeTab === type.toLowerCase()}
               />
             ))}
-          </>
+          </Tabs>
         ) : (
           <Alert>
             <AlertTriangle className="h-4 w-4" />
