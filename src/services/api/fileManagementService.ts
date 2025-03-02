@@ -24,12 +24,20 @@ export async function deleteUploadedFile(fileId: string) {
     // Get the file info first to get the file path
     const { data: fileData, error: fileError } = await supabase
       .from('uploaded_files')
-      .select('file_path')
+      .select('file_path, filename')
       .eq('id', fileId)
       .single();
       
     if (fileError) {
-      return handleApiError(fileError, 'Failed to find the file to delete');
+      toast.error('Failed to find the file to delete');
+      console.error('Failed to find the file to delete:', fileError);
+      return false;
+    }
+    
+    if (!fileData || !fileData.file_path) {
+      toast.error('Invalid file data for deletion');
+      console.error('Invalid file data for deletion:', fileData);
+      return false;
     }
     
     // Delete from storage
@@ -38,7 +46,9 @@ export async function deleteUploadedFile(fileId: string) {
       .remove([fileData.file_path]);
       
     if (storageError) {
-      return handleApiError(storageError, 'Failed to delete file from storage');
+      toast.error(`Failed to delete file from storage: ${storageError.message}`);
+      console.error('Failed to delete file from storage:', storageError);
+      return false;
     }
     
     // Delete from database
@@ -48,12 +58,17 @@ export async function deleteUploadedFile(fileId: string) {
       .eq('id', fileId);
       
     if (dbError) {
-      return handleApiError(dbError, 'Failed to delete file record');
+      toast.error(`Failed to delete file record: ${dbError.message}`);
+      console.error('Failed to delete file record:', dbError);
+      return false;
     }
     
-    toast.success('File deleted successfully');
+    toast.success(`File "${fileData.filename}" deleted successfully`);
     return true;
   } catch (error) {
-    return handleApiError(error, 'An unexpected error occurred while deleting the file');
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    toast.error(`An unexpected error occurred while deleting the file: ${message}`);
+    console.error('Unexpected error deleting file:', error);
+    return false;
   }
 }

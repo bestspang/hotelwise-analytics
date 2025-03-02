@@ -45,6 +45,9 @@ const UploadCard: React.FC<UploadCardProps> = ({ onUploadComplete }) => {
     setCurrentFileIndex(0);
     
     try {
+      let successCount = 0;
+      let errorCount = 0;
+      
       // Process files one by one
       for (let i = 0; i < selectedFiles.length; i++) {
         setCurrentFileIndex(i);
@@ -55,27 +58,44 @@ const UploadCard: React.FC<UploadCardProps> = ({ onUploadComplete }) => {
         
         // Set upload stage
         setProcessingStage('uploading');
-        toast.info(`Uploading ${file.name} (${i + 1}/${selectedFiles.length})`);
         
         // Short delay to show uploading stage
         await new Promise(resolve => setTimeout(resolve, 500));
         
         // Set processing stage
         setProcessingStage('processing');
-        toast.info(`AI processing ${file.name} (${i + 1}/${selectedFiles.length})`);
         
-        await uploadPdfFile(file);
+        try {
+          const result = await uploadPdfFile(file);
+          if (result) {
+            successCount++;
+          } else {
+            errorCount++;
+          }
+        } catch (error) {
+          console.error(`Error uploading file ${file.name}:`, error);
+          errorCount++;
+        }
       }
       
       setProgress(100);
       setProcessingStage('idle');
-      toast.success(`Successfully uploaded and processed ${selectedFiles.length} file(s)`);
+      
+      // Show summary notification
+      if (errorCount === 0) {
+        toast.success(`Successfully uploaded ${successCount} file(s)`);
+      } else if (successCount === 0) {
+        toast.error(`Failed to upload all ${errorCount} file(s)`);
+      } else {
+        toast.warning(`Uploaded ${successCount} file(s) with ${errorCount} error(s)`);
+      }
+      
       setSelectedFiles([]);
       
       // Trigger refresh of uploaded files list
       onUploadComplete();
     } catch (error) {
-      console.error('Error in file upload:', error);
+      console.error('Error in file upload process:', error);
       toast.error('There was an error processing your files');
       setProcessingStage('idle');
     } finally {

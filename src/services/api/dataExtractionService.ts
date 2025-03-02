@@ -109,6 +109,9 @@ export async function reprocessFile(fileId: string) {
     };
     
     try {
+      // Show initial toast notification
+      toast.info(`Reprocessing ${fileData.filename}...`);
+      
       // Trigger reprocessing via Edge Function with retry
       const response = await invokeEdgeFunction();
       
@@ -132,7 +135,11 @@ export async function reprocessFile(fileId: string) {
         return null;
       }
       
-      toast.success('File reprocessing started successfully');
+      if (response?.data?.complete) {
+        toast.success(`${fileData.filename} reprocessed successfully`);
+      } else {
+        toast.success(`File reprocessing started successfully`);
+      }
       
       return response?.data;
     } catch (error) {

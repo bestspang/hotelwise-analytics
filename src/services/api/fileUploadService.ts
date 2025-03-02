@@ -117,7 +117,12 @@ export async function uploadPdfFile(file: File) {
         return null;
       }
       
-      toast.success(`${file.name} uploaded. Processing will continue in the background.`);
+      // Only show success notification for immediate processing, otherwise show the "in progress" notification
+      if (processingData?.complete) {
+        toast.success(`${file.name} uploaded and processed successfully.`);
+      } else {
+        toast.info(`${file.name} uploaded. Processing will continue in the background.`);
+      }
       
       return {
         ...fileData,

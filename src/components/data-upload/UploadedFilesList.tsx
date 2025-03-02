@@ -9,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import FileFilterTabs from './FileFilterTabs';
 import FileTabContent from './FileTabContent';
 import { Tabs } from '@/components/ui/tabs';
+import { toast } from 'sonner';
 
 const UploadedFilesList = () => {
   const [files, setFiles] = useState<any[]>([]);
@@ -16,6 +17,7 @@ const UploadedFilesList = () => {
   const [selectedFile, setSelectedFile] = useState<any>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
+  const [lastRefresh, setLastRefresh] = useState(new Date());
 
   const fetchFiles = async () => {
     setIsLoading(true);
@@ -25,6 +27,7 @@ const UploadedFilesList = () => {
       setFiles(uploadedFiles);
     } catch (error) {
       console.error('Error fetching files:', error);
+      toast.error('Failed to fetch uploaded files');
     } finally {
       setIsLoading(false);
     }
@@ -33,14 +36,23 @@ const UploadedFilesList = () => {
   useEffect(() => {
     fetchFiles();
     
-    const intervalId = setInterval(fetchFiles, 15000);
+    // Poll for updates every 10 seconds
+    const intervalId = setInterval(fetchFiles, 10000);
     return () => clearInterval(intervalId);
-  }, []);
+  }, [lastRefresh]);
 
   const handleDelete = async (fileId: string) => {
-    const success = await deleteUploadedFile(fileId);
-    if (success) {
-      setFiles(files.filter(file => file.id !== fileId));
+    try {
+      const success = await deleteUploadedFile(fileId);
+      if (success) {
+        setFiles(files.filter(file => file.id !== fileId));
+        if (previewOpen && selectedFile && selectedFile.id === fileId) {
+          setPreviewOpen(false);
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting file:', error);
+      toast.error('Failed to delete file');
     }
   };
 
@@ -54,17 +66,37 @@ const UploadedFilesList = () => {
   };
 
   const handleRefresh = () => {
-    fetchFiles();
+    setLastRefresh(new Date());
+    toast.info('Refreshing file list...');
   };
 
   const filterFilesByStatus = (status: string) => {
     if (status === 'all') return files;
-    if (status === 'processed') return files.filter(file => file.processed);
-    if (status === 'unprocessed') return files.filter(file => !file.processed);
     
-    return files.filter(file => 
-      file.document_type && file.document_type.toLowerCase() === status.toLowerCase()
-    );
+    if (status === 'processed') {
+      return files.filter(file => 
+        file.processed && 
+        file.extracted_data && 
+        !file.processing && 
+        !file.extracted_data.error
+      );
+    }
+    
+    if (status === 'unprocessed') {
+      return files.filter(file => 
+        !file.processed || 
+        file.processing || 
+        !file.extracted_data || 
+        (file.processed && file.extracted_data && file.extracted_data.error)
+      );
+    }
+    
+    return files.filter(file => {
+      const docType = file.document_type || 
+        (file.extracted_data && file.extracted_data.documentType);
+      
+      return docType && docType.toLowerCase() === status.toLowerCase();
+    });
   };
 
   const getFileCount = (status: string) => {
@@ -82,10 +114,10 @@ const UploadedFilesList = () => {
 
   const getDocumentTypeCount = (type: string) => {
     return files.filter(file => {
-      return (
-        file.document_type === type || 
-        (file.extracted_data && file.extracted_data.documentType === type)
-      );
+      const docType = file.document_type || 
+        (file.extracted_data && file.extracted_data.documentType);
+      
+      return docType === type;
     }).length;
   };
 
@@ -139,7 +171,7 @@ const UploadedFilesList = () => {
               <FileTabContent
                 key={type}
                 tabValue={type.toLowerCase()}
-                files={filterFilesByStatus(type)}
+                files={filterFilesByStatus(type.toLowerCase())}
                 onViewRawData={handleViewData}
                 onDelete={handleDelete}
                 isActive={activeTab === type.toLowerCase()}
@@ -165,7 +197,6 @@ const UploadedFilesList = () => {
           onClose={handleClosePreview}
           onDelete={() => {
             handleDelete(selectedFile.id);
-            handleClosePreview();
           }}
         />
       )}

@@ -50,18 +50,16 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ file, onViewRawDa
 
   // Function to handle reprocessing of a file
   const handleReprocess = async () => {
-    if (isReprocessing) return;
+    if (isReprocessing || isProcessing) return;
     
     setIsReprocessing(true);
-    toast.info(`Reprocessing ${file.filename}...`);
     
     try {
       const result = await reprocessFile(file.id);
       if (result === null) {
         toast.error(`Failed to reprocess ${file.filename}. Please try again later.`);
-      } else {
-        toast.success(`Reprocessing of ${file.filename} started successfully`);
       }
+      // Success toast is shown in the reprocessFile function
     } catch (error) {
       console.error('Error reprocessing file:', error);
       toast.error(`Failed to reprocess ${file.filename}: ${error instanceof Error ? error.message : 'Unknown error'}`);

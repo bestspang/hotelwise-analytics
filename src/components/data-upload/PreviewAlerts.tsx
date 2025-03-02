@@ -2,7 +2,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertTriangle, AlertCircle } from 'lucide-react';
+import { AlertTriangle, AlertCircle, Clock } from 'lucide-react';
 
 interface PreviewAlertsProps {
   file: any;
@@ -15,9 +15,13 @@ const PreviewAlerts: React.FC<PreviewAlertsProps> = ({
   openDiscrepancyDialog, 
   openOverlapDialog 
 }) => {
-  // Check if file has no extracted data yet
-  const noExtractedData = !file.extracted_data || 
-    (file.extracted_data && Object.keys(file.extracted_data).length === 0);
+  // Check if file is still processing
+  const isProcessing = file.processing === true;
+  
+  // Check if file has no extracted data yet or is unprocessed
+  const noExtractedData = !file.processed || 
+    !file.extracted_data || 
+    Object.keys(file.extracted_data).length === 0;
 
   // Check if file extraction had an error
   const hasExtractionError = file.extracted_data && file.extracted_data.error;
@@ -32,13 +36,24 @@ const PreviewAlerts: React.FC<PreviewAlertsProps> = ({
 
   return (
     <>
-      {noExtractedData && (
+      {isProcessing && (
+        <Alert variant="default" className="my-4 border-amber-500">
+          <Clock className="h-4 w-4 text-amber-500" />
+          <AlertTitle className="text-amber-500">Processing In Progress</AlertTitle>
+          <AlertDescription>
+            This file is currently being processed. Please check back in a few moments.
+            The results will appear automatically once processing is complete.
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {!isProcessing && noExtractedData && (
         <Alert variant="default" className="my-4">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>No Data Available</AlertTitle>
           <AlertDescription>
-            This file is still being processed or has not been processed yet. 
-            Check back later or reload the extraction process.
+            This file has not been processed yet or processing has failed. 
+            Click "Reload Extraction" to attempt processing again.
           </AlertDescription>
         </Alert>
       )}
