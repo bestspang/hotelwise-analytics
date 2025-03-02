@@ -16,7 +16,7 @@ export interface DataMapping {
  */
 export async function getExistingMappings(documentType: string) {
   try {
-    // Use raw query to avoid TypeScript errors with table that may not be in the generated types
+    // Use rpc function to get mappings
     const { data, error } = await supabase
       .rpc('get_data_mappings', { p_document_type: documentType });
       
@@ -35,9 +35,8 @@ export async function getExistingMappings(documentType: string) {
  */
 export async function saveDataMappings(documentType: string, mappings: Record<string, string>) {
   try {
-    // Check if mapping already exists using rpc
-    const { data: existingMapping } = await supabase
-      .rpc('get_data_mappings', { p_document_type: documentType });
+    // Check if mapping already exists
+    const existingMapping = await getExistingMappings(documentType);
       
     let result;
     
