@@ -2,21 +2,25 @@
 import React from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ExtractedData } from './FileList';
 
 interface RecordsPreviewProps {
-  records: ExtractedData['records'];
-  onToggleRow: (index: number) => void;
+  data: any;
 }
 
-const RecordsPreview: React.FC<RecordsPreviewProps> = ({ records, onToggleRow }) => {
-  if (records.length === 0) {
+const RecordsPreview: React.FC<RecordsPreviewProps> = ({ data }) => {
+  if (!data || !data.records || data.records.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
         No detailed records found in this file
       </div>
     );
   }
+
+  // In a real implementation, we would implement the toggle functionality
+  const onToggleRow = (index: number) => {
+    console.log('Toggle row:', index);
+    // This would update the state in a real implementation
+  };
 
   return (
     <div className="space-y-4">
@@ -31,7 +35,7 @@ const RecordsPreview: React.FC<RecordsPreviewProps> = ({ records, onToggleRow })
         <TableHeader>
           <TableRow>
             <TableHead className="w-12"></TableHead>
-            {Object.keys(records[0])
+            {Object.keys(data.records[0])
               .filter(key => key !== '_selected')
               .map(key => (
                 <TableHead key={key} className="capitalize">
@@ -42,7 +46,7 @@ const RecordsPreview: React.FC<RecordsPreviewProps> = ({ records, onToggleRow })
           </TableRow>
         </TableHeader>
         <TableBody>
-          {records.map((record, index) => (
+          {data.records.map((record: any, index: number) => (
             <TableRow key={index}>
               <TableCell>
                 <Checkbox
