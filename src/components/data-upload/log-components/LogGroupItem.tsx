@@ -1,11 +1,10 @@
 
 import React from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ProcessingLog } from '../types/processingLogTypes';
 import { LogEntry } from './LogEntry';
-import { ProcessingLog, statusColors } from '../types/processingLogTypes';
-import { format } from 'date-fns';
+import { ChevronDown, ChevronRight } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface LogGroupItemProps {
   requestId: string;
@@ -20,61 +19,80 @@ export const LogGroupItem: React.FC<LogGroupItemProps> = ({
   isExpanded,
   onToggle,
 }) => {
-  const formatTime = (dateString?: string) => {
-    if (!dateString) return 'N/A';
-    return format(new Date(dateString), 'MMM d, yyyy HH:mm:ss');
-  };
-
-  // Find the file name and earliest timestamp for this request group
-  const fileName = logs[0]?.file_name || 'Unknown file';
+  const isMobile = useIsMobile();
   
-  const earliestLog = logs.reduce((earliest, log) => {
-    const logTime = new Date(log.created_at).getTime();
-    return !earliest || logTime < new Date(earliest.created_at).getTime() ? log : earliest;
-  }, null as ProcessingLog | null);
+  // Find the oldest and newest log timestamps
+  const timestamps = logs.map(log => new Date(log.created_at).getTime());
+  const oldestTimestamp = Math.min(...timestamps);
+  const newestTimestamp = Math.max(...timestamps);
   
-  // Find the latest status
-  const latestLog = logs.reduce((latest, log) => {
-    const logTime = new Date(log.created_at).getTime();
-    return !latest || logTime > new Date(latest.created_at).getTime() ? log : latest;
-  }, null as ProcessingLog | null);
+  // Format the time elapsed
+  const timeElapsed = formatDistanceToNow(new Date(oldestTimestamp), { addSuffix: true });
+  
+  // Get a summary of log types
+  const logTypeCounts = logs.reduce((acc, log) => {
+    acc[log.log_level] = (acc[log.log_level] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  
+  // Check if there are any errors or warnings
+  const hasErrors = logTypeCounts['error'] > 0;
+  const hasWarnings = logTypeCounts['warning'] > 0;
 
   return (
-    <div className="mb-4">
-      <Collapsible open={isExpanded} onOpenChange={() => onToggle(requestId)}>
-        <CollapsibleTrigger className="flex w-full items-center justify-between p-2 hover:bg-muted rounded-md">
-          <div className="flex items-center">
-            {isExpanded ? <ChevronDown className="h-4 w-4 mr-2" /> : <ChevronRight className="h-4 w-4 mr-2" />}
-            <span className="font-medium truncate max-w-[200px]">{fileName}</span>
-            <Badge variant="outline" className="ml-2 text-xs">
-              {logs.length} events
-            </Badge>
-            {latestLog && (
-              <Badge 
-                className={`ml-2 text-xs text-white ${statusColors[latestLog.status] || 'bg-gray-500'}`}
-              >
-                {latestLog.status}
-              </Badge>
-            )}
-          </div>
-          <span className="text-sm text-muted-foreground">
-            {earliestLog ? formatTime(earliestLog.created_at) : 'Unknown time'}
-          </span>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <div className="mt-2 pl-8 space-y-3">
-            {logs
-              .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-              .map((log, index) => (
-                <LogEntry 
-                  key={log.id} 
-                  log={log} 
-                  isLast={index === logs.length - 1} 
-                />
+    <div className="mb-3 border rounded-md overflow-hidden">
+      <div 
+        className={`p-3 flex items-start justify-between cursor-pointer border-b ${
+          hasErrors ? 'bg-red-50/50 dark:bg-red-900/20' : 
+          hasWarnings ? 'bg-amber-50/50 dark:bg-amber-900/20' : 
+          'bg-gray-50/50 dark:bg-gray-900/20'
+        }`}
+        onClick={() => onToggle(requestId)}
+      >
+        <div className="flex items-center space-x-2">
+          {isExpanded ? (
+            <ChevronDown className="h-4 w-4 flex-shrink-0 text-gray-500" />
+          ) : (
+            <ChevronRight className="h-4 w-4 flex-shrink-0 text-gray-500" />
+          )}
+          <div>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+              <span className="font-medium text-sm truncate max-w-[200px] sm:max-w-[300px]">
+                Request {requestId.substring(0, isMobile ? 8 : 12)}...
+              </span>
+              <span className="text-xs text-muted-foreground">{timeElapsed}</span>
+            </div>
+            <div className="flex flex-wrap gap-1 mt-1 text-xs">
+              {Object.entries(logTypeCounts).map(([type, count]) => (
+                <span 
+                  key={type}
+                  className={`px-1.5 py-0.5 rounded-full ${
+                    type === 'error' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
+                    type === 'warning' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' :
+                    type === 'success' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
+                    'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                  }`}
+                >
+                  {count} {type}
+                </span>
               ))}
+            </div>
           </div>
-        </CollapsibleContent>
-      </Collapsible>
+        </div>
+        <span className="text-xs text-muted-foreground whitespace-nowrap">
+          {logs.length} log{logs.length !== 1 ? 's' : ''}
+        </span>
+      </div>
+      
+      {isExpanded && (
+        <div className="p-2 bg-background">
+          <div className="space-y-2">
+            {logs.map((log) => (
+              <LogEntry key={log.id} log={log} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

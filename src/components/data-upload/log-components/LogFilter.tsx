@@ -1,83 +1,92 @@
 
 import React from 'react';
-import { Search, AlertCircle, CheckCircle, Clock, List } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Search, X } from 'lucide-react';
 import { LogFilterType } from '../types/processingLogTypes';
 
 interface LogFilterProps {
-  filterType: LogFilterType;
-  setFilterType: (type: LogFilterType) => void;
+  filter: LogFilterType;
+  setFilter: (filter: LogFilterType) => void;
   searchTerm: string;
   setSearchTerm: (term: string) => void;
-  totalLogs: number;
 }
 
 export const LogFilter: React.FC<LogFilterProps> = ({
-  filterType,
-  setFilterType,
+  filter,
+  setFilter,
   searchTerm,
-  setSearchTerm,
-  totalLogs
+  setSearchTerm
 }) => {
+  const clearSearch = () => {
+    setSearchTerm('');
+  };
+
   return (
-    <div className="space-y-2 mb-4">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search logs..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-8"
-          />
-        </div>
-        <div className="flex items-center gap-1 flex-wrap">
-          <Button
-            size="sm"
-            variant={filterType === 'all' ? 'default' : 'outline'}
-            onClick={() => setFilterType('all')}
-            className="flex items-center gap-1"
+    <div className="space-y-4 mb-4">
+      <div className="relative">
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input
+          type="text"
+          placeholder="Search logs..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-8 pr-8"
+        />
+        {searchTerm && (
+          <button
+            onClick={clearSearch}
+            className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
           >
-            <List className="h-4 w-4" />
-            All
-          </Button>
-          <Button
-            size="sm"
-            variant={filterType === 'error' ? 'default' : 'outline'}
-            onClick={() => setFilterType('error')}
-            className="flex items-center gap-1"
-          >
-            <AlertCircle className="h-4 w-4" />
-            Errors
-          </Button>
-          <Button
-            size="sm"
-            variant={filterType === 'success' ? 'default' : 'outline'}
-            onClick={() => setFilterType('success')}
-            className="flex items-center gap-1"
-          >
-            <CheckCircle className="h-4 w-4" />
-            Success
-          </Button>
-          <Button
-            size="sm"
-            variant={filterType === 'processing' ? 'default' : 'outline'}
-            onClick={() => setFilterType('processing')}
-            className="flex items-center gap-1"
-          >
-            <Clock className="h-4 w-4" />
-            Processing
-          </Button>
-        </div>
-      </div>
-      <div className="text-sm text-muted-foreground">
-        {totalLogs === 0 ? (
-          "No logs match your filters"
-        ) : (
-          `Showing ${totalLogs} log ${totalLogs === 1 ? 'entry' : 'entries'}`
+            <X className="h-4 w-4" />
+          </button>
         )}
+      </div>
+      
+      <div className="flex flex-wrap gap-2">
+        <FilterButton
+          active={filter === 'all'}
+          onClick={() => setFilter('all')}
+          label="All"
+        />
+        <FilterButton
+          active={filter === 'info'}
+          onClick={() => setFilter('info')}
+          label="Info"
+        />
+        <FilterButton
+          active={filter === 'success'}
+          onClick={() => setFilter('success')}
+          label="Success"
+        />
+        <FilterButton
+          active={filter === 'error'}
+          onClick={() => setFilter('error')}
+          label="Error"
+        />
+        <FilterButton
+          active={filter === 'warning'}
+          onClick={() => setFilter('warning')}
+          label="Warning"
+        />
       </div>
     </div>
   );
 };
+
+interface FilterButtonProps {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}
+
+const FilterButton: React.FC<FilterButtonProps> = ({ active, onClick, label }) => (
+  <Button
+    variant={active ? "default" : "outline"}
+    size="sm"
+    onClick={onClick}
+    className="px-3 py-1 h-8"
+  >
+    {label}
+  </Button>
+);

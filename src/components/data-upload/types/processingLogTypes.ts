@@ -2,37 +2,36 @@
 export interface ProcessingLog {
   id: string;
   request_id: string;
-  file_name: string;
-  status: string;
-  timestamp_sent?: string;
-  timestamp_received?: string;
-  timestamp_applied?: string;
-  error_message?: string;
+  file_id?: string;
+  message: string;
+  details?: any;
+  log_level: 'info' | 'success' | 'warning' | 'error';
   created_at: string;
 }
 
-export type LogFilterType = 'all' | 'error' | 'success' | 'processing';
+export type LogFilterType = 'all' | 'info' | 'success' | 'warning' | 'error';
 
-export const statusColors: Record<string, string> = {
-  processing_started: 'bg-blue-500',
-  sent_to_openai: 'bg-yellow-500',
-  openai_success: 'bg-green-500',
-  processing_complete: 'bg-green-700',
-  download_error: 'bg-red-500',
-  openai_error: 'bg-red-500',
-  database_error: 'bg-red-500',
-  api_error: 'bg-red-500',
-  parse_error: 'bg-red-500',
-  processing_error: 'bg-red-500'
-};
-
-export const filterLogsByType = (logs: ProcessingLog[], filterType: LogFilterType): ProcessingLog[] => {
-  if (filterType === 'all') return logs;
+export const filterLogsByType = (logs: ProcessingLog[], filter: LogFilterType, searchTerm: string = ''): ProcessingLog[] => {
+  const lowercaseSearchTerm = searchTerm.toLowerCase();
   
   return logs.filter(log => {
-    if (filterType === 'error') return log.status.includes('error');
-    if (filterType === 'success') return log.status.includes('success') || log.status.includes('complete');
-    if (filterType === 'processing') return log.status.includes('started') || log.status.includes('sent');
+    // Filter by type
+    if (filter !== 'all' && log.log_level !== filter) {
+      return false;
+    }
+    
+    // Filter by search term
+    if (searchTerm && !log.message.toLowerCase().includes(lowercaseSearchTerm)) {
+      // Also check details if they exist
+      const detailsStr = typeof log.details === 'string' 
+        ? log.details.toLowerCase() 
+        : log.details ? JSON.stringify(log.details).toLowerCase() : '';
+      
+      if (!detailsStr.includes(lowercaseSearchTerm)) {
+        return false;
+      }
+    }
+    
     return true;
   });
 };
