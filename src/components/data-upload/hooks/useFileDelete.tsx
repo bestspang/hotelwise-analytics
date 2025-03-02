@@ -50,7 +50,7 @@ export const useFileDelete = (
       // Attempt to recover by refetching files in the next render cycle
       return false;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error(`Error deleting file: ${errorMessage}`, error);
       setDeleteError(errorMessage);
       toast.error(`Failed to delete file: ${errorMessage}`);
