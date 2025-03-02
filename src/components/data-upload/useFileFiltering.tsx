@@ -21,7 +21,8 @@ export const useFileFiltering = (files: any[]) => {
         !file.processed || 
         file.processing || 
         !file.extracted_data || 
-        (file.processed && file.extracted_data && file.extracted_data.error)
+        (file.processed && file.extracted_data && file.extracted_data.error) ||
+        (file.processed === false && file.processing === false) // Add this condition to include files that are not processing but unprocessed
       );
     }
     

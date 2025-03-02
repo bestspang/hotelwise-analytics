@@ -48,22 +48,7 @@ export async function deleteUploadedFile(fileId: string) {
       return false;
     }
     
-    // Delete from storage
-    const { error: storageError } = await supabase.storage
-      .from('pdf_files')
-      .remove([fileData.file_path]);
-      
-    if (storageError) {
-      toast({
-        title: "Error",
-        description: `Failed to delete file from storage: ${storageError.message}`,
-        variant: "destructive"
-      });
-      console.error('Failed to delete file from storage:', storageError);
-      return false;
-    }
-    
-    // Delete from database with a HARD DELETE to ensure it's completely removed
+    // Delete from database FIRST to prevent RLS issues - with HARD DELETE
     const { error: dbError } = await supabase
       .from('uploaded_files')
       .delete()
@@ -79,21 +64,14 @@ export async function deleteUploadedFile(fileId: string) {
       return false;
     }
     
-    // Double-check deletion was successful by trying to fetch the file again
-    const { data: checkData } = await supabase
-      .from('uploaded_files')
-      .select('id')
-      .eq('id', fileId)
-      .single();
+    // Then delete from storage - if this fails, the database record is still deleted
+    const { error: storageError } = await supabase.storage
+      .from('pdf_files')
+      .remove([fileData.file_path]);
       
-    if (checkData) {
-      toast({
-        title: "Warning",
-        description: `File deletion may not be complete. Please try again.`,
-        variant: "destructive"
-      });
-      console.error('File still exists after deletion attempt:', checkData);
-      return false;
+    if (storageError) {
+      // Just log this error, don't return false since the database entry is gone
+      console.warn('Failed to delete file from storage, but database record was removed:', storageError);
     }
     
     toast({
