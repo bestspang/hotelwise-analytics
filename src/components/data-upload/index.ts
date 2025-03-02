@@ -17,3 +17,8 @@ export { default as RefreshButton } from './RefreshButton';
 export { default as UnprocessedFileItem } from './UnprocessedFileItem';
 export { default as UploadCard } from './UploadCard';
 export { default as UploadedFilesList } from './UploadedFilesList';
+
+// Card components
+export { default as FileHeader } from './card-components/FileHeader';
+export { default as StatusIndicator } from './card-components/StatusIndicator';
+export { default as CardActions } from './card-components/CardActions';

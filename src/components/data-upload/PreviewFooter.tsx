@@ -4,6 +4,7 @@ import { DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Trash2, Download } from 'lucide-react';
 import { downloadExtractedData } from '@/services/uploadService';
+import { toast } from 'sonner';
 
 interface PreviewFooterProps {
   file: any;
@@ -19,10 +20,15 @@ const PreviewFooter: React.FC<PreviewFooterProps> = ({
   hasExtractionError 
 }) => {
   const handleDownload = async () => {
-    const result = await downloadExtractedData(file.id);
-    if (result) {
+    try {
+      const result = await downloadExtractedData(file.id);
+      if (!result) {
+        toast.error("Failed to download data");
+        return;
+      }
+      
       // Create a blob from the data
-      const blob = new Blob([JSON.stringify(result.data, null, 2)], { type: 'application/json' });
+      const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
       
       // Create a URL for the blob
       const url = URL.createObjectURL(blob);
@@ -30,7 +36,7 @@ const PreviewFooter: React.FC<PreviewFooterProps> = ({
       // Create a link element
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${result.filename.split('.')[0]}_extracted_data.json`;
+      link.download = `${file.filename.split('.')[0]}_extracted_data.json`;
       
       // Append the link to the document
       document.body.appendChild(link);
@@ -43,6 +49,9 @@ const PreviewFooter: React.FC<PreviewFooterProps> = ({
       
       // Release the URL
       URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Download error:", error);
+      toast.error("Failed to download data");
     }
   };
 
