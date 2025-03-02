@@ -18,7 +18,9 @@ export async function getExistingMappings(documentType: string): Promise<DataMap
   try {
     // Use rpc function to get mappings
     const { data, error } = await supabase
-      .rpc('get_data_mappings', { p_document_type: documentType } as any);
+      .rpc('get_data_mappings', {
+        p_document_type: documentType
+      });
       
     if (error) {
       return handleApiError(error, 'Failed to fetch existing data mappings');
@@ -47,7 +49,7 @@ export async function saveDataMappings(documentType: string, mappings: Record<st
           p_document_type: documentType,
           p_mappings: mappings,
           p_updated_at: new Date().toISOString()
-        } as any);
+        });
     } else {
       // Insert new mapping using rpc
       result = await supabase
@@ -55,7 +57,7 @@ export async function saveDataMappings(documentType: string, mappings: Record<st
           p_document_type: documentType,
           p_mappings: mappings,
           p_created_at: new Date().toISOString()
-        } as any);
+        });
     }
     
     const { error } = result;
