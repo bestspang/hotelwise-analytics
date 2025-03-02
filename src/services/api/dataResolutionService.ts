@@ -1,9 +1,25 @@
 
 import { supabase, handleApiError } from './supabaseClient';
 import { toast } from 'sonner';
+import { saveDataMappings } from './dataMappingService';
 
 export async function resolveDataDiscrepancies(fileId: string, mappings: Record<string, string>) {
   try {
+    // Get the document type from the file metadata
+    const { data: fileData, error: fileError } = await supabase
+      .from('uploaded_files')
+      .select('extracted_data')
+      .eq('id', fileId)
+      .single();
+      
+    if (fileError) {
+      console.error('Error fetching file data:', fileError);
+      throw new Error(fileError.message);
+    }
+    
+    const documentType = fileData?.extracted_data?.documentType;
+    
+    // Call the edge function to resolve discrepancies
     const { error } = await supabase.functions
       .invoke('resolve-discrepancies', {
         body: { 
@@ -24,6 +40,11 @@ export async function resolveDataDiscrepancies(fileId: string, mappings: Record<
         processed: true
       })
       .eq('id', fileId);
+    
+    // Save the mappings for future use if document type is available
+    if (documentType) {
+      await saveDataMappings(documentType, mappings);
+    }
     
     return true;
   } catch (error) {

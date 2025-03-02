@@ -1,303 +1,179 @@
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-
+// Define cors headers for browser requests
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Create a Supabase client with the Deno runtime
+const supabaseClient = createClient(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+);
 
 serve(async (req) => {
   // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
+  if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Get the request body
+    const { fileId, filePath, filename, isReprocessing, notifyOnCompletion } = await req.json();
 
-    // Get request data
-    const payload = await req.json();
-    const { fileId, filePath, filename, isReprocessing = false, notifyOnCompletion = false } = payload;
+    // Get the file from storage
+    const { data: fileData, error: fileError } = await supabaseClient.storage
+      .from('pdf_files')
+      .download(filePath);
 
-    if (!fileId || !filePath) {
+    if (fileError) {
+      console.error('Error downloading file:', fileError);
       return new Response(
-        JSON.stringify({ error: "Missing required parameters" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+        JSON.stringify({ error: 'Failed to download the file' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Create a background task for processing to continue even if the user closes the browser
-    const processingPromise = async () => {
-      try {
-        console.log(`Starting ${isReprocessing ? 're' : ''}processing for file: ${filename}`);
-        
-        // Get file from storage
-        const { data: fileData, error: fileError } = await supabase.storage
-          .from("pdf_files")
-          .download(filePath);
+    // Extract document type if possible before full processing
+    const documentTypeResult = await detectDocumentType(fileData);
+    let documentType = documentTypeResult.documentType;
 
-        if (fileError) {
-          console.error("Error downloading file:", fileError);
-          
-          // Update file status to error
-          await supabase
-            .from("uploaded_files")
-            .update({ 
-              processed: true, 
-              extracted_data: { 
-                error: true, 
-                message: `Failed to download file: ${fileError.message}` 
-              } 
-            })
-            .eq("id", fileId);
-            
-          return;
-        }
+    console.log(`Detected document type: ${documentType}`);
 
-        // Convert file data to text
-        const pdfText = await extractTextFromPdf(fileData);
-        
-        // Identify document type
-        const documentType = identifyDocumentType(pdfText, filename);
-        console.log(`Identified document type: ${documentType}`);
-        
-        // Extract relevant data based on document type
-        const extractedData = await extractDataFromPdf(pdfText, documentType);
-        
-        // Check for potential data overlaps with existing records
-        const overlaps = await detectDataOverlaps(supabase, extractedData, documentType);
-        
-        // Check for data discrepancies
-        const discrepancies = findDataDiscrepancies(extractedData, documentType);
-        
-        // Prepare the final extracted data object
-        const finalExtractedData = {
-          documentType,
-          rawText: pdfText.substring(0, 1000), // Store a preview of the text
-          extractedData,
-          processingDate: new Date().toISOString(),
-          isReprocessed: isReprocessing,
-          overlaps,
-          discrepancies
-        };
+    // Check for existing mappings for this document type
+    const { data: existingMappings, error: mappingError } = await supabaseClient
+      .from('data_mappings')
+      .select('mappings')
+      .eq('document_type', documentType)
+      .maybeSingle();
 
-        // Update file record with extracted data
-        const { error: updateError } = await supabase
-          .from("uploaded_files")
-          .update({
-            processed: true,
-            document_type: documentType,
-            extracted_data: finalExtractedData
-          })
-          .eq("id", fileId);
+    if (mappingError) {
+      console.error('Error fetching mappings:', mappingError);
+    }
 
-        if (updateError) {
-          console.error("Error updating file record:", updateError);
-          return;
-        }
-
-        console.log(`Completed processing for file: ${filename}`);
-        
-        // If notification was requested, send a notification
-        if (notifyOnCompletion) {
-          await sendProcessingCompletionNotification(supabase, fileId, filename, documentType);
-        }
-      } catch (error) {
-        console.error("Unexpected error during processing:", error);
-        
-        // Update file status to error
-        await supabase
-          .from("uploaded_files")
-          .update({ 
-            processed: true, 
-            extracted_data: { 
-              error: true, 
-              message: `Unexpected error: ${error.message}` 
-            } 
-          })
-          .eq("id", fileId);
+    // Process the PDF data
+    let processingResult;
+    if (existingMappings?.mappings && Object.keys(existingMappings.mappings).length > 0) {
+      console.log('Using existing mappings for document type:', documentType);
+      processingResult = await extractDataWithExistingMappings(fileData, existingMappings.mappings);
+    } else {
+      console.log('No existing mappings found, processing with AI');
+      processingResult = await processWithAI(fileData);
+      
+      // Ensure document type is set
+      if (!documentType && processingResult.documentType) {
+        documentType = processingResult.documentType;
       }
-    };
+    }
 
-    // Start background processing (will continue even if response is sent)
-    EdgeRuntime.waitUntil(processingPromise());
+    // Update the file record with the extracted data
+    const { error: updateError } = await supabaseClient
+      .from('uploaded_files')
+      .update({
+        processed: true,
+        extracted_data: {
+          ...processingResult,
+          documentType: documentType
+        }
+      })
+      .eq('id', fileId);
 
-    // Return immediately to client
+    if (updateError) {
+      console.error('Error updating file record:', updateError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to update file record' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Send notification if requested
+    if (notifyOnCompletion) {
+      await sendProcessingNotification(fileId, filename);
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: `PDF processing started for ${filename}`,
-        fileId: fileId,
-        backgroundProcessing: true
+        message: 'File processed successfully',
+        usedExistingMappings: existingMappings?.mappings !== undefined
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 202 }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
+
   } catch (error) {
-    console.error("Unexpected error:", error);
+    console.error('Unexpected error:', error);
     return new Response(
-      JSON.stringify({ error: "An unexpected error occurred" }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      JSON.stringify({ error: 'An unexpected error occurred', details: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
 
-// Mock function for PDF text extraction (replace with actual implementation)
-async function extractTextFromPdf(fileData: Blob): Promise<string> {
-  // In a real implementation, this would use a PDF parsing library
-  // For now, we'll return a mock result
-  return "This is extracted text from the PDF file. It would contain financial data, dates, amounts, etc.";
-}
-
-// Function to identify document type based on content and filename
-function identifyDocumentType(pdfText: string, filename: string): string {
-  // In a real implementation, this would use NLP or pattern matching
-  // For demonstration, we'll use the filename to determine the type
-  const lowerFilename = filename.toLowerCase();
+/**
+ * Detects the document type from the first page of the PDF
+ */
+async function detectDocumentType(pdfData: Uint8Array): Promise<{ documentType: string }> {
+  // This would use OpenAI to determine document type quickly from first page
+  // For now, we'll use a placeholder implementation
+  // TODO: Implement proper document type detection using OpenAI
   
-  if (lowerFilename.includes("expense") || lowerFilename.includes("voucher")) {
-    return "Expense Voucher";
-  } else if (lowerFilename.includes("statistics") || lowerFilename.includes("monthly")) {
-    return "Monthly Statistics";
-  } else if (lowerFilename.includes("occupancy")) {
-    return "Occupancy Report";
-  } else if (lowerFilename.includes("ledger") || lowerFilename.includes("city")) {
-    return "City Ledger";
-  } else if (lowerFilename.includes("audit") || lowerFilename.includes("night")) {
-    return "Night Audit";
-  } else if (lowerFilename.includes("no-show") || lowerFilename.includes("noshow")) {
-    return "No-show Report";
-  } else {
-    // Default or unknown
-    return "Unknown Document";
-  }
+  return { documentType: "Unknown" };
 }
 
-// Mock function for data extraction (replace with actual implementation)
-async function extractDataFromPdf(pdfText: string, documentType: string): Promise<any> {
-  // In a real implementation, this would use specific extraction logic for each document type
-  // For demonstration, we'll return mock data based on document type
-  switch (documentType) {
-    case "Expense Voucher":
-      return {
-        date: "2025-02-15",
-        amount: 1250.75,
-        category: "Maintenance",
-        vendor: "ABC Supplies"
-      };
-    case "Monthly Statistics":
-      return {
-        month: "January 2025",
-        totalRevenue: 125000.50,
-        occupancyRate: 78.5,
-        averageDailyRate: 195.25
-      };
-    case "Occupancy Report":
-      return {
-        date: "2025-02-15",
-        totalRooms: 120,
-        occupiedRooms: 98,
-        occupancyRate: 81.7,
-        averageDailyRate: 189.50
-      };
-    default:
-      return {
-        extractionDate: new Date().toISOString(),
-        documentType: documentType
-      };
-  }
-}
-
-// Function to detect potential data overlaps with existing records
-async function detectDataOverlaps(supabase: any, extractedData: any, documentType: string): Promise<any[]> {
-  // This is a simplified implementation - in a real system, you would check
-  // the appropriate tables based on document type and look for matching records
+/**
+ * Process PDF with AI to extract data and determine table mappings
+ */
+async function processWithAI(pdfData: Uint8Array) {
+  // This function would use OpenAI's Vision API to extract all data
+  // For now, we'll use a placeholder implementation
+  // TODO: Implement proper AI processing
   
-  // For demonstration, we'll return a mock overlap
-  return [
-    {
-      id: crypto.randomUUID(),
-      entity_type: documentTypeToEntityType(documentType),
-      entity_id: crypto.randomUUID(),
-      existing_data: {
-        date: "2025-02-15",
-        totalRevenue: 120000.00,
-        occupancyRate: 75.0
-      },
-      new_data: {
-        date: "2025-02-15",
-        totalRevenue: 125000.50,
-        occupancyRate: 78.5,
-        averageDailyRate: 195.25
-      }
-    }
-  ];
-}
-
-// Function to find data that can't be mapped to database columns
-function findDataDiscrepancies(extractedData: any, documentType: string): any[] {
-  // In a real implementation, this would compare extracted fields against known database schema
-  // For demonstration, we'll return mock discrepancies
-  
-  return [
-    {
-      field: "unknownMetric",
-      value: "42.5%",
-      reason: "No matching database column"
-    },
-    {
-      field: "specialDiscount",
-      value: "Corporate rate",
-      reason: "Field not in schema"
-    }
-  ];
-}
-
-// Helper function to map document types to entity types
-function documentTypeToEntityType(documentType: string): string {
-  const mapping: Record<string, string> = {
-    "Expense Voucher": "expense_voucher",
-    "Monthly Statistics": "financial_report",
-    "Occupancy Report": "occupancy_report",
-    "City Ledger": "city_ledger",
-    "Night Audit": "night_audit",
-    "No-show Report": "no_show_report"
+  return {
+    records: [],
+    metrics: {},
+    documentType: "Sample Report",
+    // Add any additional properties as needed
   };
-  
-  return mapping[documentType] || "unknown";
 }
 
-// Function to send notification when processing is complete
-async function sendProcessingCompletionNotification(
-  supabase: any, 
-  fileId: string, 
-  filename: string, 
-  documentType: string
-): Promise<void> {
+/**
+ * Extract data using existing mappings without full AI processing
+ */
+async function extractDataWithExistingMappings(pdfData: Uint8Array, mappings: Record<string, string>) {
+  // This function would use OCR or simpler extraction methods
+  // and apply existing mappings to structure the data
+  // For now, we'll use a placeholder implementation
+  // TODO: Implement proper extraction with mappings
+  
+  return {
+    records: [],
+    metrics: {},
+    // Additional properties as needed
+  };
+}
+
+/**
+ * Send notification that processing is complete
+ */
+async function sendProcessingNotification(fileId: string, filename: string) {
   try {
-    // In a real implementation, this could send an email using a service like Resend
-    // or create an in-app notification
-    
-    // For now, we'll create an in-app notification in the notifications table
-    const { error } = await supabase
-      .from("notifications")
-      .insert([{
-        user_id: "system", // In a real app, you'd get the user ID from the request
-        notification_text: `Processing of "${filename}" (${documentType}) is complete.`,
-        read_status: false
-      }]);
-      
+    // Add a notification to the notifications table
+    const { error } = await supabaseClient
+      .from('notifications')
+      .insert({
+        notification_text: `Processing of "${filename}" is complete.`,
+        read_status: false,
+        // In a real implementation, this would be tied to the user who uploaded the file
+      });
+
     if (error) {
-      console.error("Error creating notification:", error);
+      console.error('Error creating notification:', error);
     }
+    
+    // Additional notification methods like email could be implemented here
   } catch (error) {
-    console.error("Error sending notification:", error);
+    console.error('Error sending notification:', error);
   }
 }
-
-// Handle function shutdown
-addEventListener("beforeunload", (ev) => {
-  console.log("Function shutting down:", ev.detail?.reason);
-});

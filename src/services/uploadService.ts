@@ -4,3 +4,4 @@ export { uploadPdfFile } from './api/fileUploadService';
 export { getUploadedFiles, deleteUploadedFile } from './api/fileManagementService';
 export { downloadExtractedData, reprocessFile } from './api/dataExtractionService';
 export { resolveDataDiscrepancies, resolveDataOverlaps } from './api/dataResolutionService';
+export { getExistingMappings, saveDataMappings } from './api/dataMappingService';
