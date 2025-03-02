@@ -15,13 +15,17 @@ import { useFileFiltering } from './useFileFiltering';
 interface UploadedFilesListProps {
   onReprocessing?: () => void;
   refreshTrigger?: number;
+  isSyncing?: boolean;
 }
 
-const UploadedFilesList: React.FC<UploadedFilesListProps> = ({ onReprocessing, refreshTrigger = 0 }) => {
+const UploadedFilesList: React.FC<UploadedFilesListProps> = ({ 
+  onReprocessing, 
+  refreshTrigger = 0,
+  isSyncing = false 
+}) => {
   const { 
     files, 
     isLoading, 
-    isSyncing, 
     handleDelete, 
     fetchFiles, 
     syncWithStorage 
@@ -67,8 +71,9 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({ onReprocessing, r
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-xl">
-          Uploaded Files {isLoading && <span className="text-sm text-muted-foreground">(Loading...)</span>}
-          {isSyncing && <span className="text-sm text-muted-foreground ml-2">(Syncing...)</span>}
+          Uploaded Files 
+          {isLoading && <span className="text-sm text-muted-foreground ml-2">(Loading...)</span>}
+          {isSyncing && <span className="text-sm text-muted-foreground ml-2">(Syncing with storage...)</span>}
         </CardTitle>
         <div className="flex gap-2">
           <Button 

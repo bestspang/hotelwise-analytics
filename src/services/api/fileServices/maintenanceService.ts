@@ -71,6 +71,7 @@ export async function syncFilesWithStorage() {
     
     // Check each database file against storage
     for (const file of dbFiles) {
+      // Check if the file exists in storage
       if (!file.file_path || !storageFilePaths.has(file.file_path)) {
         logInfo(`File ${file.filename} (${file.id}) exists in DB but not in storage. Will remove record.`);
         idsToRemove.push(file.id);
