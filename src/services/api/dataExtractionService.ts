@@ -74,7 +74,7 @@ export async function reprocessFile(fileId: string) {
         try {
           console.log(`Attempt ${attempt} to invoke process-pdf Edge Function`);
           
-          const result = await supabase.functions
+          const { data, error } = await supabase.functions
             .invoke('process-pdf', {
               body: { 
                 fileId: fileId, 
@@ -85,8 +85,10 @@ export async function reprocessFile(fileId: string) {
               }
             });
           
-          console.log('Edge Function response:', result);
-          return result;
+          console.log('Edge Function response:', { data, error });
+          
+          if (error) throw error;
+          return { data, error: null };
         } catch (error) {
           console.error(`Edge Function attempt ${attempt} failed:`, error);
           
@@ -108,7 +110,7 @@ export async function reprocessFile(fileId: string) {
       
       if (processingError) {
         console.error('Error reprocessing file with AI:', processingError);
-        toast.error(`AI reprocessing failed: ${processingError.message}`);
+        toast.error(`AI reprocessing failed: ${processingError.message || 'Unknown error'}`);
         
         // Update file status to error
         await supabase
@@ -117,7 +119,7 @@ export async function reprocessFile(fileId: string) {
             processed: true, 
             extracted_data: { 
               error: true, 
-              message: processingError.message 
+              message: processingError.message || 'Unknown error'
             } 
           })
           .eq('id', fileId);

@@ -86,7 +86,7 @@ export async function uploadPdfFile(file: File) {
             processed: true, 
             extracted_data: { 
               error: true, 
-              message: processingError.message 
+              message: processingError.message || 'AI processing failed' 
             } 
           })
           .eq('id', fileData.id);
