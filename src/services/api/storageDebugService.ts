@@ -79,3 +79,48 @@ export async function forceDeleteFile(filePath: string, bucketName: string = 'pd
     return { error: 'Failed to delete file' };
   }
 }
+
+/**
+ * Checks bucket status and attempts to make it public if necessary
+ */
+export async function checkAndFixBucketAccess(bucketName: string = 'pdf_files') {
+  try {
+    console.log(`Checking access for bucket: ${bucketName}`);
+    
+    // Get bucket info
+    const { data, error } = await supabase.storage
+      .getBucket(bucketName);
+      
+    if (error) {
+      console.error('Failed to get bucket info:', error);
+      return { error: error.message };
+    }
+    
+    console.log('Bucket info:', data);
+    
+    // If bucket is not public, try to update it
+    if (!data.public) {
+      console.log('Bucket is not public, attempting to update...');
+      const { error: updateError } = await supabase.storage
+        .updateBucket(bucketName, {
+          public: true
+        });
+        
+      if (updateError) {
+        console.error('Failed to update bucket access:', updateError);
+        return { 
+          error: updateError.message,
+          bucketStatus: data 
+        };
+      }
+      
+      toast.success(`Bucket ${bucketName} access fixed`);
+      return { success: true, message: 'Bucket access updated to public' };
+    }
+    
+    return { success: true, message: 'Bucket is already public', bucketStatus: data };
+  } catch (error) {
+    console.error('Error checking/fixing bucket access:', error);
+    return { error: 'Failed to check/fix bucket access' };
+  }
+}

@@ -5,8 +5,8 @@ import UploadCard from '@/components/data-upload/UploadCard';
 import UploadedFilesList from '@/components/data-upload/UploadedFilesList';
 import ProcessingLogs from '@/components/data-upload/ProcessingLogs';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, BarChart2, Bug } from 'lucide-react';
-import { listBucketFiles } from '@/services/api/storageDebugService';
+import { FileText, BarChart2, Bug, Shield } from 'lucide-react';
+import { listBucketFiles, checkAndFixBucketAccess } from '@/services/api/storageDebugService';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -14,6 +14,7 @@ const DataUpload = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [activeTab, setActiveTab] = useState('files');
   const [isDebugging, setIsDebugging] = useState(false);
+  const [isFixingAccess, setIsFixingAccess] = useState(false);
 
   const handleUploadComplete = () => {
     console.log('Upload completed, triggering refresh');
@@ -51,6 +52,27 @@ const DataUpload = () => {
     }
   };
 
+  // Function to fix bucket access issues
+  const handleFixBucketAccess = async () => {
+    try {
+      setIsFixingAccess(true);
+      toast.info('Checking bucket access permissions...');
+      
+      const result = await checkAndFixBucketAccess();
+      
+      if (result.error) {
+        toast.error(`Failed to fix bucket access: ${result.error}`);
+      } else if (result.success) {
+        toast.success(result.message);
+      }
+    } catch (error) {
+      console.error('Error fixing bucket access:', error);
+      toast.error('Failed to fix bucket access');
+    } finally {
+      setIsFixingAccess(false);
+    }
+  };
+
   return (
     <MainLayout title="Data Upload">
       <div className="container mx-auto p-6">
@@ -62,6 +84,16 @@ const DataUpload = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleFixBucketAccess}
+              disabled={isFixingAccess}
+              className="flex items-center gap-2"
+            >
+              <Shield className="h-4 w-4" />
+              {isFixingAccess ? 'Fixing...' : 'Fix Storage Access'}
+            </Button>
             <Button 
               variant="outline" 
               size="sm" 

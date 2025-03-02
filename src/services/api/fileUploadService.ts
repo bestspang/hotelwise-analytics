@@ -23,25 +23,25 @@ export async function uploadPdfFile(file: File) {
     const fileName = `${Date.now()}_${file.name.replace(/[^\x00-\x7F]/g, '')}`;
     const filePath = `uploads/${fileName}`;
     
-    // Create the storage bucket if it doesn't exist
-    console.log('Checking for pdf_files bucket');
-    const { data: bucketData, error: bucketError } = await supabase.storage
-      .getBucket('pdf_files');
-      
-    if (bucketError && bucketError.message.includes('The resource was not found')) {
-      console.log('pdf_files bucket not found, creating it');
-      const { error: createBucketError } = await supabase.storage
-        .createBucket('pdf_files', { public: false });
+    try {
+      // Try to get the bucket info first
+      const { data: bucketData, error: bucketError } = await supabase.storage
+        .getBucket('pdf_files');
         
-      if (createBucketError) {
-        console.error('Failed to create bucket:', createBucketError);
-        return handleApiError(createBucketError, `Failed to create storage bucket: ${createBucketError.message}`);
+      if (bucketError) {
+        console.error('Error checking bucket:', bucketError);
+        
+        // Make bucket public to ensure accessibility
+        console.log('Attempting to update bucket access...');
+        await supabase.storage.updateBucket('pdf_files', {
+          public: true
+        });
+      } else {
+        console.log('pdf_files bucket exists:', bucketData);
       }
-      console.log('pdf_files bucket created successfully');
-    } else if (bucketError) {
-      console.error('Error checking bucket:', bucketError);
-    } else {
-      console.log('pdf_files bucket exists');
+    } catch (bucketCheckError) {
+      console.error('Error checking/updating bucket:', bucketCheckError);
+      // Continue with the upload process anyway
     }
     
     // Upload the file
@@ -60,7 +60,25 @@ export async function uploadPdfFile(file: File) {
     
     console.log('File uploaded successfully, creating database record');
     
-    // Store file metadata in database - include the processing column
+    // Determine document type based on filename (simple heuristic for now)
+    let document_type = 'Unknown';
+    const lowerName = file.name.toLowerCase();
+    
+    if (lowerName.includes('expense') || lowerName.includes('voucher')) {
+      document_type = 'Expense Voucher';
+    } else if (lowerName.includes('statistics') || lowerName.includes('monthly')) {
+      document_type = 'Monthly Statistics';
+    } else if (lowerName.includes('occupancy')) {
+      document_type = 'Occupancy Report';
+    } else if (lowerName.includes('ledger') || lowerName.includes('city')) {
+      document_type = 'City Ledger';
+    } else if (lowerName.includes('night') || lowerName.includes('audit')) {
+      document_type = 'Night Audit';
+    } else if (lowerName.includes('no-show') || lowerName.includes('noshow')) {
+      document_type = 'No-show Report';
+    }
+    
+    // Store file metadata in database - include the processing and document_type columns
     const { data: fileData, error: fileError } = await supabase
       .from('uploaded_files')
       .insert([{ 
@@ -69,7 +87,8 @@ export async function uploadPdfFile(file: File) {
         file_type: file.type,
         file_size: file.size,
         processed: false,
-        processing: true
+        processing: true,
+        document_type: document_type
       }])
       .select()
       .single();
@@ -93,6 +112,7 @@ export async function uploadPdfFile(file: File) {
             fileId: fileData.id, 
             filePath,
             filename: file.name,
+            documentType: document_type,
             notifyOnCompletion: true
           }
         });

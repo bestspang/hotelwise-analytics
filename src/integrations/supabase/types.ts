@@ -804,6 +804,7 @@ export type Database = {
       uploaded_files: {
         Row: {
           created_at: string | null
+          document_type: string | null
           extracted_data: Json | null
           file_path: string
           file_size: number | null
@@ -815,6 +816,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          document_type?: string | null
           extracted_data?: Json | null
           file_path: string
           file_size?: number | null
@@ -826,6 +828,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          document_type?: string | null
           extracted_data?: Json | null
           file_path?: string
           file_size?: number | null
