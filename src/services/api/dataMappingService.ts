@@ -1,78 +1,48 @@
 
-import { supabase, handleApiError } from './supabaseClient';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-// Define a type for the data mappings
-export interface DataMapping {
-  id?: string;
-  document_type: string;
-  mappings: Record<string, string>;
-  created_at?: string;
-  updated_at?: string;
-}
-
-/**
- * Retrieves existing data mappings for a specific document type
- */
-export async function getExistingMappings(documentType: string): Promise<DataMapping[] | null> {
+export async function getExistingMappings() {
   try {
-    // Use rpc function to get mappings with explicit parameter typing
+    console.log('Fetching existing data mappings');
     const { data, error } = await supabase
-      .rpc('get_data_mappings', {
-        p_document_type: documentType
-      } as any); // Type assertion to bypass the TypeScript error
-      
+      .from('data_mappings')
+      .select('*');
+
     if (error) {
-      return handleApiError(error, 'Failed to fetch existing data mappings');
+      console.error('Error fetching existing mappings:', error);
+      toast.error(`Failed to retrieve mappings: ${error.message}`);
+      return null;
     }
-    
-    return data as DataMapping[];
+
+    console.log(`Retrieved ${data?.length || 0} data mappings`);
+    return data;
   } catch (error) {
-    return handleApiError(error, 'An unexpected error occurred while fetching data mappings');
+    console.error('Unexpected error fetching existing mappings:', error);
+    toast.error(`Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return null;
   }
 }
 
-/**
- * Stores new data mappings for future reuse
- */
-export async function saveDataMappings(documentType: string, mappings: Record<string, string>): Promise<boolean> {
+export async function saveDataMappings(mappings: any) {
   try {
-    // Check if mapping already exists
-    const existingMapping = await getExistingMappings(documentType);
-      
-    let result;
-    
-    if (existingMapping && existingMapping.length > 0) {
-      // Update existing mapping using rpc
-      result = await supabase
-        .rpc('update_data_mapping', { 
-          p_document_type: documentType,
-          p_mappings: mappings,
-          p_updated_at: new Date().toISOString()
-        } as any); // Type assertion to bypass the TypeScript error
-    } else {
-      // Insert new mapping using rpc
-      result = await supabase
-        .rpc('insert_data_mapping', { 
-          p_document_type: documentType,
-          p_mappings: mappings,
-          p_created_at: new Date().toISOString()
-        } as any); // Type assertion to bypass the TypeScript error
-    }
-    
-    const { error } = result;
-    
+    console.log('Saving data mappings:', mappings);
+    const { error } = await supabase
+      .from('data_mappings')
+      .upsert(mappings, { onConflict: 'source_field,target_field' });
+
     if (error) {
       console.error('Error saving data mappings:', error);
-      toast.error('Failed to save data mappings for future use');
+      toast.error(`Failed to save mappings: ${error.message}`);
       return false;
     }
-    
-    toast.success('Data mappings saved for future use');
+
+    toast.success('Data mappings saved successfully.');
+    console.log('Data mappings saved successfully');
     return true;
   } catch (error) {
     console.error('Unexpected error saving data mappings:', error);
-    toast.error('An unexpected error occurred while saving data mappings');
+    toast.error(`Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     return false;
   }
 }
