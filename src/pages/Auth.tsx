@@ -81,7 +81,9 @@ const Auth: React.FC = () => {
                   
                   // Give state time to update
                   setTimeout(() => {
-                    handleSignUp(new Event('submit') as React.FormEvent);
+                    // Create a proper React.FormEvent instead of a generic Event
+                    const formEvent = { preventDefault: () => {} } as React.FormEvent<HTMLFormElement>;
+                    handleSignUp(formEvent);
                   }, 100);
                 }}
               >
