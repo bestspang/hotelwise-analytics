@@ -1,6 +1,8 @@
 
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Sync } from 'lucide-react';
 import DataPreviewDialog from './DataPreviewDialog';
 import { Tabs } from '@/components/ui/tabs';
 import FileFilterTabs from './FileFilterTabs';
@@ -15,7 +17,7 @@ interface UploadedFilesListProps {
 }
 
 const UploadedFilesList: React.FC<UploadedFilesListProps> = ({ onReprocessing }) => {
-  const { files, isLoading, handleDelete, handleRefresh } = useFileManagement();
+  const { files, isLoading, isSyncing, handleDelete, handleRefresh, handleForceSync } = useFileManagement();
   const { activeTab, setActiveTab, filterFilesByStatus, getFileCount, getDocumentTypeCount, isStuckInProcessing } = useFileFiltering(files);
   const [selectedFile, setSelectedFile] = useState<any>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -57,8 +59,21 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({ onReprocessing })
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-xl">
           Uploaded Files {isLoading && <span className="text-sm text-muted-foreground">(Loading...)</span>}
+          {isSyncing && <span className="text-sm text-muted-foreground ml-2">(Syncing...)</span>}
         </CardTitle>
-        <RefreshButton isLoading={isLoading} onRefresh={handleRefresh} />
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleForceSync} 
+            disabled={isSyncing || isLoading}
+            title="Synchronize DB with storage"
+          >
+            <Sync className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+            Sync Files
+          </Button>
+          <RefreshButton isLoading={isLoading} onRefresh={handleRefresh} />
+        </div>
       </CardHeader>
       <CardContent>
         {files.length > 0 ? (

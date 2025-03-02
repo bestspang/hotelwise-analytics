@@ -146,13 +146,88 @@ export async function resetStuckProcessingFiles() {
       return false;
     }
     
-    if (data && Array.isArray(data) && data.length > 0) {
-      console.log(`Reset ${data.length} stuck processing files`);
+    if (data) {
+      console.log(`Reset stuck processing files`);
     }
     
     return true;
   } catch (error) {
     console.error('Unexpected error resetting stuck files:', error);
+    return false;
+  }
+}
+
+// Add function to synchronize database records with storage
+export async function syncFilesWithStorage() {
+  try {
+    console.log('Starting synchronization of files with storage');
+    
+    // Get all files from database
+    const { data: dbFiles, error: dbError } = await supabase
+      .from('uploaded_files')
+      .select('id, file_path, filename');
+      
+    if (dbError) {
+      console.error('Failed to fetch files from database:', dbError);
+      toast.error('Failed to synchronize with storage');
+      return false;
+    }
+    
+    if (!dbFiles || dbFiles.length === 0) {
+      console.log('No files in database to sync');
+      return true;
+    }
+    
+    console.log(`Found ${dbFiles.length} files in database to check`);
+    
+    // Get list of files in storage
+    const { data: storageFiles, error: storageError } = await supabase.storage
+      .from('pdf_files')
+      .list();
+      
+    if (storageError) {
+      console.error('Failed to list files in storage:', storageError);
+      toast.error('Failed to check storage files');
+      return false;
+    }
+    
+    const storageFilePaths = new Set(storageFiles?.map(file => file.name) || []);
+    const idsToRemove = [];
+    
+    // Check each database file against storage
+    for (const file of dbFiles) {
+      if (!file.file_path || !storageFilePaths.has(file.file_path)) {
+        console.log(`File ${file.filename} (${file.id}) exists in DB but not in storage. Will remove record.`);
+        idsToRemove.push(file.id);
+      }
+    }
+    
+    if (idsToRemove.length > 0) {
+      console.log(`Removing ${idsToRemove.length} orphaned file records`);
+      
+      // Remove in batches of 10 to avoid potential issues with too many operations
+      for (let i = 0; i < idsToRemove.length; i += 10) {
+        const batch = idsToRemove.slice(i, i + 10);
+        
+        const { error: deleteError } = await supabase
+          .from('uploaded_files')
+          .delete()
+          .in('id', batch);
+          
+        if (deleteError) {
+          console.error(`Failed to delete batch of orphaned records:`, deleteError);
+        }
+      }
+      
+      toast.success(`Removed ${idsToRemove.length} file records that no longer exist in storage`);
+      return true;
+    }
+    
+    console.log('All database records have corresponding storage files');
+    return true;
+  } catch (error) {
+    console.error('Error synchronizing files with storage:', error);
+    toast.error('Failed to synchronize files with storage');
     return false;
   }
 }

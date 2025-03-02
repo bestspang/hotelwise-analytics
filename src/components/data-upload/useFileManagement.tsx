@@ -1,11 +1,12 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getUploadedFiles, deleteUploadedFile, resetStuckProcessingFiles } from '@/services/api/fileManagementService';
+import { getUploadedFiles, deleteUploadedFile, resetStuckProcessingFiles, syncFilesWithStorage } from '@/services/api/fileManagementService';
 import { toast } from 'sonner';
 
 export const useFileManagement = () => {
   const [files, setFiles] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState(new Date());
   // Use a ref to persist deleted file IDs across rerenders
   const deletedFileIds = useRef<Set<string>>(new Set());
@@ -13,6 +14,26 @@ export const useFileManagement = () => {
   const fetchInProgress = useRef(false);
   const apiCallCounter = useRef(0); // Track API call timestamps for rate limiting
   const lastFileCount = useRef(0); // To track changes in file count
+
+  // Function to synchronize database with storage
+  const syncWithStorage = useCallback(async () => {
+    if (isSyncing) return;
+    
+    setIsSyncing(true);
+    toast.loading('Synchronizing with storage...');
+    
+    try {
+      await syncFilesWithStorage();
+      toast.success('Database synchronized with storage');
+      // Refresh files after sync
+      setLastRefresh(new Date());
+    } catch (error) {
+      console.error('Error during sync operation:', error);
+      toast.error('Failed to sync with storage');
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [isSyncing]);
 
   const fetchFiles = useCallback(async () => {
     // Prevent concurrent fetch operations
@@ -94,9 +115,16 @@ export const useFileManagement = () => {
     }
   }, []);
 
-  // Fetch files on initial load and when refresh is triggered
+  // Initial synchronization and fetch
   useEffect(() => {
-    fetchFiles();
+    // On initial load, sync the database with storage
+    if (isInitialMount.current) {
+      syncWithStorage().then(() => {
+        fetchFiles();
+      });
+    } else {
+      fetchFiles();
+    }
     
     // Add a polling interval to check for new files every 10 seconds
     const intervalId = setInterval(() => {
@@ -105,7 +133,7 @@ export const useFileManagement = () => {
     }, 10000);
     
     return () => clearInterval(intervalId);
-  }, [lastRefresh, fetchFiles]);
+  }, [lastRefresh, fetchFiles, syncWithStorage]);
 
   const handleDelete = async (fileId: string) => {
     try {
@@ -138,11 +166,16 @@ export const useFileManagement = () => {
     }
   };
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     console.log('Manual refresh triggered');
     setLastRefresh(new Date());
     toast.info('Refreshing file list...');
-  };
+  }, []);
+
+  // Function to force synchronization
+  const handleForceSync = useCallback(() => {
+    syncWithStorage();
+  }, [syncWithStorage]);
 
   // Clear cached files that were added to deletedFileIds but might 
   // still be in the files state, useful when new uploads happen
@@ -158,8 +191,10 @@ export const useFileManagement = () => {
   return {
     files,
     isLoading,
+    isSyncing,
     handleDelete,
     handleRefresh,
+    handleForceSync,
     lastRefresh
   };
 };
