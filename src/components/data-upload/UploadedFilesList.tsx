@@ -1,13 +1,13 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { getUploadedFiles, deleteUploadedFile } from '@/services/uploadService';
 import DataPreviewDialog from './DataPreviewDialog';
-import ExtractedDataCard from './ExtractedDataCard';
 import { AlertTriangle, RefreshCw, FileText } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
+import FileFilterTabs from './FileFilterTabs';
+import FileTabContent from './FileTabContent';
 
 const UploadedFilesList = () => {
   const [files, setFiles] = useState<any[]>([]);
@@ -102,115 +102,44 @@ const UploadedFilesList = () => {
       <CardContent>
         {files.length > 0 ? (
           <>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <div className="flex items-center justify-between mb-4">
-                <TabsList className="grid grid-cols-3">
-                  <TabsTrigger value="all">
-                    All Files
-                    <Badge variant="secondary" className="ml-2">
-                      {getFileCount('all')}
-                    </Badge>
-                  </TabsTrigger>
-                  <TabsTrigger value="processed">
-                    Processed
-                    <Badge variant="secondary" className="ml-2">
-                      {getFileCount('processed')}
-                    </Badge>
-                  </TabsTrigger>
-                  <TabsTrigger value="unprocessed">
-                    Unprocessed
-                    <Badge variant="secondary" className="ml-2">
-                      {getFileCount('unprocessed')}
-                    </Badge>
-                  </TabsTrigger>
-                </TabsList>
-              </div>
+            <FileFilterTabs
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              getFileCount={getFileCount}
+              documentTypes={documentTypes}
+              getDocumentTypeCount={getDocumentTypeCount}
+            />
 
-              {activeTab === 'all' || activeTab === 'processed' ? (
-                <div className="flex flex-wrap gap-2 mb-4 overflow-x-auto pb-2">
-                  {documentTypes.map((type) => {
-                    const count = getDocumentTypeCount(type);
-                    if (count === 0) return null;
-                    
-                    return (
-                      <Badge 
-                        key={type} 
-                        variant={activeTab === type.toLowerCase() ? "default" : "outline"}
-                        className="cursor-pointer"
-                        onClick={() => setActiveTab(type.toLowerCase())}
-                      >
-                        {type} ({count})
-                      </Badge>
-                    );
-                  })}
-                </div>
-              ) : null}
-
-              <TabsContent value="all" className="mt-0">
-                <div className="grid grid-cols-1 gap-4">
-                  {filterFilesByStatus('all').map((file) => (
-                    <ExtractedDataCard
-                      key={file.id}
-                      file={file}
-                      onViewRawData={() => handleViewData(file)}
-                    />
-                  ))}
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="processed" className="mt-0">
-                <div className="grid grid-cols-1 gap-4">
-                  {filterFilesByStatus('processed').map((file) => (
-                    <ExtractedDataCard
-                      key={file.id}
-                      file={file}
-                      onViewRawData={() => handleViewData(file)}
-                    />
-                  ))}
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="unprocessed" className="mt-0">
-                <div className="grid grid-cols-1 gap-4">
-                  {filterFilesByStatus('unprocessed').map((file) => (
-                    <div key={file.id} className="border p-4 rounded-md flex justify-between items-center">
-                      <div className="flex items-center">
-                        <FileText className="h-5 w-5 text-gray-400 mr-2" />
-                        <div>
-                          <p className="font-medium">{file.filename}</p>
-                          <p className="text-xs text-gray-500">
-                            Uploaded on {new Date(file.created_at).toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => handleDelete(file.id)}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </TabsContent>
-              
-              {documentTypes.map((type) => (
-                <TabsContent key={type} value={type.toLowerCase()} className="mt-0">
-                  <div className="grid grid-cols-1 gap-4">
-                    {filterFilesByStatus(type).map((file) => (
-                      <ExtractedDataCard
-                        key={file.id}
-                        file={file}
-                        onViewRawData={() => handleViewData(file)}
-                      />
-                    ))}
-                  </div>
-                </TabsContent>
-              ))}
-            </Tabs>
+            <FileTabContent
+              tabValue="all"
+              files={filterFilesByStatus('all')}
+              onViewRawData={handleViewData}
+              onDelete={handleDelete}
+            />
+            
+            <FileTabContent
+              tabValue="processed"
+              files={filterFilesByStatus('processed')}
+              onViewRawData={handleViewData}
+              onDelete={handleDelete}
+            />
+            
+            <FileTabContent
+              tabValue="unprocessed"
+              files={filterFilesByStatus('unprocessed')}
+              onViewRawData={handleViewData}
+              onDelete={handleDelete}
+            />
+            
+            {documentTypes.map((type) => (
+              <FileTabContent
+                key={type}
+                tabValue={type.toLowerCase()}
+                files={filterFilesByStatus(type)}
+                onViewRawData={handleViewData}
+                onDelete={handleDelete}
+              />
+            ))}
           </>
         ) : (
           <Alert>
