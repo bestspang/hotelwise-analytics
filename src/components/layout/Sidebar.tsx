@@ -26,6 +26,10 @@ interface SidebarProps {
 const Sidebar = ({ collapsed, setCollapsed }: SidebarProps) => {
   const location = useLocation();
   const { user, checkPermission, signOut } = useAuth();
+  const isDevelopment = import.meta.env.DEV;
+
+  console.log('Sidebar rendering with user:', user);
+  console.log('Development mode:', isDevelopment);
 
   // Generate navigation items based on user role
   const getNavItems = () => {
@@ -92,6 +96,7 @@ const Sidebar = ({ collapsed, setCollapsed }: SidebarProps) => {
   };
 
   const navItems = getNavItems();
+  console.log('Nav items:', navItems);
 
   return (
     <aside 

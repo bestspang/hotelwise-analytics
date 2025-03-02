@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -14,6 +13,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [sessionChecked, setSessionChecked] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const isDevelopment = import.meta.env.DEV;
 
   // Check for error parameters in URL hash
   useEffect(() => {
@@ -30,8 +30,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [location]);
 
-  // Check for existing session on mount
+  // Set up mock user for development mode
   useEffect(() => {
+    if (isDevelopment && !user) {
+      console.log('Development mode: Setting mock user');
+      setUser({
+        id: 'dev-user-id',
+        email: 'dev@example.com',
+        username: 'Dev User',
+        role: 'admin' // Set to admin to enable all sidebar items
+      });
+      setLoading(false);
+      setSessionChecked(true);
+    }
+  }, [isDevelopment, user]);
+
+  // Check for existing session on mount (only in production)
+  useEffect(() => {
+    if (isDevelopment) return; // Skip in development mode
+
     const getSession = async () => {
       try {
         setLoading(true);
@@ -85,7 +102,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [navigate, location.pathname]);
+  }, [navigate, location.pathname, isDevelopment]);
 
   const handleSignIn = async (email: string, password: string, rememberMe: boolean = false) => {
     try {
@@ -167,6 +184,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const handleCheckPermission = (requiredRole: UserRole): boolean => {
+    if (isDevelopment) return true; // In development mode, allow all permissions
     if (!user) return false;
     return authService.checkPermission(user.role, requiredRole);
   };
