@@ -17,7 +17,15 @@ interface UploadedFilesListProps {
 }
 
 const UploadedFilesList: React.FC<UploadedFilesListProps> = ({ onReprocessing }) => {
-  const { files, isLoading, isSyncing, handleDelete, handleRefresh, handleForceSync } = useFileManagement();
+  const { 
+    files, 
+    isLoading, 
+    isSyncing, 
+    handleDelete, 
+    fetchFiles, 
+    syncWithStorage 
+  } = useFileManagement();
+  
   const { activeTab, setActiveTab, filterFilesByStatus, getFileCount, getDocumentTypeCount, isStuckInProcessing } = useFileFiltering(files);
   const [selectedFile, setSelectedFile] = useState<any>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -65,14 +73,14 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({ onReprocessing })
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={handleForceSync} 
+            onClick={syncWithStorage} 
             disabled={isSyncing || isLoading}
             title="Synchronize DB with storage and remove orphaned records"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
             Sync Files
           </Button>
-          <RefreshButton isLoading={isLoading} onRefresh={handleRefresh} />
+          <RefreshButton isLoading={isLoading} onRefresh={fetchFiles} />
         </div>
       </CardHeader>
       <CardContent>
