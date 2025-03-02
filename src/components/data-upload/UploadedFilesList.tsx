@@ -125,7 +125,8 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({ onReprocessing })
           open={previewOpen} 
           onClose={handleClosePreview}
           onDelete={() => {
-            handleFileDelete(selectedFile.id);
+            // Return the Promise from handleFileDelete to fix the type error
+            return handleFileDelete(selectedFile.id);
           }}
         />
       )}
