@@ -3,22 +3,30 @@ import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import MetricsPreview from './MetricsPreview';
 import RecordsPreview from './RecordsPreview';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 
 interface PreviewContentProps {
-  data: any;
-  noExtractedData: boolean;
-  hasExtractionError: boolean;
+  file: any;
 }
 
-const PreviewContent: React.FC<PreviewContentProps> = ({ 
-  data,
-  noExtractedData,
-  hasExtractionError 
-}) => {
+const PreviewContent: React.FC<PreviewContentProps> = ({ file }) => {
   const [activeTab, setActiveTab] = useState('records');
+  
+  const noExtractedData = !file.extracted_data || Object.keys(file.extracted_data).length === 0;
+  const hasExtractionError = file.processing_error || false;
 
   if (noExtractedData || hasExtractionError) {
-    return null;
+    return (
+      <Alert variant="destructive" className="mt-4">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+          {hasExtractionError
+            ? "There was an error processing this file. Please try re-processing it."
+            : "No data has been extracted from this file yet."}
+        </AlertDescription>
+      </Alert>
+    );
   }
 
   return (
@@ -29,11 +37,11 @@ const PreviewContent: React.FC<PreviewContentProps> = ({
       </TabsList>
       
       <TabsContent value="records" className="mt-4">
-        <RecordsPreview data={data.extracted_data} />
+        <RecordsPreview data={file.extracted_data} />
       </TabsContent>
       
       <TabsContent value="metrics" className="mt-4">
-        <MetricsPreview data={data.extracted_data} />
+        <MetricsPreview data={file.extracted_data} />
       </TabsContent>
     </Tabs>
   );

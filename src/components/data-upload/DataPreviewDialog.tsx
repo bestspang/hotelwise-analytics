@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { MoreHorizontal } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -12,7 +13,7 @@ interface DataPreviewDialogProps {
   file: any;
   open: boolean;
   onClose: () => void;
-  onDelete?: () => void;
+  onDelete?: () => Promise<void>; // Changed to ensure it returns a Promise
 }
 
 const DataPreviewDialog: React.FC<DataPreviewDialogProps> = ({ file, open, onClose, onDelete }) => {
@@ -25,7 +26,7 @@ const DataPreviewDialog: React.FC<DataPreviewDialogProps> = ({ file, open, onClo
   const confirmDelete = async () => {
     if (onDelete) {
       toast.promise(
-        onDelete(),
+        onDelete(), // This should now return a Promise
         {
           loading: 'Deleting file...',
           success: () => {
@@ -44,7 +45,9 @@ const DataPreviewDialog: React.FC<DataPreviewDialogProps> = ({ file, open, onClo
   };
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      if (!isOpen) onClose();
+    }}>
       <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>{file.filename}</DialogTitle>
@@ -87,6 +90,23 @@ const DataPreviewDialog: React.FC<DataPreviewDialogProps> = ({ file, open, onClo
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+
+        {isDeleteConfirmationOpen && (
+          <Dialog open={true} onOpenChange={setIsDeleteConfirmationOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Confirm Deletion</DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to delete this file? This action cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={cancelDelete}>Cancel</Button>
+                <Button variant="destructive" onClick={confirmDelete}>Delete</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </DialogContent>
     </Dialog>
   );
