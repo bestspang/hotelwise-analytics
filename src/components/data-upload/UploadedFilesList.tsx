@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Sync } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import DataPreviewDialog from './DataPreviewDialog';
 import { Tabs } from '@/components/ui/tabs';
 import FileFilterTabs from './FileFilterTabs';
@@ -69,7 +68,7 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({ onReprocessing })
             disabled={isSyncing || isLoading}
             title="Synchronize DB with storage"
           >
-            <Sync className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
             Sync Files
           </Button>
           <RefreshButton isLoading={isLoading} onRefresh={handleRefresh} />
