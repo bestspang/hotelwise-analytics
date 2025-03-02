@@ -1,5 +1,5 @@
 
-import { useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { deleteUploadedFile } from '@/services/api/fileManagementService';
 import { toast } from 'sonner';
 
@@ -8,8 +8,19 @@ export const useFileDelete = (
   deletedFileIds: React.MutableRefObject<Set<string>>,
   setFiles: (files: any[] | ((prev: any[]) => any[])) => void
 ) => {
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [lastDeletedFileId, setLastDeletedFileId] = useState<string | null>(null);
+
   const handleDelete = useCallback(async (fileId: string) => {
+    if (isDeleting) {
+      toast.warning('Delete operation already in progress, please wait');
+      return false;
+    }
+
     try {
+      setIsDeleting(true);
+      setDeleteError(null);
       toast.loading('Deleting file...');
       console.log(`Attempting to delete file with ID: ${fileId}`);
       
@@ -18,6 +29,7 @@ export const useFileDelete = (
       
       // Add to our permanent set of deleted file IDs to ensure it doesn't come back
       deletedFileIds.current.add(fileId);
+      setLastDeletedFileId(fileId);
       console.log(`Added ID ${fileId} to deleted files tracking set. Current deleted IDs:`, [...deletedFileIds.current]);
       
       const success = await deleteUploadedFile(fileId);
@@ -30,14 +42,43 @@ export const useFileDelete = (
         return true;
       }
       
-      toast.error('Failed to delete file completely');
+      // If we reach here, the deletion wasn't successful
+      const errorMessage = 'Failed to delete file completely';
+      setDeleteError(errorMessage);
+      toast.error(errorMessage);
+      
+      // Attempt to recover by refetching files in the next render cycle
       return false;
     } catch (error) {
-      console.error('Error deleting file:', error);
-      toast.error('Failed to delete file');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error(`Error deleting file: ${errorMessage}`, error);
+      setDeleteError(errorMessage);
+      toast.error(`Failed to delete file: ${errorMessage}`);
       return false;
+    } finally {
+      setIsDeleting(false);
     }
-  }, [deletedFileIds, setFiles]);
+  }, [deletedFileIds, setFiles, isDeleting]);
 
-  return { handleDelete };
+  // Function to clear delete error state
+  const clearDeleteError = useCallback(() => {
+    setDeleteError(null);
+  }, []);
+
+  // Function to retry last failed delete
+  const retryDelete = useCallback(async () => {
+    if (lastDeletedFileId) {
+      return handleDelete(lastDeletedFileId);
+    }
+    return false;
+  }, [lastDeletedFileId, handleDelete]);
+
+  return { 
+    handleDelete, 
+    isDeleting, 
+    deleteError, 
+    clearDeleteError, 
+    retryDelete,
+    lastDeletedFileId
+  };
 };

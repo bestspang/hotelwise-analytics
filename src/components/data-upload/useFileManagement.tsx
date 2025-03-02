@@ -1,14 +1,13 @@
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { useFileState } from './hooks/useFileState';
-import { useFileSync } from './hooks/useFileSync';
 import { useFileFetch } from './hooks/useFileFetch';
 import { useFileDelete } from './hooks/useFileDelete';
+import { useFileSync } from './hooks/useFileSync';
 import { toast } from 'sonner';
-import { deleteUploadedFile } from '@/services/api/fileManagementService';
 
-export const useFileManagement = () => {
-  // Get all the state and refs from the state hook
+// Main hook that composes the file management functionality
+export const useFileManagement = (refreshTrigger: number) => {
   const {
     files,
     setFiles,
@@ -16,77 +15,136 @@ export const useFileManagement = () => {
     setIsLoading,
     lastRefresh,
     setLastRefresh,
+    errorState,
+    setError,
+    clearAllErrors,
     deletedFileIds,
     fetchInProgress,
     apiCallCounter,
     lastFileCount,
-    isInitialMount
+    isInitialMount,
+    incrementRetryCount,
+    resetRetryCount
   } = useFileState();
 
-  // Get synchronization functionality
-  const { isSyncing, syncWithStorage } = useFileSync();
-  
-  // Get file fetching functionality
-  const { fetchFiles } = useFileFetch(
+  // Compose the fetchFiles logic
+  const { 
+    fetchFiles, 
+    fetchError, 
+    clearFetchError, 
+    reappearedFiles, 
+    handleReappearedFiles
+  } = useFileFetch(
     { fetchInProgress, apiCallCounter, deletedFileIds, lastFileCount, isInitialMount },
     { setIsLoading, setFiles }
   );
-  
-  // Get file deletion functionality
-  const { handleDelete } = useFileDelete(deletedFileIds, setFiles);
 
-  // Initial synchronization and fetch
+  // Update the error state when fetchError changes
   useEffect(() => {
-    // On initial load, sync the database with storage
-    if (isInitialMount.current) {
-      syncWithStorage().then(() => {
-        fetchFiles();
-      });
-    } else {
-      fetchFiles();
+    if (fetchError) {
+      setError('fetch', fetchError);
     }
-    
-    // Add a polling interval to check for new files every 10 seconds
-    const intervalId = setInterval(() => {
-      console.log('Polling for new files');
-      fetchFiles();
-    }, 10000);
-    
-    return () => clearInterval(intervalId);
-  }, [lastRefresh, fetchFiles, syncWithStorage, isInitialMount]);
+  }, [fetchError, setError]);
 
-  const handleRefresh = useCallback(() => {
-    console.log('Manual refresh triggered');
+  // Compose the deleteFile logic
+  const { 
+    handleDelete, 
+    isDeleting, 
+    deleteError, 
+    clearDeleteError, 
+    retryDelete
+  } = useFileDelete(deletedFileIds, setFiles);
+
+  // Update the error state when deleteError changes
+  useEffect(() => {
+    if (deleteError) {
+      setError('delete', deleteError);
+    }
+  }, [deleteError, setError]);
+
+  // Compose the syncWithStorage logic
+  const { 
+    isSyncing, 
+    syncError, 
+    syncWithStorage, 
+    clearSyncError 
+  } = useFileSync();
+
+  // Update the error state when syncError changes
+  useEffect(() => {
+    if (syncError) {
+      setError('sync', syncError);
+    }
+  }, [syncError, setError]);
+
+  // Set up automatic retry for fetching with exponential backoff
+  const maxRetries = useRef(3);
+  const retryTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  const fetchWithRetry = useCallback(async () => {
+    try {
+      await fetchFiles();
+      resetRetryCount('fetch');
+    } catch (error) {
+      const retries = incrementRetryCount('fetch');
+      if (retries <= maxRetries.current) {
+        const backoffTime = Math.min(1000 * Math.pow(2, retries - 1), 30000);
+        console.log(`Fetch failed, retrying in ${backoffTime}ms (attempt ${retries}/${maxRetries.current})`);
+        
+        if (retryTimeout.current) {
+          clearTimeout(retryTimeout.current);
+        }
+        
+        retryTimeout.current = setTimeout(() => {
+          fetchWithRetry();
+        }, backoffTime);
+      } else {
+        console.error(`Failed to fetch files after ${maxRetries.current} attempts`);
+        toast.error(`Failed to fetch files after multiple attempts. Please try again later.`);
+      }
+    }
+  }, [fetchFiles, incrementRetryCount, resetRetryCount]);
+
+  // Clear retry timeout on component unmount
+  useEffect(() => {
+    return () => {
+      if (retryTimeout.current) {
+        clearTimeout(retryTimeout.current);
+      }
+    };
+  }, []);
+
+  // Fetch files on initial load and when refreshTrigger changes
+  useEffect(() => {
+    fetchWithRetry();
     setLastRefresh(new Date());
-    toast.info('Refreshing file list...');
-  }, [setLastRefresh]);
+  }, [refreshTrigger, fetchWithRetry, setLastRefresh]);
 
-  // Function to force synchronization
-  const handleForceSync = useCallback(() => {
-    syncWithStorage().then(() => {
-      // Refresh the file list after sync
-      setLastRefresh(new Date());
-    });
-  }, [syncWithStorage, setLastRefresh]);
-
-  // Clear cached files that were added to deletedFileIds but might 
-  // still be in the files state, useful when new uploads happen
+  // Handle reappeared files automatically if they exist
   useEffect(() => {
-    // Secondary filter to ensure deleted files aren't shown
-    const filteredFiles = files.filter(file => !deletedFileIds.current.has(file.id));
-    if (filteredFiles.length !== files.length) {
-      console.log('Cleaning up deleted files from state');
-      setFiles(filteredFiles);
+    if (reappearedFiles.length > 0) {
+      handleReappearedFiles();
     }
-  }, [files, setFiles, deletedFileIds]);
+  }, [reappearedFiles, handleReappearedFiles]);
+
+  // Clear all errors when component is initialized
+  useEffect(() => {
+    clearAllErrors();
+  }, [clearAllErrors]);
 
   return {
     files,
     isLoading,
-    isSyncing,
+    lastRefresh,
     handleDelete,
-    handleRefresh,
-    handleForceSync,
-    lastRefresh
+    isDeleting,
+    fetchFiles,
+    errorState,
+    clearAllErrors,
+    retryDelete,
+    syncWithStorage,
+    isSyncing,
+    handleReappearedFiles,
+    reappearedFiles
   };
 };
