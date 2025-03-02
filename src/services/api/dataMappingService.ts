@@ -11,23 +11,6 @@ export interface DataMapping {
   updated_at?: string;
 }
 
-// Define explicit types for RPC function parameters to prevent 'never' type inference
-interface GetDataMappingsParams {
-  p_document_type: string;
-}
-
-interface UpdateDataMappingParams {
-  p_document_type: string;
-  p_mappings: Record<string, string>;
-  p_updated_at: string;
-}
-
-interface InsertDataMappingParams {
-  p_document_type: string;
-  p_mappings: Record<string, string>;
-  p_created_at: string;
-}
-
 /**
  * Retrieves existing data mappings for a specific document type
  */

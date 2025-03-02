@@ -94,6 +94,30 @@ export type Database = {
           },
         ]
       }
+      data_mappings: {
+        Row: {
+          created_at: string | null
+          document_type: string
+          id: string
+          mappings: Json
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          document_type: string
+          id?: string
+          mappings: Json
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          document_type?: string
+          id?: string
+          mappings?: Json
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       expense_details: {
         Row: {
           cost_per_occupied_room: number
@@ -680,7 +704,34 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_data_mappings: {
+        Args: {
+          p_document_type: string
+        }
+        Returns: {
+          created_at: string | null
+          document_type: string
+          id: string
+          mappings: Json
+          updated_at: string | null
+        }[]
+      }
+      insert_data_mapping: {
+        Args: {
+          p_document_type: string
+          p_mappings: Json
+          p_created_at: string
+        }
+        Returns: undefined
+      }
+      update_data_mapping: {
+        Args: {
+          p_document_type: string
+          p_mappings: Json
+          p_updated_at: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
