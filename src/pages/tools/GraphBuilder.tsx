@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -8,7 +7,7 @@ import GraphControls from '@/components/graph-builder/GraphControls';
 import ChartPreview from '@/components/graph-builder/ChartPreview';
 import MetricComparisonCard from '@/components/graph-builder/MetricComparisonCard';
 import { fetchTrendData } from '@/services/api/dashboardService';
-import { Skeleton } from '@/components/ui/skeleton';
+import Skeleton from '@/components/ui/skeleton';
 
 const GraphBuilder: React.FC = () => {
   // State for the chart builder

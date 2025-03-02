@@ -24,7 +24,6 @@ const RoomOccupancyGrid: React.FC<RoomOccupancyGridProps> = ({
     setIsDialogOpen(true);
   };
   
-  // Group rooms by floor
   const roomsByFloor = roomData.reduce((acc, room) => {
     if (!acc[room.floor]) {
       acc[room.floor] = [];

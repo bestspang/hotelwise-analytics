@@ -6,7 +6,7 @@ import ChartSection from '@/components/dashboard/ChartSection';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
+import Skeleton from '@/components/ui/skeleton';
 import {
   fetchKpiData,
   fetchTrendData,
