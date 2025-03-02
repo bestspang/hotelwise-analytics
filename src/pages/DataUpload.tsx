@@ -2,7 +2,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import UploadCard from '@/components/data-upload/UploadCard';
-import { resetStuckProcessingFiles, syncFilesWithStorage } from '@/services/api/fileManagementService';
+import { resetStuckProcessingFiles, syncFilesWithStorage } from '@/services/api/fileServices/maintenanceService';
 import PageHeader from '@/components/data-upload/PageHeader';
 import ContentTabs from '@/components/data-upload/ContentTabs';
 import { toast } from 'sonner';

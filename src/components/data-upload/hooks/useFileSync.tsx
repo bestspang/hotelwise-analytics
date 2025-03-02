@@ -1,6 +1,6 @@
 
 import { useState, useCallback } from 'react';
-import { syncFilesWithStorage } from '@/services/api/fileManagementService';
+import { syncFilesWithStorage } from '@/services/api/fileServices/maintenanceService';
 import { toast } from 'sonner';
 
 export const useFileSync = () => {

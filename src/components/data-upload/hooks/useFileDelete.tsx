@@ -1,6 +1,6 @@
 
 import { useState, useCallback } from 'react';
-import { deleteUploadedFile } from '@/services/api/fileManagementService';
+import { deleteUploadedFile } from '@/services/api/fileServices/deleteService';
 import { toast } from 'sonner';
 
 // Hook for file deletion logic
