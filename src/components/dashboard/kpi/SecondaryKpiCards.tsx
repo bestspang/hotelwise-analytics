@@ -3,11 +3,11 @@ import React from 'react';
 import KpiCard from '@/components/ui/KpiCard';
 import KpiTooltip from './KpiTooltip';
 import { kpiInfoMap } from './kpiData';
-import { HotelKpiData } from '@/utils/mockData';
+import { HotelKpiData } from '@/services/api/dashboardService';
 
 interface SecondaryKpiCardsProps {
   dashboardData: HotelKpiData;
-  formatCurrency: (value: number) => string;
+  formatCurrency: (value: number | null) => string;
 }
 
 const SecondaryKpiCards: React.FC<SecondaryKpiCardsProps> = ({ 
@@ -24,6 +24,8 @@ const SecondaryKpiCards: React.FC<SecondaryKpiCardsProps> = ({
           previousValue={dashboardData.previousCPOR}
           formatter={formatCurrency}
           trendColor={false}
+          isDataAvailable={dashboardData.cpor !== null}
+          requiredData="Expense Data"
         />
       </div>
       
@@ -33,7 +35,9 @@ const SecondaryKpiCards: React.FC<SecondaryKpiCardsProps> = ({
           value={dashboardData.alos}
           suffix=" days"
           previousValue={dashboardData.previousALOS}
-          formatter={(val) => val.toFixed(1)}
+          formatter={(val) => val !== null ? val.toFixed(1) : 'N/A'}
+          isDataAvailable={dashboardData.alos !== null}
+          requiredData="Occupancy Data"
         />
       </div>
     </div>

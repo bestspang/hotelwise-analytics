@@ -3,12 +3,12 @@ import React from 'react';
 import KpiCard from '@/components/ui/KpiCard';
 import KpiTooltip from './KpiTooltip';
 import { kpiInfoMap } from './kpiData';
-import { HotelKpiData } from '@/utils/mockData';
+import { HotelKpiData } from '@/services/api/dashboardService';
 
 interface PrimaryKpiCardsProps {
   dashboardData: HotelKpiData;
-  formatCurrency: (value: number) => string;
-  formatPercentage: (value: number) => string;
+  formatCurrency: (value: number | null) => string;
+  formatPercentage: (value: number | null) => string;
 }
 
 const PrimaryKpiCards: React.FC<PrimaryKpiCardsProps> = ({ 
@@ -25,6 +25,8 @@ const PrimaryKpiCards: React.FC<PrimaryKpiCardsProps> = ({
           prefix="$"
           previousValue={dashboardData.previousRevPAR}
           formatter={formatCurrency}
+          isDataAvailable={dashboardData.revPAR !== null}
+          requiredData="Occupancy Data"
         />
       </div>
       
@@ -35,6 +37,8 @@ const PrimaryKpiCards: React.FC<PrimaryKpiCardsProps> = ({
           prefix="$"
           previousValue={dashboardData.previousADR}
           formatter={formatCurrency}
+          isDataAvailable={dashboardData.adr !== null}
+          requiredData="Occupancy Data"
         />
       </div>
       
@@ -45,6 +49,8 @@ const PrimaryKpiCards: React.FC<PrimaryKpiCardsProps> = ({
           suffix="%"
           previousValue={dashboardData.previousOccupancyRate}
           formatter={formatPercentage}
+          isDataAvailable={dashboardData.occupancyRate !== null}
+          requiredData="Occupancy Data"
         />
       </div>
       
@@ -55,6 +61,8 @@ const PrimaryKpiCards: React.FC<PrimaryKpiCardsProps> = ({
           prefix="$"
           previousValue={dashboardData.previousGopPAR}
           formatter={formatCurrency}
+          isDataAvailable={dashboardData.gopPAR !== null}
+          requiredData="Financial Reports"
         />
       </div>
       
@@ -65,6 +73,8 @@ const PrimaryKpiCards: React.FC<PrimaryKpiCardsProps> = ({
           prefix="$"
           previousValue={dashboardData.previousTRevPAR}
           formatter={formatCurrency}
+          isDataAvailable={dashboardData.tRevPAR !== null}
+          requiredData="Financial Reports"
         />
       </div>
     </div>

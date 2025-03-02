@@ -2,21 +2,23 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { ArrowUpIcon, ArrowDownIcon } from 'lucide-react';
+import { ArrowUpIcon, ArrowDownIcon, AlertCircle } from 'lucide-react';
 
 interface KpiCardProps {
   title: string | React.ReactNode;
-  value: number | string;
+  value: number | string | null;
   prefix?: string;
   suffix?: string;
-  previousValue?: number;
+  previousValue?: number | null;
   change?: number;
   changePrefix?: string;
   changeSuffix?: string;
   trend?: 'up' | 'down' | 'neutral';
   trendColor?: boolean;
   className?: string;
-  formatter?: (value: number) => string;
+  formatter?: (value: number | null) => string;
+  isDataAvailable?: boolean;
+  requiredData?: string;
 }
 
 const KpiCard: React.FC<KpiCardProps> = ({
@@ -31,16 +33,51 @@ const KpiCard: React.FC<KpiCardProps> = ({
   trend,
   trendColor = true,
   className,
-  formatter = (val) => val.toString()
+  formatter = (val) => val !== null ? val.toString() : 'N/A',
+  isDataAvailable = true,
+  requiredData = 'Data'
 }) => {
-  // Calculate change percentage if not provided
-  const changePercentage = change ?? (previousValue ? ((Number(value) - previousValue) / previousValue) * 100 : 0);
+  // If data is not available, show a message
+  if (!isDataAvailable) {
+    return (
+      <Card className={cn(
+        "overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-gray-100 dark:border-gray-800",
+        className
+      )}>
+        <CardContent className="p-6">
+          <div className="flex flex-col space-y-2">
+            <div className="text-sm font-medium text-muted-foreground">{title}</div>
+            
+            <div className="flex items-center justify-center text-center h-[60px]">
+              <div className="flex flex-col items-center">
+                <AlertCircle className="h-5 w-5 text-yellow-500 mb-1" />
+                <span className="text-sm font-medium">NO DATA</span>
+                <span className="text-xs text-muted-foreground">Required: {requiredData}</span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+  
+  // Calculate change percentage if not provided and previousValue exists
+  let changePercentage = change;
+  if (changePercentage === undefined && 
+      previousValue !== undefined && 
+      previousValue !== null && 
+      value !== null && 
+      typeof value === 'number') {
+    changePercentage = ((value - previousValue) / previousValue) * 100;
+  } else if (changePercentage === undefined) {
+    changePercentage = 0;
+  }
   
   // Determine trend if not provided
   const determinedTrend = trend || (changePercentage > 0 ? 'up' : changePercentage < 0 ? 'down' : 'neutral');
   
   // Format the value
-  const formattedValue = typeof value === 'number' ? formatter(value) : value;
+  const formattedValue = typeof value === 'number' ? formatter(value) : value || 'N/A';
   
   return (
     <Card className={cn(
@@ -60,7 +97,7 @@ const KpiCard: React.FC<KpiCardProps> = ({
             {suffix && <span className="text-muted-foreground ml-1 text-sm">{suffix}</span>}
           </div>
           
-          {(previousValue !== undefined || change !== undefined) && (
+          {(previousValue !== undefined && previousValue !== null && typeof changePercentage === 'number') && (
             <div className="flex items-center mt-2">
               {determinedTrend === 'up' && (
                 <ArrowUpIcon size={16} className={cn("mr-1", trendColor ? "text-green-500" : "text-muted-foreground")} />
