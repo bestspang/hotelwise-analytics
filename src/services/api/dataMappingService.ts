@@ -14,7 +14,7 @@ export interface DataMapping {
 /**
  * Retrieves existing data mappings for a specific document type
  */
-export async function getExistingMappings(documentType: string) {
+export async function getExistingMappings(documentType: string): Promise<DataMapping[] | null> {
   try {
     // Use rpc function to get mappings
     const { data, error } = await supabase
@@ -24,7 +24,7 @@ export async function getExistingMappings(documentType: string) {
       return handleApiError(error, 'Failed to fetch existing data mappings');
     }
     
-    return data;
+    return data as DataMapping[];
   } catch (error) {
     return handleApiError(error, 'An unexpected error occurred while fetching data mappings');
   }
@@ -33,7 +33,7 @@ export async function getExistingMappings(documentType: string) {
 /**
  * Stores new data mappings for future reuse
  */
-export async function saveDataMappings(documentType: string, mappings: Record<string, string>) {
+export async function saveDataMappings(documentType: string, mappings: Record<string, string>): Promise<boolean> {
   try {
     // Check if mapping already exists
     const existingMapping = await getExistingMappings(documentType);
