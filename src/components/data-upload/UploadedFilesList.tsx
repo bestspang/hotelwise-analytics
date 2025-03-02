@@ -1,119 +1,20 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { getUploadedFiles, deleteUploadedFile } from '@/services/uploadService';
 import DataPreviewDialog from './DataPreviewDialog';
-import { AlertTriangle, RefreshCw, FileText } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Tabs } from '@/components/ui/tabs';
 import FileFilterTabs from './FileFilterTabs';
 import FileTabContent from './FileTabContent';
-import { Tabs } from '@/components/ui/tabs';
-import { toast } from 'sonner';
+import RefreshButton from './RefreshButton';
+import NoFilesAlert from './NoFilesAlert';
+import { useFileManagement } from './useFileManagement';
+import { useFileFiltering } from './useFileFiltering';
 
 const UploadedFilesList = () => {
-  const [files, setFiles] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { files, isLoading, handleDelete, handleRefresh } = useFileManagement();
+  const { activeTab, setActiveTab, filterFilesByStatus, getFileCount, getDocumentTypeCount } = useFileFiltering(files);
   const [selectedFile, setSelectedFile] = useState<any>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('all');
-  const [lastRefresh, setLastRefresh] = useState(new Date());
-  const [deletedFileIds, setDeletedFileIds] = useState<Set<string>>(new Set());
-
-  const fetchFiles = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const uploadedFiles = await getUploadedFiles();
-      console.log('Fetched files:', uploadedFiles);
-      
-      // Filter out any files that have been deleted during this session
-      const filteredFiles = uploadedFiles.filter(file => !deletedFileIds.has(file.id));
-      setFiles(filteredFiles);
-    } catch (error) {
-      console.error('Error fetching files:', error);
-      toast.error('Failed to fetch uploaded files');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [deletedFileIds]);
-
-  useEffect(() => {
-    fetchFiles();
-    
-    // Poll for updates every 10 seconds
-    const intervalId = setInterval(fetchFiles, 10000);
-    return () => clearInterval(intervalId);
-  }, [lastRefresh, fetchFiles]);
-
-  const handleDelete = async (fileId: string) => {
-    try {
-      const success = await deleteUploadedFile(fileId);
-      if (success) {
-        // Add to our local set of deleted file IDs
-        setDeletedFileIds(prev => new Set([...prev, fileId]));
-        
-        // Update the files list immediately
-        setFiles(files.filter(file => file.id !== fileId));
-        
-        if (previewOpen && selectedFile && selectedFile.id === fileId) {
-          setPreviewOpen(false);
-        }
-        
-        // Force a refresh of the file list
-        setLastRefresh(new Date());
-      }
-    } catch (error) {
-      console.error('Error deleting file:', error);
-      toast.error('Failed to delete file');
-    }
-  };
-
-  const handleViewData = (file: any) => {
-    setSelectedFile(file);
-    setPreviewOpen(true);
-  };
-
-  const handleClosePreview = () => {
-    setPreviewOpen(false);
-  };
-
-  const handleRefresh = () => {
-    setLastRefresh(new Date());
-    toast.info('Refreshing file list...');
-  };
-
-  const filterFilesByStatus = (status: string) => {
-    if (status === 'all') return files;
-    
-    if (status === 'processed') {
-      return files.filter(file => 
-        file.processed && 
-        file.extracted_data && 
-        !file.processing && 
-        !file.extracted_data.error
-      );
-    }
-    
-    if (status === 'unprocessed') {
-      return files.filter(file => 
-        !file.processed || 
-        file.processing || 
-        !file.extracted_data || 
-        (file.processed && file.extracted_data && file.extracted_data.error)
-      );
-    }
-    
-    return files.filter(file => {
-      const docType = file.document_type || 
-        (file.extracted_data && file.extracted_data.documentType);
-      
-      return docType && docType.toLowerCase() === status.toLowerCase();
-    });
-  };
-
-  const getFileCount = (status: string) => {
-    return filterFilesByStatus(status).length;
-  };
 
   const documentTypes = [
     'Expense Voucher', 
@@ -124,13 +25,20 @@ const UploadedFilesList = () => {
     'No-show Report'
   ];
 
-  const getDocumentTypeCount = (type: string) => {
-    return files.filter(file => {
-      const docType = file.document_type || 
-        (file.extracted_data && file.extracted_data.documentType);
-      
-      return docType === type;
-    }).length;
+  const handleViewData = (file: any) => {
+    setSelectedFile(file);
+    setPreviewOpen(true);
+  };
+
+  const handleClosePreview = () => {
+    setPreviewOpen(false);
+  };
+
+  const handleFileDelete = async (fileId: string) => {
+    const success = await handleDelete(fileId);
+    if (success && previewOpen && selectedFile && selectedFile.id === fileId) {
+      setPreviewOpen(false);
+    }
   };
 
   return (
@@ -139,10 +47,7 @@ const UploadedFilesList = () => {
         <CardTitle className="text-xl">
           Uploaded Files {isLoading && <span className="text-sm text-muted-foreground">(Loading...)</span>}
         </CardTitle>
-        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isLoading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+        <RefreshButton isLoading={isLoading} onRefresh={handleRefresh} />
       </CardHeader>
       <CardContent>
         {files.length > 0 ? (
@@ -159,7 +64,7 @@ const UploadedFilesList = () => {
               tabValue="all"
               files={filterFilesByStatus('all')}
               onViewRawData={handleViewData}
-              onDelete={handleDelete}
+              onDelete={handleFileDelete}
               isActive={activeTab === 'all'}
             />
             
@@ -167,7 +72,7 @@ const UploadedFilesList = () => {
               tabValue="processed"
               files={filterFilesByStatus('processed')}
               onViewRawData={handleViewData}
-              onDelete={handleDelete}
+              onDelete={handleFileDelete}
               isActive={activeTab === 'processed'}
             />
             
@@ -175,7 +80,7 @@ const UploadedFilesList = () => {
               tabValue="unprocessed"
               files={filterFilesByStatus('unprocessed')}
               onViewRawData={handleViewData}
-              onDelete={handleDelete}
+              onDelete={handleFileDelete}
               isActive={activeTab === 'unprocessed'}
             />
             
@@ -185,20 +90,13 @@ const UploadedFilesList = () => {
                 tabValue={type.toLowerCase()}
                 files={filterFilesByStatus(type.toLowerCase())}
                 onViewRawData={handleViewData}
-                onDelete={handleDelete}
+                onDelete={handleFileDelete}
                 isActive={activeTab === type.toLowerCase()}
               />
             ))}
           </Tabs>
         ) : (
-          <Alert>
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>No files uploaded</AlertTitle>
-            <AlertDescription>
-              Upload PDF files using the form above to see them listed here.
-              {isLoading && " Loading your files..."}
-            </AlertDescription>
-          </Alert>
+          <NoFilesAlert isLoading={isLoading} />
         )}
       </CardContent>
 
@@ -208,7 +106,7 @@ const UploadedFilesList = () => {
           open={previewOpen} 
           onClose={handleClosePreview}
           onDelete={() => {
-            handleDelete(selectedFile.id);
+            handleFileDelete(selectedFile.id);
           }}
         />
       )}
