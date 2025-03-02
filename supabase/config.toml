@@ -28,5 +28,8 @@ enabled = true
 [storage]
 enabled = true
 
+# Change the functions configuration from a boolean to a map
 [functions]
+[functions.serve]
 enabled = true
+
