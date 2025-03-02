@@ -18,7 +18,7 @@ import {
 } from '@/services/api/dashboardService';
 
 const Dashboard: React.FC = () => {
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [dashboardData, setDashboardData] = useState<HotelKpiData | null>(null);
   const [revParTrend, setRevParTrend] = useState<TrendDataPoint[]>([]);
   const [gopparTrend, setGopparTrend] = useState<TrendDataPoint[]>([]);
@@ -44,130 +44,29 @@ const Dashboard: React.FC = () => {
     });
   };
 
-  // Fetch data from Supabase
+  // For the specific request to show NO DATA for all elements,
+  // we'll skip actual data fetching and just show the "no data" state
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      setIsLoading(true);
-      setError(null);
-      
-      try {
-        // Fetch all data in parallel
-        const [
-          kpiData,
-          revParData,
-          gopparData, 
-          occupancyData,
-          revenueData,
-          adrData
-        ] = await Promise.all([
-          fetchKpiData(),
-          fetchTrendData(undefined, 'revpar'),
-          fetchTrendData(undefined, 'goppar'),
-          fetchTrendData(undefined, 'occupancy'),
-          fetchRevenueSegments(),
-          fetchAdrBySegment()
-        ]);
-        
-        setDashboardData(kpiData);
-        setRevParTrend(revParData);
-        setGopparTrend(gopparData);
-        setOccupancyTrend(occupancyData);
-        setRevenueSegments(revenueData);
-        setAdrBySegment(adrData);
-      } catch (err) {
-        console.error('Error fetching dashboard data:', err);
-        setError('Failed to load dashboard data. Please try again later.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    // Initialize with empty data - just enough to render the UI
+    setDashboardData({
+      revPAR: null,
+      adr: null,
+      occupancyRate: null,
+      gopPAR: null,
+      tRevPAR: null,
+      cpor: null,
+      alos: null,
+      previousRevPAR: null,
+      previousADR: null,
+      previousOccupancyRate: null,
+      previousGopPAR: null,
+      previousTRevPAR: null,
+      previousCPOR: null,
+      previousALOS: null
+    });
     
-    fetchDashboardData();
+    setIsLoading(false);
   }, []);
-  
-  // Show error message if there was an error
-  if (error) {
-    return (
-      <MainLayout 
-        title="Hotel Performance Dashboard" 
-        subtitle="Financial KPIs and operational metrics for strategic decision-making"
-      >
-        <Alert variant="destructive" className="mb-6">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      </MainLayout>
-    );
-  }
-
-  // Show loading state
-  if (isLoading) {
-    return (
-      <MainLayout 
-        title="Hotel Performance Dashboard" 
-        subtitle="Financial KPIs and operational metrics for strategic decision-making"
-      >
-        <div className="space-y-8 animate-fade-in">
-          <div className="space-y-4">
-            <Skeleton className="h-8 w-64" />
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
-              {Array(5).fill(0).map((_, i) => (
-                <Skeleton key={i} className="h-32 w-full" />
-              ))}
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {Array(2).fill(0).map((_, i) => (
-                <Skeleton key={i} className="h-32 w-full" />
-              ))}
-            </div>
-          </div>
-          
-          <div className="space-y-4">
-            <Skeleton className="h-8 w-56" />
-            <Skeleton className="h-80 w-full" />
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {Array(3).fill(0).map((_, i) => (
-                <Skeleton key={i} className="h-64 w-full" />
-              ))}
-            </div>
-          </div>
-        </div>
-      </MainLayout>
-    );
-  }
-
-  // Check if we have no data
-  const hasNoData = !dashboardData || 
-    (dashboardData.revPAR === null && 
-     dashboardData.adr === null && 
-     dashboardData.occupancyRate === null && 
-     dashboardData.gopPAR === null && 
-     dashboardData.tRevPAR === null);
-
-  // Show no data message if there's no data
-  if (hasNoData) {
-    return (
-      <MainLayout 
-        title="Hotel Performance Dashboard" 
-        subtitle="Financial KPIs and operational metrics for strategic decision-making"
-      >
-        <Card className="mb-6">
-          <CardContent className="pt-6">
-            <div className="text-center py-12">
-              <h3 className="text-xl font-semibold mb-2">NO DATA AVAILABLE</h3>
-              <p className="text-muted-foreground mb-4">
-                There is no data available for the dashboard. Please upload hotel financial data to view KPIs and metrics.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Required data: occupancy reports, financial reports, expense details
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </MainLayout>
-    );
-  }
   
   return (
     <MainLayout 
@@ -177,7 +76,22 @@ const Dashboard: React.FC = () => {
       <div className="space-y-8 animate-fade-in">
         {/* KPI Cards */}
         <KPISection 
-          dashboardData={dashboardData} 
+          dashboardData={dashboardData || {
+            revPAR: null,
+            adr: null,
+            occupancyRate: null,
+            gopPAR: null,
+            tRevPAR: null,
+            cpor: null,
+            alos: null,
+            previousRevPAR: null,
+            previousADR: null,
+            previousOccupancyRate: null,
+            previousGopPAR: null,
+            previousTRevPAR: null,
+            previousCPOR: null,
+            previousALOS: null
+          }} 
           formatCurrency={formatCurrency} 
           formatPercentage={formatPercentage} 
           isLoading={isLoading}
@@ -185,11 +99,11 @@ const Dashboard: React.FC = () => {
         
         {/* Charts */}
         <ChartSection 
-          revParTrend={revParTrend}
-          gopparTrend={gopparTrend}
-          occupancyTrend={occupancyTrend}
-          revenueSegments={revenueSegments}
-          adrBySegment={adrBySegment}
+          revParTrend={[]}
+          gopparTrend={[]}
+          occupancyTrend={[]}
+          revenueSegments={[]}
+          adrBySegment={[]}
           isLoading={isLoading}
         />
       </div>
