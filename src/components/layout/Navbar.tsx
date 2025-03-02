@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { MenuIcon, X, Hotel, BarChart2, LineChart, BrainCog } from 'lucide-react';
@@ -32,12 +33,15 @@ const Navbar: React.FC<NavbarProps> = ({ title, subtitle }) => {
     setIsMenuOpen(false);
   }, [location.pathname]);
   
+  // Don't render Navbar on dashboard pages as we're using Header instead
+  if (isDashboard) {
+    return null;
+  }
+  
   return (
     <header className={cn(
       "fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-in-out px-6 py-4",
-      isDashboard 
-        ? "bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 shadow-sm" 
-        : (isScrolled ? "glass shadow-soft" : "bg-transparent")
+      isScrolled ? "glass shadow-soft" : "bg-transparent"
     )}>
       <div className="container mx-auto flex items-center justify-between">
         <div className="flex flex-col items-start">
@@ -49,59 +53,50 @@ const Navbar: React.FC<NavbarProps> = ({ title, subtitle }) => {
               Hotel<span className="text-blue-600">Wise</span>
             </span>
           </Link>
-          {isDashboard && (
-            <div className="text-sm font-medium text-muted-foreground mt-1 ml-10">
-              Dashboard
-            </div>
-          )}
         </div>
         
-        {!isDashboard && (
-          <nav className="hidden md:flex items-center space-x-8">
-            <NavLink to="/" active={location.pathname === "/"}>Home</NavLink>
-            <NavLink to="/dashboard" active={location.pathname === "/dashboard"}>Dashboard</NavLink>
-            <NavLink to="/analytics" active={location.pathname === "/analytics"}>Analytics</NavLink>
-            <NavLink to="/reports" active={location.pathname === "/reports"}>Reports</NavLink>
-            <NavLink 
-              to="/tools/forecasting" 
-              active={location.pathname === "/tools/forecasting"}
-              icon={<LineChart className="w-4 h-4 mr-1" />}
-            >
-              Forecasting
-            </NavLink>
-            <NavLink 
-              to="/tools/graph-builder" 
-              active={location.pathname === "/tools/graph-builder"}
-              icon={<BarChart2 className="w-4 h-4 mr-1" />}
-            >
-              Graph Builder
-            </NavLink>
-            <NavLink 
-              to="/tools/ai-recommendations" 
-              active={location.pathname === "/tools/ai-recommendations"}
-              icon={<BrainCog className="w-4 h-4 mr-1" />}
-            >
-              AI Recommendations
-            </NavLink>
-            <Button variant="default" size="sm" className="ml-4 rounded-full px-6 shadow-soft bg-blue-600 hover:bg-blue-700">
-              Get Started
-            </Button>
-          </nav>
-        )}
-        
-        {!isDashboard && (
-          <Button 
-            onClick={() => setIsMenuOpen(!isMenuOpen)} 
-            variant="ghost" 
-            size="icon"
-            className="md:hidden"
+        <nav className="hidden md:flex items-center space-x-8">
+          <NavLink to="/" active={location.pathname === "/"}>Home</NavLink>
+          <NavLink to="/dashboard" active={location.pathname === "/dashboard"}>Dashboard</NavLink>
+          <NavLink to="/analytics" active={location.pathname === "/analytics"}>Analytics</NavLink>
+          <NavLink to="/reports" active={location.pathname === "/reports"}>Reports</NavLink>
+          <NavLink 
+            to="/tools/forecasting" 
+            active={location.pathname === "/tools/forecasting"}
+            icon={<LineChart className="w-4 h-4 mr-1" />}
           >
-            {isMenuOpen ? <X size={24} /> : <MenuIcon size={24} />}
+            Forecasting
+          </NavLink>
+          <NavLink 
+            to="/tools/graph-builder" 
+            active={location.pathname === "/tools/graph-builder"}
+            icon={<BarChart2 className="w-4 h-4 mr-1" />}
+          >
+            Graph Builder
+          </NavLink>
+          <NavLink 
+            to="/tools/ai-recommendations" 
+            active={location.pathname === "/tools/ai-recommendations"}
+            icon={<BrainCog className="w-4 h-4 mr-1" />}
+          >
+            AI Recommendations
+          </NavLink>
+          <Button variant="default" size="sm" className="ml-4 rounded-full px-6 shadow-soft bg-blue-600 hover:bg-blue-700">
+            Get Started
           </Button>
-        )}
+        </nav>
+        
+        <Button 
+          onClick={() => setIsMenuOpen(!isMenuOpen)} 
+          variant="ghost" 
+          size="icon"
+          className="md:hidden"
+        >
+          {isMenuOpen ? <X size={24} /> : <MenuIcon size={24} />}
+        </Button>
       </div>
       
-      {isMenuOpen && !isDashboard && (
+      {isMenuOpen && (
         <div className="md:hidden fixed inset-0 top-16 z-40 bg-background animate-fade-in">
           <nav className="flex flex-col items-center justify-center h-full space-y-8 p-8">
             <MobileNavLink to="/" active={location.pathname === "/"}>Home</MobileNavLink>

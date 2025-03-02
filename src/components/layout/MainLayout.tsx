@@ -34,7 +34,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           title={title}
           sidebarWidth={collapsed ? 80 : 256} 
         />
-        <Navbar title={title} subtitle={subtitle} />
+
+        {/* Spacing to prevent content from being hidden under the header */}
+        <div className="h-16"></div>
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
