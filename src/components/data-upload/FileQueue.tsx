@@ -87,11 +87,6 @@ const FileQueue: React.FC<FileQueueProps> = ({
           <Progress value={progress} 
             className={processingStage === 'processing' ? "bg-purple-100" : ""}
           />
-          {processingStage === 'processing' && (
-            <p className="text-xs text-muted-foreground mt-1">
-              AI is analyzing and extracting data from your document...
-            </p>
-          )}
         </div>
       )}
       
@@ -109,7 +104,7 @@ const FileQueue: React.FC<FileQueueProps> = ({
           ) : (
             <>
               <Upload className="mr-2 h-4 w-4" />
-              {isUploading ? 'Uploading...' : 'Upload & Process with AI'}
+              {isUploading ? 'Uploading...' : 'Run AI Analysis'}
             </>
           )}
         </Button>

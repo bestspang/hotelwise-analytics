@@ -20,13 +20,9 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({ onDrop, isUploading }) => {
     disabled: isUploading,
     onDropRejected: (fileRejections) => {
       fileRejections.forEach(({ file, errors }) => {
-        errors.forEach(e => {
-          if (e.code === 'file-invalid-type') {
-            toast.error(`${file.name} is not a PDF file`);
-          } else {
-            toast.error(`Error with ${file.name}: ${e.message}`);
-          }
-        });
+        if (errors.some(e => e.code === 'file-invalid-type')) {
+          toast.error(`${file.name} is not a PDF file`);
+        }
       });
     }
   });
@@ -46,7 +42,7 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({ onDrop, isUploading }) => {
         {isUploading ? "Uploading..." : "Drag & Drop PDF Files Here"}
       </h3>
       <p className={cn("text-muted-foreground mb-3", isUploading ? "text-gray-300" : "")}>
-        {isUploading ? "Please wait while files are being processed" : "Or click to browse your files"}
+        {isUploading ? "Please wait..." : "Or click to browse your files"}
       </p>
       <p className="text-xs text-muted-foreground">Supported file types: PDF</p>
     </div>
