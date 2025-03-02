@@ -2,16 +2,11 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, FileText, Eye, AlertTriangle, RotateCw, X } from 'lucide-react';
+import { FileText, Eye, RotateCw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { reprocessFile } from '@/services/uploadService';
 import { toast } from 'sonner';
-
-interface DocumentType {
-  type: string;
-  color: string;
-}
 
 interface ExtractedDataCardProps {
   file: any; // Ideally this would be a proper type definition
@@ -50,7 +45,7 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ file, onViewRawDa
 
   // Function to handle reprocessing of a file
   const handleReprocess = async () => {
-    if (isReprocessing || isProcessing) return;
+    if (isReprocessing) return;
     
     setIsReprocessing(true);
     
@@ -77,12 +72,18 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ file, onViewRawDa
 
   const isUnprocessable = file.processed && !hasExtractedData && !hasExtractionError;
 
-  const isProcessing = file.processing || (!file.processed && !hasExtractedData && !hasExtractionError && !isUnprocessable);
+  // Check if file is stuck in processing - processing for over 5 minutes
+  const isStuckInProcessing = file.processing && new Date().getTime() - new Date(file.updated_at || file.created_at).getTime() > 5 * 60 * 1000;
+
+  const isProcessing = file.processing && !isStuckInProcessing;
 
   // Error message helper - improves code readability
   const getErrorMessage = () => {
     if (hasExtractionError) {
       return `Data extraction failed: ${file.extracted_data.message || 'Unknown error'}`;
+    }
+    if (isStuckInProcessing) {
+      return 'File processing may be stuck. You can try reprocessing.';
     }
     return 'File could not be processed';
   };
@@ -109,7 +110,7 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ file, onViewRawDa
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="flex items-center" aria-label="Processing status">
-                    <AlertCircle className="h-4 w-4 text-amber-500 mr-1" />
+                    <div className="h-2 w-2 bg-amber-500 rounded-full mr-1 animate-pulse" aria-hidden="true"></div>
                     <span className="text-xs text-amber-500">Processing</span>
                   </div>
                 </TooltipTrigger>
@@ -120,12 +121,28 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ file, onViewRawDa
             </TooltipProvider>
           )}
           
+          {isStuckInProcessing && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center" aria-label="Processing stuck status">
+                    <div className="h-2 w-2 bg-orange-500 rounded-full mr-1" aria-hidden="true"></div>
+                    <span className="text-xs text-orange-500">Processing Stuck</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Processing seems to be stuck. Try reprocessing the file.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          
           {(hasExtractionError || isUnprocessable) && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="flex items-center" aria-label="Error status">
-                    <X className="h-4 w-4 text-red-500 mr-1" />
+                    <div className="h-2 w-2 bg-red-500 rounded-full mr-1" aria-hidden="true"></div>
                     <span className="text-xs text-red-500">Error</span>
                   </div>
                 </TooltipTrigger>

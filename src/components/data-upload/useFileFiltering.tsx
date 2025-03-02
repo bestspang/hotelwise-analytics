@@ -4,6 +4,11 @@ import { useState } from 'react';
 export const useFileFiltering = (files: any[]) => {
   const [activeTab, setActiveTab] = useState('all');
 
+  // Helper function to detect stuck processing (over 5 minutes)
+  const isStuckInProcessing = (file: any) => {
+    return file.processing && new Date().getTime() - new Date(file.updated_at || file.created_at).getTime() > 5 * 60 * 1000;
+  };
+
   const filterFilesByStatus = (status: string) => {
     if (status === 'all') return files;
     
@@ -22,7 +27,8 @@ export const useFileFiltering = (files: any[]) => {
         file.processing || 
         !file.extracted_data || 
         (file.processed && file.extracted_data && file.extracted_data.error) ||
-        (file.processed === false && file.processing === false) // Add this condition to include files that are not processing but unprocessed
+        (file.processed === false && file.processing === false) ||
+        isStuckInProcessing(file) // Consider stuck processing files as unprocessed
       );
     }
     

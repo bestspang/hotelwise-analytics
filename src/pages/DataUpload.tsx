@@ -11,6 +11,15 @@ const DataUpload = () => {
     setRefreshTrigger(prev => prev + 1);
   };
 
+  // Force a refresh every 30 seconds to catch files that might be stuck
+  React.useEffect(() => {
+    const intervalId = setInterval(() => {
+      setRefreshTrigger(prev => prev + 1);
+    }, 30000);
+    
+    return () => clearInterval(intervalId);
+  }, []);
+
   return (
     <MainLayout title="Data Upload">
       <div className="container mx-auto p-6">
