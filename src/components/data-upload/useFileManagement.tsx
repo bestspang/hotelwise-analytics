@@ -7,7 +7,7 @@ import { useFileSync } from './hooks/useFileSync';
 import { toast } from 'sonner';
 
 // Main hook that composes the file management functionality
-export const useFileManagement = (refreshTrigger: number) => {
+export const useFileManagement = (refreshTrigger = 0) => {
   const {
     files,
     setFiles,

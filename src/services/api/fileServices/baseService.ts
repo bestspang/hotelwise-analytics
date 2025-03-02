@@ -2,8 +2,8 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-export const logInfo = (message: string) => {
-  console.log(message);
+export const logInfo = (message: string, ...args: any[]) => {
+  console.log(message, ...args);
 };
 
 export const logError = (message: string, error: any) => {

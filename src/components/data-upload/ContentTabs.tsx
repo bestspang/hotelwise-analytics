@@ -1,45 +1,48 @@
 
 import React from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, BarChart2 } from 'lucide-react';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import UploadedFilesList from './UploadedFilesList';
 import ProcessingLogs from './ProcessingLogs';
 
 interface ContentTabsProps {
   activeTab: string;
-  setActiveTab: (tab: string) => void;
+  setActiveTab: (value: string) => void;
   refreshTrigger: number;
-  onReprocessing: () => void;
+  onReprocessing?: () => void;
 }
 
-const ContentTabs: React.FC<ContentTabsProps> = ({
-  activeTab,
-  setActiveTab,
+const ContentTabs: React.FC<ContentTabsProps> = ({ 
+  activeTab, 
+  setActiveTab, 
   refreshTrigger,
   onReprocessing
 }) => {
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-      <TabsList className="mb-4">
-        <TabsTrigger value="files" className="flex items-center">
-          <FileText className="h-4 w-4 mr-2" />
+      <div className="flex border-b mb-4">
+        <div 
+          className={`px-4 py-2 cursor-pointer ${activeTab === 'files' ? 'border-b-2 border-primary font-medium' : ''}`}
+          onClick={() => setActiveTab('files')}
+        >
           Uploaded Files
-        </TabsTrigger>
-        <TabsTrigger value="logs" className="flex items-center">
-          <BarChart2 className="h-4 w-4 mr-2" />
+        </div>
+        <div 
+          className={`px-4 py-2 cursor-pointer ${activeTab === 'logs' ? 'border-b-2 border-primary font-medium' : ''}`}
+          onClick={() => setActiveTab('logs')}
+        >
           Processing Logs
-        </TabsTrigger>
-      </TabsList>
+        </div>
+      </div>
       
-      <TabsContent value="files">
+      <TabsContent value="files" className="mt-0">
         <UploadedFilesList 
-          key={refreshTrigger} 
-          onReprocessing={onReprocessing}
+          refreshTrigger={refreshTrigger} 
+          onReprocessing={onReprocessing} 
         />
       </TabsContent>
       
-      <TabsContent value="logs">
-        <ProcessingLogs />
+      <TabsContent value="logs" className="mt-0">
+        <ProcessingLogs refreshTrigger={refreshTrigger} />
       </TabsContent>
     </Tabs>
   );

@@ -14,9 +14,10 @@ import { useFileFiltering } from './useFileFiltering';
 
 interface UploadedFilesListProps {
   onReprocessing?: () => void;
+  refreshTrigger?: number;
 }
 
-const UploadedFilesList: React.FC<UploadedFilesListProps> = ({ onReprocessing }) => {
+const UploadedFilesList: React.FC<UploadedFilesListProps> = ({ onReprocessing, refreshTrigger = 0 }) => {
   const { 
     files, 
     isLoading, 
@@ -24,7 +25,7 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({ onReprocessing })
     handleDelete, 
     fetchFiles, 
     syncWithStorage 
-  } = useFileManagement();
+  } = useFileManagement(refreshTrigger);
   
   const { activeTab, setActiveTab, filterFilesByStatus, getFileCount, getDocumentTypeCount, isStuckInProcessing } = useFileFiltering(files);
   const [selectedFile, setSelectedFile] = useState<any>(null);

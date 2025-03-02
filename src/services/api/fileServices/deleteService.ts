@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 
 export async function deleteUploadedFile(fileId: string) {
   try {
-    logInfo('Starting deletion process for file ID:', fileId);
+    logInfo(`Starting deletion process for file ID: ${fileId}`);
     
     // Get the file info first to get the file path
     const { data: fileData, error: fileError } = await supabase
@@ -25,7 +25,7 @@ export async function deleteUploadedFile(fileId: string) {
       return false;
     }
 
-    logInfo('Found file to delete:', fileData);
+    logInfo(`Found file to delete: ${JSON.stringify(fileData)}`);
     
     // Delete from database FIRST to ensure the record is gone
     // even if storage deletion fails
@@ -56,14 +56,14 @@ export async function deleteUploadedFile(fileId: string) {
         // Don't fail the whole operation due to storage issues
         logInfo('Continuing despite storage deletion error');
       } else {
-        logInfo('Storage file deleted successfully:', storageData);
+        logInfo(`Storage file deleted successfully: ${JSON.stringify(storageData)}`);
       }
     } catch (storageError) {
       logError('Error when trying to delete from storage:', storageError);
       // Continue since the database record is already deleted
     }
     
-    logInfo('File deletion process completed successfully for:', fileData.filename);
+    logInfo(`File deletion process completed successfully for: ${fileData.filename}`);
     toast.success(`File "${fileData.filename}" deleted successfully`);
     return true;
   } catch (error) {
