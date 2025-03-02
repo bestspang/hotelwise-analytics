@@ -28,6 +28,11 @@ export const useFileManagement = () => {
         const reappearedFiles = uploadedFiles.filter(file => deletedFileIds.current.has(file.id));
         if (reappearedFiles.length > 0) {
           console.warn('Files reappeared that were previously deleted:', reappearedFiles);
+          // Add extra logging to understand why files are reappearing
+          console.log('Current deletedFileIds set:', [...deletedFileIds.current]);
+          console.log('Reappeared file IDs:', reappearedFiles.map(f => f.id));
+          // Force filtering again in case the state update missed something
+          setFiles(prev => prev.filter(file => !deletedFileIds.current.has(file.id)));
         }
       }
       isInitialMount.current = false;
@@ -42,8 +47,8 @@ export const useFileManagement = () => {
   useEffect(() => {
     fetchFiles();
     
-    // Poll for updates every 5 seconds
-    const intervalId = setInterval(fetchFiles, 5000);
+    // Poll for updates more frequently (every 3 seconds)
+    const intervalId = setInterval(fetchFiles, 3000);
     return () => clearInterval(intervalId);
   }, [lastRefresh, fetchFiles]);
 
@@ -52,15 +57,15 @@ export const useFileManagement = () => {
       toast.loading('Deleting file...');
       console.log(`Attempting to delete file with ID: ${fileId}`);
       
+      // First, update the UI immediately to remove the file
+      setFiles(prevFiles => prevFiles.filter(file => file.id !== fileId));
+      
+      // Add to our permanent set of deleted file IDs to ensure it doesn't come back
+      deletedFileIds.current.add(fileId);
+      console.log(`Added ID ${fileId} to deleted files tracking set`);
+      
       const success = await deleteUploadedFile(fileId);
       if (success) {
-        // Add to our permanent set of deleted file IDs to ensure it doesn't come back
-        deletedFileIds.current.add(fileId);
-        console.log(`Added ID ${fileId} to deleted files tracking set`);
-        
-        // Update the files list immediately by filtering
-        setFiles(prevFiles => prevFiles.filter(file => file.id !== fileId));
-        
         // Force a refresh of the file list
         setLastRefresh(new Date());
         

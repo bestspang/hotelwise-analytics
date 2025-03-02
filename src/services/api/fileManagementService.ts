@@ -1,4 +1,3 @@
-
 import { supabase } from './supabaseClient';
 import { toast } from 'sonner';
 
@@ -48,7 +47,25 @@ export async function deleteUploadedFile(fileId: string) {
 
     console.log('Found file to delete:', fileData);
     
-    // Delete from database FIRST to prevent listing in UI
+    // Important: Delete from storage FIRST to ensure the file is gone
+    try {
+      const { data: storageData, error: storageError } = await supabase.storage
+        .from('pdf_files')
+        .remove([fileData.file_path]);
+        
+      if (storageError) {
+        console.error('Failed to delete file from storage:', storageError);
+        toast.error(`Failed to delete file from storage: ${storageError.message}`);
+        // Continue to database deletion anyway to keep things clean
+      } else {
+        console.log('Storage file deleted successfully:', storageData);
+      }
+    } catch (storageError) {
+      console.error('Error when trying to delete from storage:', storageError);
+      // Continue to database deletion anyway
+    }
+    
+    // Then delete from database 
     const { error: dbError } = await supabase
       .from('uploaded_files')
       .delete()
@@ -61,25 +78,6 @@ export async function deleteUploadedFile(fileId: string) {
     }
 
     console.log('Database record deleted successfully');
-    
-    // Then delete from storage with proper error handling
-    try {
-      const { data: storageData, error: storageError } = await supabase.storage
-        .from('pdf_files')
-        .remove([fileData.file_path]);
-        
-      if (storageError) {
-        // Log the error but continue since the database record is already deleted
-        console.warn('Failed to delete file from storage, but database record was removed:', storageError);
-        // Still consider this a success since the file is deleted from the database
-      } else {
-        console.log('Storage file deleted successfully:', storageData);
-      }
-    } catch (storageError) {
-      // Just log this error, don't return false since the database entry is gone
-      console.warn('Error when trying to delete from storage, but database record was removed:', storageError);
-    }
-    
     console.log('File deletion process completed successfully for:', fileData.filename);
     toast.success(`File "${fileData.filename}" deleted successfully`);
     return true;
