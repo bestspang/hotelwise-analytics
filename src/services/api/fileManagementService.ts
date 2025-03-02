@@ -48,7 +48,7 @@ export async function deleteUploadedFile(fileId: string) {
 
     console.log('Found file to delete:', fileData);
     
-    // IMPORTANT FIX: Delete from database FIRST to ensure the record is gone
+    // Delete from database FIRST to ensure the record is gone
     // even if storage deletion fails
     const { error: dbError } = await supabase
       .from('uploaded_files')
@@ -63,7 +63,7 @@ export async function deleteUploadedFile(fileId: string) {
 
     console.log('Database record deleted successfully');
     
-    // Then try to delete from storage too
+    // Then try to delete from storage
     const bucketName = 'pdf_files';
     console.log(`Attempting to delete file from storage bucket '${bucketName}' at path: ${fileData.file_path}`);
     

@@ -11,7 +11,7 @@ export const useFileManagement = () => {
   const deletedFileIds = useRef<Set<string>>(new Set());
   const isInitialMount = useRef(true);
   const fetchInProgress = useRef(false);
-  const apiCallCounter = useRef(0); // Add a counter to limit redundant API calls
+  const apiCallCounter = useRef(0); // Track API call timestamps for rate limiting
 
   const fetchFiles = useCallback(async () => {
     // Prevent concurrent fetch operations
