@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export async function listBucketFiles() {
@@ -126,7 +125,6 @@ export async function checkAndFixBucketAccess(forceFix = false) {
   }
 }
 
-// New function to create storage bucket and policies manually
 export async function createStorageBucket() {
   try {
     console.log('Creating pdf_files bucket...');
@@ -152,5 +150,36 @@ export async function createStorageBucket() {
   } catch (error) {
     console.error('Unexpected error creating storage bucket:', error);
     return { error: `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}` };
+  }
+}
+
+export async function checkStorageBucket() {
+  try {
+    console.log('Checking if pdf_files bucket exists...');
+    
+    // Try to get bucket info to check if it exists
+    const { data, error } = await supabase.storage
+      .getBucket('pdf_files');
+      
+    if (error) {
+      console.error('Error checking bucket:', error);
+      return false;
+    }
+    
+    // Also try to list files to check if we have access
+    const { data: files, error: listError } = await supabase.storage
+      .from('pdf_files')
+      .list();
+      
+    if (listError) {
+      console.error('Error listing files in bucket:', listError);
+      return false;
+    }
+    
+    console.log('Storage bucket exists and is accessible');
+    return true;
+  } catch (error) {
+    console.error('Unexpected error checking storage bucket:', error);
+    return false;
   }
 }
