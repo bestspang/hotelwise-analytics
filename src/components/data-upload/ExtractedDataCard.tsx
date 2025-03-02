@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, FileText, Eye, AlertTriangle, RotateCw } from 'lucide-react';
+import { AlertCircle, FileText, Eye, AlertTriangle, RotateCw, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { reprocessFile } from '@/services/uploadService';
@@ -81,6 +81,9 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ file, onViewRawDa
   // Check if file has extraction error
   const hasExtractionError = file.extracted_data && file.extracted_data.error;
 
+  // Check if file is unprocessable (neither has data nor is being processed)
+  const isUnprocessable = file.processed && !hasExtractedData && !hasExtractionError;
+
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-4">
@@ -98,7 +101,7 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ file, onViewRawDa
             </div>
           </div>
           
-          {!hasExtractedData && !hasExtractionError && (
+          {!hasExtractedData && !hasExtractionError && !isUnprocessable && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -114,17 +117,22 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ file, onViewRawDa
             </TooltipProvider>
           )}
           
-          {hasExtractionError && (
+          {(hasExtractionError || isUnprocessable) && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="flex items-center">
-                    <AlertTriangle className="h-4 w-4 text-red-500 mr-1" />
-                    <span className="text-xs text-red-500">Extraction failed</span>
+                    <X className="h-4 w-4 text-red-500 mr-1" />
+                    <span className="text-xs text-red-500">Error</span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Data extraction failed: {file.extracted_data.message || 'Unknown error'}</p>
+                  <p>
+                    {hasExtractionError 
+                      ? `Data extraction failed: ${file.extracted_data.message || 'Unknown error'}`
+                      : 'File could not be processed'
+                    }
+                  </p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
