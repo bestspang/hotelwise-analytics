@@ -5,11 +5,15 @@ import UploadCard from '@/components/data-upload/UploadCard';
 import UploadedFilesList from '@/components/data-upload/UploadedFilesList';
 import ProcessingLogs from '@/components/data-upload/ProcessingLogs';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, BarChart2 } from 'lucide-react';
+import { FileText, BarChart2, Bug } from 'lucide-react';
+import { listBucketFiles } from '@/services/api/storageDebugService';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 const DataUpload = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [activeTab, setActiveTab] = useState('files');
+  const [isDebugging, setIsDebugging] = useState(false);
 
   const handleUploadComplete = () => {
     console.log('Upload completed, triggering refresh');
@@ -27,6 +31,31 @@ const DataUpload = () => {
     setTimeout(() => setRefreshTrigger(prev => prev + 1), 10000);
   }, []);
 
+  // Debug function to list storage files
+  const handleDebugStorage = async () => {
+    try {
+      setIsDebugging(true);
+      toast.info('Checking storage bucket files...');
+      
+      const result = await listBucketFiles();
+      
+      if (result.error) {
+        toast.error(`Storage check failed: ${result.error}`);
+      } else if (result.files) {
+        const fileCount = result.files.length;
+        toast.success(`Found ${fileCount} files in storage bucket`);
+        
+        // Show detailed info in console
+        console.log('Storage bucket files:', result.files);
+      }
+    } catch (error) {
+      console.error('Error in storage debugging:', error);
+      toast.error('Storage debugging failed');
+    } finally {
+      setIsDebugging(false);
+    }
+  };
+
   // Force a refresh more frequently to ensure UI is up-to-date
   // This helps catch files that may have completed processing or been deleted
   useEffect(() => {
@@ -41,11 +70,23 @@ const DataUpload = () => {
   return (
     <MainLayout title="Data Upload">
       <div className="container mx-auto p-6">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">Data Upload</h1>
-          <p className="text-muted-foreground mt-2">
-            Upload PDF financial reports to automatically extract and analyze data using AI
-          </p>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold">Data Upload</h1>
+            <p className="text-muted-foreground mt-2">
+              Upload PDF financial reports to automatically extract and analyze data using AI
+            </p>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleDebugStorage}
+            disabled={isDebugging}
+            className="flex items-center gap-2"
+          >
+            <Bug className="h-4 w-4" />
+            {isDebugging ? 'Checking...' : 'Check Storage'}
+          </Button>
         </div>
         
         <div className="grid gap-6">
