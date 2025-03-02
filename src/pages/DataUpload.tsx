@@ -3,9 +3,13 @@ import React, { useState, useCallback, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import UploadCard from '@/components/data-upload/UploadCard';
 import UploadedFilesList from '@/components/data-upload/UploadedFilesList';
+import ProcessingLogs from '@/components/data-upload/ProcessingLogs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { FileText, BarChart2 } from 'lucide-react';
 
 const DataUpload = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [activeTab, setActiveTab] = useState('files');
 
   const handleUploadComplete = () => {
     console.log('Upload completed, triggering refresh');
@@ -46,10 +50,30 @@ const DataUpload = () => {
         
         <div className="grid gap-6">
           <UploadCard onUploadComplete={handleUploadComplete} />
-          <UploadedFilesList 
-            key={refreshTrigger} 
-            onReprocessing={handleReprocessing}
-          />
+          
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="mb-4">
+              <TabsTrigger value="files" className="flex items-center">
+                <FileText className="h-4 w-4 mr-2" />
+                Uploaded Files
+              </TabsTrigger>
+              <TabsTrigger value="logs" className="flex items-center">
+                <BarChart2 className="h-4 w-4 mr-2" />
+                Processing Logs
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="files">
+              <UploadedFilesList 
+                key={refreshTrigger} 
+                onReprocessing={handleReprocessing}
+              />
+            </TabsContent>
+            
+            <TabsContent value="logs">
+              <ProcessingLogs />
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </MainLayout>
