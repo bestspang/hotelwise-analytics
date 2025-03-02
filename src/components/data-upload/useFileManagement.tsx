@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getUploadedFiles, deleteUploadedFile } from '@/services/api/fileManagementService';
+import { getUploadedFiles, deleteUploadedFile, resetStuckProcessingFiles } from '@/services/api/fileManagementService';
 import { toast } from 'sonner';
 
 export const useFileManagement = () => {
@@ -12,6 +12,7 @@ export const useFileManagement = () => {
   const isInitialMount = useRef(true);
   const fetchInProgress = useRef(false);
   const apiCallCounter = useRef(0); // Track API call timestamps for rate limiting
+  const lastFileCount = useRef(0); // To track changes in file count
 
   const fetchFiles = useCallback(async () => {
     // Prevent concurrent fetch operations
@@ -51,6 +52,12 @@ export const useFileManagement = () => {
       console.log(`Filtered ${uploadedFiles.length - filteredFiles.length} deleted files from results`);
       console.log('Current files after filtering:', filteredFiles.map(f => f.id));
       
+      // Check if the file count has changed
+      if (lastFileCount.current !== filteredFiles.length) {
+        console.log(`File count changed from ${lastFileCount.current} to ${filteredFiles.length}`);
+        lastFileCount.current = filteredFiles.length;
+      }
+      
       setFiles(filteredFiles);
       
       // If this isn't the initial mount and we see files that should be deleted
@@ -62,11 +69,22 @@ export const useFileManagement = () => {
           // Add extra logging to understand why files are reappearing
           console.log('Current deletedFileIds set:', [...deletedFileIds.current]);
           console.log('Reappeared file IDs:', reappearedFiles.map(f => f.id));
+          
           // Force filtering again in case the state update missed something
           setFiles(prev => prev.filter(file => !deletedFileIds.current.has(file.id)));
+          
+          // Attempt to re-delete files that reappeared
+          for (const file of reappearedFiles) {
+            console.log(`Re-attempting to delete reappeared file: ${file.id}`);
+            await deleteUploadedFile(file.id);
+          }
         }
       }
       isInitialMount.current = false;
+      
+      // Reset any stuck processing files
+      await resetStuckProcessingFiles();
+      
     } catch (error) {
       console.error('Error fetching files:', error);
       toast.error('Failed to fetch uploaded files from database');

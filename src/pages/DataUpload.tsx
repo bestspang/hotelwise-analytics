@@ -9,6 +9,7 @@ import { FileText, BarChart2, Bug, Shield, RefreshCw } from 'lucide-react';
 import { listBucketFiles, checkAndFixBucketAccess } from '@/services/api/storageDebugService';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { resetStuckProcessingFiles } from '@/services/api/fileManagementService';
 
 const DataUpload = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -30,9 +31,10 @@ const DataUpload = () => {
     setRefreshTrigger(prev => prev + 1);
   }, []);
 
-  // Check bucket status on initial load
+  // Check bucket status on initial load and reset any stuck processing files
   useEffect(() => {
     handleCheckBucketStatus();
+    resetStuckProcessingFiles();
   }, []);
 
   // Function to check bucket status
@@ -98,7 +100,7 @@ const DataUpload = () => {
       setIsFixingAccess(true);
       toast.info('Checking and fixing bucket access permissions...');
       
-      const result = await checkAndFixBucketAccess();
+      const result = await checkAndFixBucketAccess(true); // Pass true to force fix
       
       if (result.error) {
         toast.error(`Failed to fix bucket access: ${result.error}`);
@@ -115,6 +117,19 @@ const DataUpload = () => {
       setBucketStatus('error');
     } finally {
       setIsFixingAccess(false);
+    }
+  };
+
+  // Function to reset stuck processing files
+  const handleResetStuckFiles = async () => {
+    try {
+      toast.info('Resetting stuck processing files...');
+      await resetStuckProcessingFiles();
+      toast.success('Reset completed');
+      setRefreshTrigger(prev => prev + 1);
+    } catch (error) {
+      console.error('Error resetting stuck files:', error);
+      toast.error('Failed to reset stuck files');
     }
   };
 
@@ -136,7 +151,7 @@ const DataUpload = () => {
               disabled={isFixingAccess}
               className="flex items-center gap-2"
             >
-              <Shield className="h-4 w-4" />
+              <Shield className={`h-4 w-4 ${isFixingAccess ? 'animate-spin' : ''}`} />
               {isFixingAccess ? 'Fixing...' : 'Fix Storage Access'}
             </Button>
             <Button 
@@ -158,6 +173,15 @@ const DataUpload = () => {
             >
               <RefreshCw className="h-4 w-4" />
               Refresh Status
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleResetStuckFiles}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Reset Stuck Files
             </Button>
           </div>
         </div>

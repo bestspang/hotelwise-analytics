@@ -103,3 +103,56 @@ export async function deleteUploadedFile(fileId: string) {
     return false;
   }
 }
+
+// Add function to check if a file exists in the database
+export async function checkFileExists(filename: string) {
+  try {
+    const { data, error } = await supabase
+      .from('uploaded_files')
+      .select('id')
+      .eq('filename', filename)
+      .maybeSingle();
+      
+    if (error) {
+      console.error('Error checking if file exists:', error);
+      return false;
+    }
+    
+    return !!data;
+  } catch (error) {
+    console.error('Unexpected error checking if file exists:', error);
+    return false;
+  }
+}
+
+// Add function to clear old processing states
+export async function resetStuckProcessingFiles() {
+  try {
+    const oneHourAgo = new Date();
+    oneHourAgo.setHours(oneHourAgo.getHours() - 1);
+    
+    const { data, error } = await supabase
+      .from('uploaded_files')
+      .update({ 
+        processing: false,
+        processed: true,
+        extracted_data: { error: true, message: 'Processing timed out' }
+      })
+      .eq('processing', true)
+      .lt('created_at', oneHourAgo.toISOString());
+      
+    if (error) {
+      console.error('Failed to reset stuck processing files:', error);
+      return false;
+    }
+    
+    if (data && Array.isArray(data) && data.length > 0) {
+      console.log(`Reset ${data.length} stuck processing files`);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Unexpected error resetting stuck files:', error);
+    return false;
+  }
+}

@@ -1,6 +1,7 @@
 
-import { supabase, handleApiError } from './supabaseClient';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { checkFileExists } from './fileManagementService';
 
 export async function uploadPdfFile(file: File) {
   try {
@@ -14,6 +15,13 @@ export async function uploadPdfFile(file: File) {
     const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
     if (file.size > MAX_FILE_SIZE) {
       toast.error(`${file.name} exceeds the maximum file size of 10MB`);
+      return null;
+    }
+
+    // Check if file already exists by filename
+    const fileExists = await checkFileExists(file.name);
+    if (fileExists) {
+      toast.error(`A file with the name "${file.name}" already exists. Please rename the file or delete the existing file.`);
       return null;
     }
 
@@ -203,7 +211,6 @@ export async function uploadPdfFile(file: File) {
       };
     } catch (functionError) {
       console.error('Edge function error:', functionError);
-      toast.warning(`File uploaded, but automatic processing failed. Manual processing may be required.`);
       
       // Update file status to error but still mark as uploaded
       await supabase
@@ -217,6 +224,8 @@ export async function uploadPdfFile(file: File) {
           } 
         })
         .eq('id', fileData.id);
+      
+      toast.warning(`File uploaded, but automatic processing failed. Manual processing may be required.`);
       
       // Even if processing fails, return the file data as the upload succeeded
       return fileData;

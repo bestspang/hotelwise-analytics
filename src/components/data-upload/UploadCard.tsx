@@ -21,8 +21,28 @@ const UploadCard: React.FC<UploadCardProps> = ({ onUploadComplete }) => {
 
   const handleFileDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
-    setSelectedFiles(prevFiles => [...prevFiles, ...acceptedFiles]);
-    toast(`${acceptedFiles.length} file(s) added to upload queue`, {
+    
+    // Filter for PDF files only
+    const pdfFiles = acceptedFiles.filter(file => 
+      file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+    );
+    
+    if (pdfFiles.length !== acceptedFiles.length) {
+      toast.warning(`${acceptedFiles.length - pdfFiles.length} non-PDF files were ignored`, {
+        description: "Only PDF files are supported.",
+      });
+    }
+    
+    if (pdfFiles.length === 0) {
+      toast.error("No valid PDF files were found", {
+        description: "Please select PDF files only.",
+      });
+      return;
+    }
+    
+    setSelectedFiles(prevFiles => [...prevFiles, ...pdfFiles]);
+    
+    toast(`${pdfFiles.length} PDF file(s) added to upload queue`, {
       description: "Click Upload when ready to process.",
     });
   };

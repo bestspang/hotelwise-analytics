@@ -1,126 +1,147 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 
-/**
- * Lists all files in a storage bucket for debugging purposes
- */
-export async function listBucketFiles(bucketName: string = 'pdf_files') {
+export async function listBucketFiles() {
   try {
-    console.log(`Listing all files in bucket: ${bucketName}`);
+    console.log('Checking for pdf_files bucket existence...');
     
-    const { data, error } = await supabase.storage
-      .from(bucketName)
+    // Check if bucket exists
+    const { data: bucketInfo, error: bucketError } = await supabase.storage
+      .getBucket('pdf_files');
+      
+    if (bucketError) {
+      console.error('Error checking bucket:', bucketError);
+      return { error: `Bucket check failed: ${bucketError.message}` };
+    }
+    
+    console.log('Bucket info:', bucketInfo);
+    
+    // List files in bucket
+    const { data: files, error: listError } = await supabase.storage
+      .from('pdf_files')
       .list();
       
-    if (error) {
-      console.error('Failed to list files in bucket:', error);
-      return { error: error.message };
+    if (listError) {
+      console.error('Error listing files:', listError);
+      return { error: `Failed to list files: ${listError.message}` };
     }
     
-    console.log(`Found ${data.length} files in bucket ${bucketName}:`, data);
-    return { files: data };
+    console.log(`Found ${files?.length || 0} files in storage bucket`);
+    
+    return { 
+      success: true, 
+      files,
+      bucketStatus: bucketInfo 
+    };
   } catch (error) {
-    console.error('Error listing bucket files:', error);
-    return { error: 'Failed to list files' };
+    console.error('Unexpected error listing bucket files:', error);
+    return { error: `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}` };
   }
 }
 
-/**
- * Checks if a specific file exists in storage
- */
-export async function checkFileExists(filePath: string, bucketName: string = 'pdf_files') {
+export async function checkAndFixBucketAccess(forceFix = false) {
   try {
-    console.log(`Checking if file exists in bucket ${bucketName}: ${filePath}`);
+    console.log('Checking pdf_files bucket status...');
     
-    // Check if we can get the file
-    const { data, error } = await supabase.storage
-      .from(bucketName)
-      .download(filePath);
+    // Check if bucket exists first
+    const { data: bucketInfo, error: bucketCheckError } = await supabase.storage
+      .getBucket('pdf_files');
       
-    if (error) {
-      if (error.message.includes('not found')) {
-        console.log(`File ${filePath} does not exist`);
-        return { exists: false };
-      }
+    if (bucketCheckError) {
+      console.error('Bucket check error:', bucketCheckError);
       
-      console.error('Error checking file existence:', error);
-      return { error: error.message };
-    }
-    
-    console.log(`File ${filePath} exists`);
-    return { exists: true };
-  } catch (error) {
-    console.error('Error checking file existence:', error);
-    return { error: 'Failed to check file' };
-  }
-}
-
-/**
- * Force deletes a file from storage by its path
- */
-export async function forceDeleteFile(filePath: string, bucketName: string = 'pdf_files') {
-  try {
-    console.log(`Force deleting file from bucket ${bucketName}: ${filePath}`);
-    
-    const { data, error } = await supabase.storage
-      .from(bucketName)
-      .remove([filePath]);
-      
-    if (error) {
-      console.error('Failed to force delete file:', error);
-      return { error: error.message };
-    }
-    
-    console.log('File force deleted successfully:', data);
-    return { success: true };
-  } catch (error) {
-    console.error('Error force deleting file:', error);
-    return { error: 'Failed to delete file' };
-  }
-}
-
-/**
- * Checks bucket status and attempts to make it public if necessary
- */
-export async function checkAndFixBucketAccess(bucketName: string = 'pdf_files') {
-  try {
-    console.log(`Checking access for bucket: ${bucketName}`);
-    
-    // Get bucket info
-    const { data, error } = await supabase.storage
-      .getBucket(bucketName);
-      
-    if (error) {
-      console.error('Failed to get bucket info:', error);
-      return { error: error.message };
-    }
-    
-    console.log('Bucket info:', data);
-    
-    // If bucket is not public, try to update it
-    if (!data.public) {
-      console.log('Bucket is not public, attempting to update...');
-      const { error: updateError } = await supabase.storage
-        .updateBucket(bucketName, {
-          public: true
-        });
+      // If bucket doesn't exist, try to create it
+      if (bucketCheckError.message.includes('does not exist')) {
+        console.log('Bucket does not exist, creating...');
         
-      if (updateError) {
-        console.error('Failed to update bucket access:', updateError);
+        const { data: createData, error: createError } = await supabase.storage
+          .createBucket('pdf_files', { public: true });
+          
+        if (createError) {
+          console.error('Failed to create bucket:', createError);
+          return { error: `Failed to create bucket: ${createError.message}` };
+        }
+        
+        console.log('Bucket created successfully:', createData);
+        
+        // Create RLS policies for the new bucket
+        try {
+          const { data: policyData, error: policyError } = await supabase.rpc(
+            'create_storage_policy', 
+            { 
+              bucket_name: 'pdf_files',
+              allow_public: true 
+            }
+          );
+          
+          if (policyError) {
+            console.error('Failed to create policies:', policyError);
+          } else {
+            console.log('Policies created successfully:', policyData);
+          }
+        } catch (policyError) {
+          console.error('Error creating policies:', policyError);
+        }
+        
         return { 
-          error: updateError.message,
-          bucketStatus: data 
+          success: true, 
+          message: 'Storage bucket created and set to public',
+          bucketStatus: { public: true } 
         };
       }
       
-      toast.success(`Bucket ${bucketName} access fixed`);
-      return { success: true, message: 'Bucket access updated to public' };
+      return { error: `Bucket check failed: ${bucketCheckError.message}` };
     }
     
-    return { success: true, message: 'Bucket is already public', bucketStatus: data };
+    console.log('Bucket status:', bucketInfo);
+    
+    // If bucket exists but is not public, or we're forcing a fix
+    if (!bucketInfo.public || forceFix) {
+      console.log('Bucket is not public or fix is forced, updating...');
+      
+      const { data: updateData, error: updateError } = await supabase.storage
+        .updateBucket('pdf_files', { public: true });
+        
+      if (updateError) {
+        console.error('Failed to update bucket:', updateError);
+        return { error: `Failed to update bucket: ${updateError.message}` };
+      }
+      
+      console.log('Bucket updated successfully:', updateData);
+      
+      return { 
+        success: true, 
+        message: 'Storage bucket updated and set to public',
+        bucketStatus: { public: true } 
+      };
+    }
+    
+    // Check if bucket policies need to be updated
+    try {
+      const { data: policyData, error: policyError } = await supabase.rpc(
+        'create_storage_policy', 
+        { 
+          bucket_name: 'pdf_files',
+          allow_public: true 
+        }
+      );
+      
+      if (policyError) {
+        console.warn('Policy creation error (may already exist):', policyError);
+      } else {
+        console.log('Policy check/creation completed:', policyData);
+      }
+    } catch (policyError) {
+      console.warn('Policy RPC error (function may not exist):', policyError);
+    }
+    
+    return { 
+      success: true, 
+      message: 'Storage bucket is properly configured',
+      bucketStatus: bucketInfo 
+    };
   } catch (error) {
-    console.error('Error checking/fixing bucket access:', error);
-    return { error: 'Failed to check/fix bucket access' };
+    console.error('Unexpected error checking bucket access:', error);
+    return { error: `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}` };
   }
 }
