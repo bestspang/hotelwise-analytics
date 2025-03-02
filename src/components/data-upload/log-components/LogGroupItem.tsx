@@ -1,96 +1,81 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ProcessingLog } from '../types/processingLogTypes';
 import { LogEntry } from './LogEntry';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, AlertCircle, CheckCircle, Info, AlertTriangle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 interface LogGroupItemProps {
   requestId: string;
   logs: ProcessingLog[];
-  isExpanded: boolean;
-  onToggle: (requestId: string) => void;
 }
 
-export const LogGroupItem: React.FC<LogGroupItemProps> = ({
-  requestId,
-  logs,
-  isExpanded,
-  onToggle,
-}) => {
-  const isMobile = useIsMobile();
+export const LogGroupItem: React.FC<LogGroupItemProps> = ({ requestId, logs }) => {
+  const [expanded, setExpanded] = useState(false);
   
-  // Find the oldest and newest log timestamps
-  const timestamps = logs.map(log => new Date(log.created_at).getTime());
-  const oldestTimestamp = Math.min(...timestamps);
-  const newestTimestamp = Math.max(...timestamps);
+  const toggleExpanded = () => {
+    setExpanded(!expanded);
+  };
   
-  // Format the time elapsed
-  const timeElapsed = formatDistanceToNow(new Date(oldestTimestamp), { addSuffix: true });
+  // Get the most recent log from the group
+  const mostRecentLog = logs[0];
+  const formattedTime = formatDistanceToNow(new Date(mostRecentLog.created_at), { addSuffix: true });
   
-  // Get a summary of log types
-  const logTypeCounts = logs.reduce((acc, log) => {
-    acc[log.log_level] = (acc[log.log_level] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  // Determine the overall status of the group based on the logs
+  const hasError = logs.some(log => log.log_level === 'error');
+  const hasWarning = logs.some(log => log.log_level === 'warning');
+  const hasSuccess = logs.some(log => log.log_level === 'success');
   
-  // Check if there are any errors or warnings
-  const hasErrors = logTypeCounts['error'] > 0;
-  const hasWarnings = logTypeCounts['warning'] > 0;
+  const getStatusIcon = () => {
+    if (hasError) {
+      return <AlertCircle className="h-4 w-4 text-red-500" />;
+    } else if (hasWarning) {
+      return <AlertTriangle className="h-4 w-4 text-amber-500" />;
+    } else if (hasSuccess) {
+      return <CheckCircle className="h-4 w-4 text-green-500" />;
+    } else {
+      return <Info className="h-4 w-4 text-blue-500" />;
+    }
+  };
+  
+  const getStatusClass = () => {
+    if (hasError) {
+      return 'border-red-200 bg-red-50 dark:bg-red-900/10 dark:border-red-900/30';
+    } else if (hasWarning) {
+      return 'border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-900/30';
+    } else if (hasSuccess) {
+      return 'border-green-200 bg-green-50 dark:bg-green-900/10 dark:border-green-900/30';
+    } else {
+      return 'border-blue-200 bg-blue-50 dark:bg-blue-900/10 dark:border-blue-900/30';
+    }
+  };
 
   return (
-    <div className="mb-3 border rounded-md overflow-hidden">
+    <div className={`border rounded-md overflow-hidden transition-all duration-200 ${getStatusClass()}`}>
       <div 
-        className={`p-3 flex items-start justify-between cursor-pointer border-b ${
-          hasErrors ? 'bg-red-50/50 dark:bg-red-900/20' : 
-          hasWarnings ? 'bg-amber-50/50 dark:bg-amber-900/20' : 
-          'bg-gray-50/50 dark:bg-gray-900/20'
-        }`}
-        onClick={() => onToggle(requestId)}
+        className="p-3 flex items-center justify-between cursor-pointer hover:bg-black/5 dark:hover:bg-white/5"
+        onClick={toggleExpanded}
       >
-        <div className="flex items-center space-x-2">
-          {isExpanded ? (
-            <ChevronDown className="h-4 w-4 flex-shrink-0 text-gray-500" />
-          ) : (
-            <ChevronRight className="h-4 w-4 flex-shrink-0 text-gray-500" />
-          )}
-          <div>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-              <span className="font-medium text-sm truncate max-w-[200px] sm:max-w-[300px]">
-                Request {requestId.substring(0, isMobile ? 8 : 12)}...
-              </span>
-              <span className="text-xs text-muted-foreground">{timeElapsed}</span>
-            </div>
-            <div className="flex flex-wrap gap-1 mt-1 text-xs">
-              {Object.entries(logTypeCounts).map(([type, count]) => (
-                <span 
-                  key={type}
-                  className={`px-1.5 py-0.5 rounded-full ${
-                    type === 'error' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
-                    type === 'warning' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' :
-                    type === 'success' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
-                    'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-                  }`}
-                >
-                  {count} {type}
-                </span>
-              ))}
-            </div>
+        <div className="flex items-center gap-2">
+          {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          <div className="flex items-center gap-1.5">
+            {getStatusIcon()}
+            <span className="text-sm font-medium truncate max-w-[150px] sm:max-w-[300px] md:max-w-full">
+              Request {requestId.substring(0, 8)}...
+            </span>
           </div>
+          <span className="ml-2 text-xs bg-black/5 dark:bg-white/10 px-1.5 py-0.5 rounded-full">
+            {logs.length} {logs.length === 1 ? 'log' : 'logs'}
+          </span>
         </div>
-        <span className="text-xs text-muted-foreground whitespace-nowrap">
-          {logs.length} log{logs.length !== 1 ? 's' : ''}
-        </span>
+        <span className="text-xs text-muted-foreground">{formattedTime}</span>
       </div>
       
-      {isExpanded && (
-        <div className="p-2 bg-background">
-          <div className="space-y-2">
-            {logs.map((log) => (
-              <LogEntry key={log.id} log={log} />
-            ))}
-          </div>
+      {expanded && (
+        <div className="border-t p-2 space-y-2">
+          {logs.map(log => (
+            <LogEntry key={log.id} log={log} />
+          ))}
         </div>
       )}
     </div>

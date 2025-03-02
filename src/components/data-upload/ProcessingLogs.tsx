@@ -1,103 +1,118 @@
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { FileText, Filter } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ProcessingLog, LogFilterType, filterLogsByType } from './types/processingLogTypes';
 import { useProcessingLogs } from './hooks/useProcessingLogs';
+import { LogEntry } from './log-components/LogEntry';
+import { LogFilter } from './log-components/LogFilter';
 import { LogGroupItem } from './log-components/LogGroupItem';
 import { LoadingState } from './log-components/LoadingState';
-import { LogFilter } from './log-components/LogFilter';
-import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ProcessingLogsProps {
   fileId?: string;
+  requestId?: string;
   refreshTrigger?: number;
 }
 
-const ProcessingLogs: React.FC<ProcessingLogsProps> = ({ fileId, refreshTrigger }) => {
-  const { 
-    logs, 
-    loading, 
-    groupedLogs, 
-    expandedGroups, 
-    toggleGroup,
-    filter,
-    setFilter,
-    searchTerm,
-    setSearchTerm
-  } = useProcessingLogs(fileId, refreshTrigger);
-  
+const ProcessingLogs: React.FC<ProcessingLogsProps> = ({ fileId, requestId, refreshTrigger }) => {
+  const [filter, setFilter] = useState<LogFilterType>('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [groupedView, setGroupedView] = useState(true);
+  const { logs, loading, error } = useProcessingLogs({ fileId, requestId, refreshTrigger });
   const isMobile = useIsMobile();
-  const [showFilters, setShowFilters] = useState(false);
+  
+  const filteredLogs = filterLogsByType(logs, filter, searchTerm);
+  
+  // Group logs by request_id for the grouped view
+  const groupedLogs = React.useMemo(() => {
+    const groups: Record<string, ProcessingLog[]> = {};
+    
+    filteredLogs.forEach(log => {
+      if (!groups[log.request_id]) {
+        groups[log.request_id] = [];
+      }
+      groups[log.request_id].push(log);
+    });
+    
+    return Object.entries(groups).map(([request_id, logs]) => ({
+      request_id,
+      logs: logs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    }));
+  }, [filteredLogs]);
 
   if (loading) {
-    return <LoadingState message="Loading logs..." />;
+    return <LoadingState />;
   }
 
-  if (logs.length === 0) {
-    return <LoadingState message="No processing logs found" />;
+  if (error) {
+    return (
+      <Card className="mt-4">
+        <CardContent className="pt-6">
+          <div className="text-center p-4">
+            <p className="text-red-500">Error loading logs: {error.message}</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
-    <Card className="overflow-hidden">
-      <CardHeader className="pb-0">
+    <Card className="mt-4">
+      <CardHeader className="pb-2">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <CardTitle className="flex items-center gap-2 text-xl">
-            <FileText className="h-5 w-5" />
-            Processing Logs
-          </CardTitle>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => setShowFilters(!showFilters)}
-            className="self-start sm:self-auto"
-          >
-            <Filter className="h-4 w-4 mr-2" />
-            {showFilters ? "Hide Filters" : "Show Filters"}
-          </Button>
-        </div>
-        <CardDescription className="mt-1">
-          {fileId ? 'Processing history for this file' : 'Recent PDF processing activity'}
-        </CardDescription>
-      </CardHeader>
-      
-      {showFilters && (
-        <div className="px-6 pt-2 pb-0">
-          <LogFilter 
-            filter={filter} 
-            setFilter={setFilter}
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-          />
-        </div>
-      )}
-      
-      <CardContent className="p-4 sm:p-6">
-        <ScrollArea className={`${isMobile ? 'h-[300px]' : 'h-[400px]'} pr-4`}>
-          {Object.entries(groupedLogs).length > 0 ? (
-            Object.entries(groupedLogs).map(([requestId, requestLogs]) => (
-              <LogGroupItem
-                key={requestId}
-                requestId={requestId}
-                logs={requestLogs}
-                isExpanded={expandedGroups.has(requestId)}
-                onToggle={toggleGroup}
-              />
-            ))
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              No logs matching current filters
+          <CardTitle>Processing Logs</CardTitle>
+          <div className="flex items-center space-x-2">
+            <div className="text-sm text-muted-foreground">
+              {filteredLogs.length} {filteredLogs.length === 1 ? 'log' : 'logs'}
             </div>
-          )}
-        </ScrollArea>
-      </CardContent>
-      
-      <CardFooter className="pt-0 pb-4 px-4 sm:px-6 flex justify-end">
-        <div className="text-xs text-muted-foreground">
-          Showing {Object.keys(groupedLogs).length} log group(s)
+            <div className="flex items-center space-x-1">
+              <button
+                className={`px-2 py-1 text-xs rounded-md transition-colors ${groupedView ? 'bg-primary/10 text-primary' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                onClick={() => setGroupedView(true)}
+              >
+                Grouped
+              </button>
+              <button
+                className={`px-2 py-1 text-xs rounded-md transition-colors ${!groupedView ? 'bg-primary/10 text-primary' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                onClick={() => setGroupedView(false)}
+              >
+                Timeline
+              </button>
+            </div>
+          </div>
         </div>
-      </CardFooter>
+      </CardHeader>
+      <CardContent>
+        <LogFilter 
+          filter={filter} 
+          setFilter={setFilter} 
+          searchTerm={searchTerm} 
+          setSearchTerm={setSearchTerm}
+        />
+        
+        {filteredLogs.length === 0 ? (
+          <div className="text-center p-6 bg-gray-50 dark:bg-gray-900 rounded-md">
+            <p className="text-muted-foreground">No logs found with the current filters.</p>
+          </div>
+        ) : groupedView ? (
+          <div className="space-y-3">
+            {groupedLogs.map(group => (
+              <LogGroupItem 
+                key={group.request_id} 
+                requestId={group.request_id} 
+                logs={group.logs} 
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {filteredLogs.map(log => (
+              <LogEntry key={log.id} log={log} />
+            ))}
+          </div>
+        )}
+      </CardContent>
     </Card>
   );
 };

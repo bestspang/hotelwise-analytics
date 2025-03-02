@@ -1,7 +1,8 @@
+
 #root {
-  max-width: 1280px;
+  max-width: 100%;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 0;
   text-align: center;
 }
 
@@ -39,4 +40,25 @@
 
 .read-the-docs {
   color: #888;
+}
+
+/* Responsive helpers */
+@media (max-width: 640px) {
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+/* Smooth transitions for mobile elements */
+.mobile-menu-transition {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Improved scrolling on mobile */
+@media (max-width: 768px) {
+  .smooth-scroll {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
 }
