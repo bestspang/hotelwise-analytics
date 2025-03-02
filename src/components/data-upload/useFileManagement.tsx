@@ -38,8 +38,12 @@ export const useFileManagement = () => {
     try {
       const success = await deleteUploadedFile(fileId);
       if (success) {
-        // Add to our local set of deleted file IDs
-        setDeletedFileIds(prev => new Set([...prev, fileId]));
+        // Add to our local set of deleted file IDs to ensure it doesn't come back
+        setDeletedFileIds(prev => {
+          const newSet = new Set(prev);
+          newSet.add(fileId);
+          return newSet;
+        });
         
         // Update the files list immediately
         setFiles(files.filter(file => file.id !== fileId));

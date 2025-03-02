@@ -1,50 +1,44 @@
 
 import React from 'react';
 import { TabsContent } from '@/components/ui/tabs';
-import ExtractedDataCard from './ExtractedDataCard';
-import UnprocessedFileItem from './UnprocessedFileItem';
+import { ExtractedDataCard } from '@/components/data-upload/index';
 
 interface FileTabContentProps {
   tabValue: string;
   files: any[];
   onViewRawData: (file: any) => void;
-  onDelete: (fileId: string) => void;
-  isActive: boolean; // Add this prop to check if tab is active
+  onDelete?: (fileId: string) => Promise<boolean>;
+  isActive: boolean;
+  isStuckInProcessing?: (file: any) => boolean;
 }
 
-const FileTabContent: React.FC<FileTabContentProps> = ({ 
-  tabValue, 
-  files, 
+const FileTabContent: React.FC<FileTabContentProps> = ({
+  tabValue,
+  files,
   onViewRawData,
   onDelete,
-  isActive
+  isActive,
+  isStuckInProcessing
 }) => {
-  // Only render if this tab is active to avoid TabsContent context issue
-  if (!isActive) {
-    return null;
-  }
+  if (!isActive) return <TabsContent value={tabValue} />;
 
   return (
-    <TabsContent value={tabValue} className="mt-0">
-      <div className="grid grid-cols-1 gap-4">
-        {tabValue === 'unprocessed' ? (
-          files.map((file) => (
-            <UnprocessedFileItem 
-              key={file.id} 
-              file={file} 
-              onDelete={onDelete} 
-            />
-          ))
-        ) : (
-          files.map((file) => (
-            <ExtractedDataCard
-              key={file.id}
-              file={file}
-              onViewRawData={() => onViewRawData(file)}
-            />
-          ))
-        )}
-      </div>
+    <TabsContent value={tabValue} className="space-y-4">
+      {files.map((file) => (
+        <ExtractedDataCard
+          key={file.id}
+          file={file}
+          onViewRawData={() => onViewRawData(file)}
+          onDelete={onDelete}
+          isStuckInProcessing={isStuckInProcessing}
+        />
+      ))}
+
+      {files.length === 0 && (
+        <div className="p-8 text-center">
+          <p className="text-muted-foreground">No files found in this category</p>
+        </div>
+      )}
     </TabsContent>
   );
 };

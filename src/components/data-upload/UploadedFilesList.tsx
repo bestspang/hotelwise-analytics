@@ -12,7 +12,7 @@ import { useFileFiltering } from './useFileFiltering';
 
 const UploadedFilesList = () => {
   const { files, isLoading, handleDelete, handleRefresh } = useFileManagement();
-  const { activeTab, setActiveTab, filterFilesByStatus, getFileCount, getDocumentTypeCount } = useFileFiltering(files);
+  const { activeTab, setActiveTab, filterFilesByStatus, getFileCount, getDocumentTypeCount, isStuckInProcessing } = useFileFiltering(files);
   const [selectedFile, setSelectedFile] = useState<any>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
 
@@ -39,6 +39,7 @@ const UploadedFilesList = () => {
     if (success && previewOpen && selectedFile && selectedFile.id === fileId) {
       setPreviewOpen(false);
     }
+    return success;
   };
 
   return (
@@ -66,6 +67,7 @@ const UploadedFilesList = () => {
               onViewRawData={handleViewData}
               onDelete={handleFileDelete}
               isActive={activeTab === 'all'}
+              isStuckInProcessing={isStuckInProcessing}
             />
             
             <FileTabContent
@@ -74,6 +76,7 @@ const UploadedFilesList = () => {
               onViewRawData={handleViewData}
               onDelete={handleFileDelete}
               isActive={activeTab === 'processed'}
+              isStuckInProcessing={isStuckInProcessing}
             />
             
             <FileTabContent
@@ -82,6 +85,7 @@ const UploadedFilesList = () => {
               onViewRawData={handleViewData}
               onDelete={handleFileDelete}
               isActive={activeTab === 'unprocessed'}
+              isStuckInProcessing={isStuckInProcessing}
             />
             
             {documentTypes.map((type) => (
@@ -92,6 +96,7 @@ const UploadedFilesList = () => {
                 onViewRawData={handleViewData}
                 onDelete={handleFileDelete}
                 isActive={activeTab === type.toLowerCase()}
+                isStuckInProcessing={isStuckInProcessing}
               />
             ))}
           </Tabs>

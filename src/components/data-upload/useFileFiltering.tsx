@@ -4,9 +4,9 @@ import { useState } from 'react';
 export const useFileFiltering = (files: any[]) => {
   const [activeTab, setActiveTab] = useState('all');
 
-  // Helper function to detect stuck processing (over 5 minutes)
+  // Helper function to detect stuck processing (over 3 minutes)
   const isStuckInProcessing = (file: any) => {
-    return file.processing && new Date().getTime() - new Date(file.updated_at || file.created_at).getTime() > 5 * 60 * 1000;
+    return file.processing && new Date().getTime() - new Date(file.updated_at || file.created_at).getTime() > 3 * 60 * 1000;
   };
 
   const filterFilesByStatus = (status: string) => {
@@ -58,6 +58,7 @@ export const useFileFiltering = (files: any[]) => {
     setActiveTab,
     filterFilesByStatus,
     getFileCount,
-    getDocumentTypeCount
+    getDocumentTypeCount,
+    isStuckInProcessing // Export this function for use in other components
   };
 };

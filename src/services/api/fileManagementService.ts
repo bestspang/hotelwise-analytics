@@ -65,13 +65,18 @@ export async function deleteUploadedFile(fileId: string) {
     }
     
     // Then delete from storage - if this fails, the database record is still deleted
-    const { error: storageError } = await supabase.storage
-      .from('pdf_files')
-      .remove([fileData.file_path]);
-      
-    if (storageError) {
+    try {
+      const { error: storageError } = await supabase.storage
+        .from('pdf_files')
+        .remove([fileData.file_path]);
+        
+      if (storageError) {
+        // Log the error but continue since the database record is already deleted
+        console.warn('Failed to delete file from storage, but database record was removed:', storageError);
+      }
+    } catch (storageError) {
       // Just log this error, don't return false since the database entry is gone
-      console.warn('Failed to delete file from storage, but database record was removed:', storageError);
+      console.warn('Error when trying to delete from storage, but database record was removed:', storageError);
     }
     
     toast({

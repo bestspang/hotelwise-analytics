@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText, Eye, RotateCw } from 'lucide-react';
+import { FileText, Eye, RotateCw, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { reprocessFile } from '@/services/uploadService';
@@ -11,10 +11,18 @@ import { toast } from 'sonner';
 interface ExtractedDataCardProps {
   file: any; // Ideally this would be a proper type definition
   onViewRawData: () => void;
+  onDelete?: (fileId: string) => Promise<boolean>;
+  isStuckInProcessing?: (file: any) => boolean;
 }
 
-const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ file, onViewRawData }) => {
+const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ 
+  file, 
+  onViewRawData, 
+  onDelete,
+  isStuckInProcessing: externalIsStuckCheck 
+}) => {
   const [isReprocessing, setIsReprocessing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Document type definitions with their respective colors for consistent styling
   const documentTypeColors: Record<string, string> = {
@@ -43,6 +51,14 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ file, onViewRawDa
     );
   };
 
+  // Internal function to detect stuck processing (over 3 minutes)
+  const localIsStuckInProcessing = (file: any) => {
+    return file.processing && new Date().getTime() - new Date(file.updated_at || file.created_at).getTime() > 3 * 60 * 1000;
+  };
+
+  // Use the external check if provided, otherwise use the local implementation
+  const isStuckCheck = externalIsStuckCheck || localIsStuckInProcessing;
+
   // Function to handle reprocessing of a file
   const handleReprocess = async () => {
     if (isReprocessing) return;
@@ -63,6 +79,25 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ file, onViewRawDa
     }
   };
 
+  // Function to handle file deletion
+  const handleDelete = async () => {
+    if (!onDelete || isDeleting) return;
+    
+    setIsDeleting(true);
+    
+    try {
+      const success = await onDelete(file.id);
+      if (!success) {
+        toast.error(`Failed to delete ${file.filename}. Please try again later.`);
+      }
+    } catch (error) {
+      console.error('Error deleting file:', error);
+      toast.error(`Failed to delete ${file.filename}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // Status helper functions - improves code readability
   const hasExtractedData = file.extracted_data && 
     !file.extracted_data.error && 
@@ -72,17 +107,17 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ file, onViewRawDa
 
   const isUnprocessable = file.processed && !hasExtractedData && !hasExtractionError;
 
-  // Check if file is stuck in processing - processing for over 5 minutes
-  const isStuckInProcessing = file.processing && new Date().getTime() - new Date(file.updated_at || file.created_at).getTime() > 5 * 60 * 1000;
+  // Check if file is stuck in processing
+  const isStuck = isStuckCheck(file);
 
-  const isProcessing = file.processing && !isStuckInProcessing;
+  const isProcessing = file.processing && !isStuck;
 
   // Error message helper - improves code readability
   const getErrorMessage = () => {
     if (hasExtractionError) {
       return `Data extraction failed: ${file.extracted_data.message || 'Unknown error'}`;
     }
-    if (isStuckInProcessing) {
+    if (isStuck) {
       return 'File processing may be stuck. You can try reprocessing.';
     }
     return 'File could not be processed';
@@ -121,7 +156,7 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ file, onViewRawDa
             </TooltipProvider>
           )}
           
-          {isStuckInProcessing && (
+          {isStuck && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -171,6 +206,19 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ file, onViewRawDa
         </div>
       </CardContent>
       <CardFooter className="p-4 pt-0 gap-2 flex justify-end">
+        {onDelete && (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleDelete}
+            disabled={isDeleting}
+            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+            aria-label={isDeleting ? "Deleting in progress" : "Delete file"}
+          >
+            <Trash2 className={`h-4 w-4 mr-2 ${isDeleting ? 'animate-spin' : ''}`} aria-hidden="true" />
+            {isDeleting ? 'Deleting...' : 'Delete'}
+          </Button>
+        )}
         <Button 
           variant="outline" 
           size="sm" 

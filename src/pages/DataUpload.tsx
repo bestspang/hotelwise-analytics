@@ -11,11 +11,12 @@ const DataUpload = () => {
     setRefreshTrigger(prev => prev + 1);
   };
 
-  // Force a refresh every 30 seconds to catch files that might be stuck
+  // Force a refresh every 15 seconds to catch files that might be stuck
+  // or to ensure deletions are properly reflected
   React.useEffect(() => {
     const intervalId = setInterval(() => {
       setRefreshTrigger(prev => prev + 1);
-    }, 30000);
+    }, 15000);
     
     return () => clearInterval(intervalId);
   }, []);
