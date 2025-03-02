@@ -7,11 +7,21 @@ export const useFileManagement = () => {
   const [files, setFiles] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(new Date());
+  // Use a ref to persist deleted file IDs across rerenders
   const deletedFileIds = useRef<Set<string>>(new Set());
   const isInitialMount = useRef(true);
+  const fetchInProgress = useRef(false);
 
   const fetchFiles = useCallback(async () => {
+    // Prevent concurrent fetch operations
+    if (fetchInProgress.current) {
+      console.log('Fetch already in progress, skipping duplicate request');
+      return;
+    }
+    
+    fetchInProgress.current = true;
     setIsLoading(true);
+    
     try {
       console.log('Fetching files, deleted IDs tracked:', [...deletedFileIds.current]);
       const uploadedFiles = await getUploadedFiles();
@@ -41,14 +51,15 @@ export const useFileManagement = () => {
       toast.error('Failed to fetch uploaded files');
     } finally {
       setIsLoading(false);
+      fetchInProgress.current = false;
     }
   }, []);
 
   useEffect(() => {
     fetchFiles();
     
-    // Poll for updates more frequently (every 3 seconds)
-    const intervalId = setInterval(fetchFiles, 3000);
+    // Poll for updates more frequently (every 2 seconds)
+    const intervalId = setInterval(fetchFiles, 2000);
     return () => clearInterval(intervalId);
   }, [lastRefresh, fetchFiles]);
 
@@ -62,12 +73,19 @@ export const useFileManagement = () => {
       
       // Add to our permanent set of deleted file IDs to ensure it doesn't come back
       deletedFileIds.current.add(fileId);
-      console.log(`Added ID ${fileId} to deleted files tracking set`);
+      console.log(`Added ID ${fileId} to deleted files tracking set. Current deleted IDs:`, [...deletedFileIds.current]);
       
       const success = await deleteUploadedFile(fileId);
+      
       if (success) {
-        // Force a refresh of the file list
+        console.log(`File ${fileId} confirmed deleted from backend`);
+        
+        // Force multiple refreshes to ensure UI is updated
         setLastRefresh(new Date());
+        
+        // Schedule additional refreshes to catch any potential delay in backend
+        setTimeout(() => setLastRefresh(new Date()), 1000);
+        setTimeout(() => setLastRefresh(new Date()), 3000);
         
         toast.success('File deleted successfully');
         return true;

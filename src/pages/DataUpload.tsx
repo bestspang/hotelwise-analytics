@@ -17,19 +17,19 @@ const DataUpload = () => {
     // Force an immediate refresh
     setRefreshTrigger(prev => prev + 1);
     
-    // Then schedule additional refreshes at 3s, 7s, and 15s
-    setTimeout(() => setRefreshTrigger(prev => prev + 1), 3000);
-    setTimeout(() => setRefreshTrigger(prev => prev + 1), 7000);
-    setTimeout(() => setRefreshTrigger(prev => prev + 1), 15000);
+    // Then schedule additional refreshes at 2s, 5s, and 10s intervals
+    setTimeout(() => setRefreshTrigger(prev => prev + 1), 2000);
+    setTimeout(() => setRefreshTrigger(prev => prev + 1), 5000);
+    setTimeout(() => setRefreshTrigger(prev => prev + 1), 10000);
   }, []);
 
-  // Force a refresh every 5 seconds to ensure UI is up-to-date
-  // This helps catch files that may have completed processing
+  // Force a refresh more frequently to ensure UI is up-to-date
+  // This helps catch files that may have completed processing or been deleted
   useEffect(() => {
     const intervalId = setInterval(() => {
       console.log('Automatic refresh triggered');
       setRefreshTrigger(prev => prev + 1);
-    }, 5000);
+    }, 3000); // Refresh every 3 seconds
     
     return () => clearInterval(intervalId);
   }, []);

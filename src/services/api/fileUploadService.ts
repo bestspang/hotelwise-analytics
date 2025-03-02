@@ -20,7 +20,7 @@ export async function uploadPdfFile(file: File) {
     console.log(`Starting upload process for file: ${file.name}`);
 
     // Upload file to Supabase Storage
-    const fileName = `${Date.now()}_${file.name}`;
+    const fileName = `${Date.now()}_${file.name.replace(/[^\x00-\x7F]/g, '')}`;
     const filePath = `uploads/${fileName}`;
     
     // Create the storage bucket if it doesn't exist
@@ -48,7 +48,10 @@ export async function uploadPdfFile(file: File) {
     console.log(`Uploading file to ${filePath}`);
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('pdf_files')
-      .upload(filePath, file);
+      .upload(filePath, file, {
+        cacheControl: 'no-cache', // Prevent caching to ensure fresh content
+        upsert: false // Don't allow overwriting existing files
+      });
       
     if (uploadError) {
       console.error('Upload error:', uploadError);

@@ -1,3 +1,4 @@
+
 import { supabase } from './supabaseClient';
 import { toast } from 'sonner';
 
@@ -48,9 +49,41 @@ export async function deleteUploadedFile(fileId: string) {
     console.log('Found file to delete:', fileData);
     
     // Important: Delete from storage FIRST to ensure the file is gone
+    const bucketName = 'pdf_files';
+    console.log(`Attempting to delete file from storage bucket '${bucketName}' at path: ${fileData.file_path}`);
+    
+    // Ensure the bucket exists before attempting deletion
+    try {
+      const { data: bucketData, error: bucketError } = await supabase.storage
+        .getBucket(bucketName);
+        
+      if (bucketError) {
+        console.error(`Failed to check if bucket ${bucketName} exists:`, bucketError);
+        if (bucketError.message.includes('The resource was not found')) {
+          console.log(`Bucket ${bucketName} doesn't exist, creating it now`);
+          const { error: createError } = await supabase.storage.createBucket(bucketName, {
+            public: false
+          });
+          
+          if (createError) {
+            console.error(`Failed to create bucket ${bucketName}:`, createError);
+            // Continue with deletion from database even if bucket creation fails
+          } else {
+            console.log(`Bucket ${bucketName} created successfully`);
+          }
+        }
+      } else {
+        console.log(`Bucket ${bucketName} exists`);
+      }
+    } catch (bucketCheckError) {
+      console.error('Error checking bucket existence:', bucketCheckError);
+      // Continue with deletion process
+    }
+    
+    // Delete from storage
     try {
       const { data: storageData, error: storageError } = await supabase.storage
-        .from('pdf_files')
+        .from(bucketName)
         .remove([fileData.file_path]);
         
       if (storageError) {
