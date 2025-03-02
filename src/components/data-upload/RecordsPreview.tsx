@@ -22,6 +22,19 @@ const RecordsPreview: React.FC<RecordsPreviewProps> = ({ data }) => {
     // This would update the state in a real implementation
   };
 
+  // Function to safely render cell values regardless of type
+  const renderCellValue = (value: unknown): React.ReactNode => {
+    if (value === null || value === undefined) {
+      return '';
+    }
+    
+    if (typeof value === 'object') {
+      return JSON.stringify(value);
+    }
+    
+    return String(value);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -57,7 +70,7 @@ const RecordsPreview: React.FC<RecordsPreviewProps> = ({ data }) => {
               {Object.entries(record)
                 .filter(([key]) => key !== '_selected')
                 .map(([key, value]) => (
-                  <TableCell key={key}>{value}</TableCell>
+                  <TableCell key={key}>{renderCellValue(value)}</TableCell>
                 ))
               }
             </TableRow>
