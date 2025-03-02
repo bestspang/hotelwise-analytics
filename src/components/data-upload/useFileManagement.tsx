@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getUploadedFiles, deleteUploadedFile } from '@/services/uploadService';
 import { toast } from 'sonner';
 
@@ -7,49 +7,59 @@ export const useFileManagement = () => {
   const [files, setFiles] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(new Date());
-  const [deletedFileIds, setDeletedFileIds] = useState<Set<string>>(new Set());
+  const deletedFileIds = useRef<Set<string>>(new Set());
+  const isInitialMount = useRef(true);
 
   const fetchFiles = useCallback(async () => {
     setIsLoading(true);
     try {
+      console.log('Fetching files, deleted IDs tracked:', [...deletedFileIds.current]);
       const uploadedFiles = await getUploadedFiles();
-      console.log('Fetched files:', uploadedFiles);
       
       // Filter out any files that have been deleted during this session
-      const filteredFiles = uploadedFiles.filter(file => !deletedFileIds.has(file.id));
+      const filteredFiles = uploadedFiles.filter(file => !deletedFileIds.current.has(file.id));
+      
+      console.log(`Filtered ${uploadedFiles.length - filteredFiles.length} deleted files from results`);
       setFiles(filteredFiles);
+      
+      // If this isn't the initial mount and we see files that should be deleted
+      // appearing again, log a warning for debugging
+      if (!isInitialMount.current) {
+        const reappearedFiles = uploadedFiles.filter(file => deletedFileIds.current.has(file.id));
+        if (reappearedFiles.length > 0) {
+          console.warn('Files reappeared that were previously deleted:', reappearedFiles);
+        }
+      }
+      isInitialMount.current = false;
     } catch (error) {
       console.error('Error fetching files:', error);
       toast.error('Failed to fetch uploaded files');
     } finally {
       setIsLoading(false);
     }
-  }, [deletedFileIds]);
+  }, []);
 
   useEffect(() => {
     fetchFiles();
     
-    // Poll for updates every 8 seconds - more frequent than before
-    const intervalId = setInterval(fetchFiles, 8000);
+    // Poll for updates every 5 seconds
+    const intervalId = setInterval(fetchFiles, 5000);
     return () => clearInterval(intervalId);
   }, [lastRefresh, fetchFiles]);
 
   const handleDelete = async (fileId: string) => {
     try {
-      // Show "delete in progress" toast
       toast.loading('Deleting file...');
+      console.log(`Attempting to delete file with ID: ${fileId}`);
       
       const success = await deleteUploadedFile(fileId);
       if (success) {
-        // Add to our local set of deleted file IDs to ensure it doesn't come back
-        setDeletedFileIds(prev => {
-          const newSet = new Set(prev);
-          newSet.add(fileId);
-          return newSet;
-        });
+        // Add to our permanent set of deleted file IDs to ensure it doesn't come back
+        deletedFileIds.current.add(fileId);
+        console.log(`Added ID ${fileId} to deleted files tracking set`);
         
-        // Update the files list immediately
-        setFiles(files.filter(file => file.id !== fileId));
+        // Update the files list immediately by filtering
+        setFiles(prevFiles => prevFiles.filter(file => file.id !== fileId));
         
         // Force a refresh of the file list
         setLastRefresh(new Date());
@@ -68,9 +78,21 @@ export const useFileManagement = () => {
   };
 
   const handleRefresh = () => {
+    console.log('Manual refresh triggered');
     setLastRefresh(new Date());
     toast.info('Refreshing file list...');
   };
+
+  // Clear cached files that were added to deletedFileIds but might 
+  // still be in the files state, useful when new uploads happen
+  useEffect(() => {
+    // Secondary filter to ensure deleted files aren't shown
+    const filteredFiles = files.filter(file => !deletedFileIds.current.has(file.id));
+    if (filteredFiles.length !== files.length) {
+      console.log('Cleaning up deleted files from state');
+      setFiles(filteredFiles);
+    }
+  }, [files]);
 
   return {
     files,

@@ -17,31 +17,45 @@ export async function uploadPdfFile(file: File) {
       return null;
     }
 
+    console.log(`Starting upload process for file: ${file.name}`);
+
     // Upload file to Supabase Storage
     const fileName = `${Date.now()}_${file.name}`;
     const filePath = `uploads/${fileName}`;
     
     // Create the storage bucket if it doesn't exist
+    console.log('Checking for pdf_files bucket');
     const { data: bucketData, error: bucketError } = await supabase.storage
       .getBucket('pdf_files');
       
     if (bucketError && bucketError.message.includes('The resource was not found')) {
+      console.log('pdf_files bucket not found, creating it');
       const { error: createBucketError } = await supabase.storage
         .createBucket('pdf_files', { public: false });
         
       if (createBucketError) {
+        console.error('Failed to create bucket:', createBucketError);
         return handleApiError(createBucketError, `Failed to create storage bucket: ${createBucketError.message}`);
       }
+      console.log('pdf_files bucket created successfully');
+    } else if (bucketError) {
+      console.error('Error checking bucket:', bucketError);
+    } else {
+      console.log('pdf_files bucket exists');
     }
     
     // Upload the file
+    console.log(`Uploading file to ${filePath}`);
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('pdf_files')
       .upload(filePath, file);
       
     if (uploadError) {
+      console.error('Upload error:', uploadError);
       return handleApiError(uploadError, `Failed to upload ${file.name}: ${uploadError.message}`);
     }
+    
+    console.log('File uploaded successfully, creating database record');
     
     // Store file metadata in database - include the processing column
     const { data: fileData, error: fileError } = await supabase
@@ -58,14 +72,18 @@ export async function uploadPdfFile(file: File) {
       .single();
       
     if (fileError) {
+      console.error('Database record creation error:', fileError);
       return handleApiError(fileError, `Failed to process metadata for ${file.name}`);
     }
+    
+    console.log('Database record created successfully:', fileData.id);
     
     // Show toast indicating that processing is starting
     toast.info(`Processing ${file.name} with AI data extraction...`);
     
     // Call the Edge Function to process the PDF
     try {
+      console.log('Invoking process-pdf edge function');
       const { data: processingData, error: processingError } = await supabase.functions
         .invoke('process-pdf', {
           body: { 
@@ -149,6 +167,7 @@ export async function uploadPdfFile(file: File) {
       return fileData;
     }
   } catch (error) {
+    console.error('Unexpected error during file upload:', error);
     return handleApiError(error, `An unexpected error occurred with ${file.name}`);
   }
 }

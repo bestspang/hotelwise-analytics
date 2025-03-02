@@ -25,6 +25,8 @@ export async function getUploadedFiles() {
 
 export async function deleteUploadedFile(fileId: string) {
   try {
+    console.log('Starting deletion process for file ID:', fileId);
+    
     // Get the file info first to get the file path
     const { data: fileData, error: fileError } = await supabase
       .from('uploaded_files')
@@ -43,6 +45,8 @@ export async function deleteUploadedFile(fileId: string) {
       console.error('Invalid file data for deletion:', fileData);
       return false;
     }
+
+    console.log('Found file to delete:', fileData);
     
     // Delete from database FIRST to prevent listing in UI
     const { error: dbError } = await supabase
@@ -55,10 +59,12 @@ export async function deleteUploadedFile(fileId: string) {
       console.error('Failed to delete file record:', dbError);
       return false;
     }
+
+    console.log('Database record deleted successfully');
     
-    // Then delete from storage
+    // Then delete from storage with proper error handling
     try {
-      const { error: storageError } = await supabase.storage
+      const { data: storageData, error: storageError } = await supabase.storage
         .from('pdf_files')
         .remove([fileData.file_path]);
         
@@ -66,12 +72,15 @@ export async function deleteUploadedFile(fileId: string) {
         // Log the error but continue since the database record is already deleted
         console.warn('Failed to delete file from storage, but database record was removed:', storageError);
         // Still consider this a success since the file is deleted from the database
+      } else {
+        console.log('Storage file deleted successfully:', storageData);
       }
     } catch (storageError) {
       // Just log this error, don't return false since the database entry is gone
       console.warn('Error when trying to delete from storage, but database record was removed:', storageError);
     }
     
+    console.log('File deletion process completed successfully for:', fileData.filename);
     toast.success(`File "${fileData.filename}" deleted successfully`);
     return true;
   } catch (error) {
