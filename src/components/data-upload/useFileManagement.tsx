@@ -66,12 +66,10 @@ export const useFileManagement = () => {
     }
   }, []);
 
+  // Only fetch files on initial load and when refresh is triggered
   useEffect(() => {
     fetchFiles();
-    
-    // Poll for updates less frequently (every 5 seconds instead of 2)
-    const intervalId = setInterval(fetchFiles, 5000);
-    return () => clearInterval(intervalId);
+    // No more polling interval
   }, [lastRefresh, fetchFiles]);
 
   const handleDelete = async (fileId: string) => {
@@ -90,10 +88,6 @@ export const useFileManagement = () => {
       
       if (success) {
         console.log(`File ${fileId} confirmed deleted from backend`);
-        
-        // Force one refresh after successful deletion
-        setLastRefresh(new Date());
-        
         toast.success('File deleted successfully');
         // Forcefully ensure our files state doesn't contain the deleted file
         setFiles(prevFiles => prevFiles.filter(file => file.id !== fileId));

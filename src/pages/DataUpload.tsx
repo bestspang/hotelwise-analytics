@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import UploadCard from '@/components/data-upload/UploadCard';
 import UploadedFilesList from '@/components/data-upload/UploadedFilesList';
@@ -14,7 +14,6 @@ const DataUpload = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [activeTab, setActiveTab] = useState('files');
   const [isDebugging, setIsDebugging] = useState(false);
-  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
 
   const handleUploadComplete = () => {
     console.log('Upload completed, triggering refresh');
@@ -22,13 +21,9 @@ const DataUpload = () => {
   };
 
   const handleReprocessing = useCallback(() => {
-    console.log('Reprocessing triggered, scheduling multiple refreshes');
+    console.log('Reprocessing triggered, refreshing file list');
     // Force an immediate refresh
     setRefreshTrigger(prev => prev + 1);
-    
-    // Then schedule additional refreshes at 5s and 15s intervals only
-    setTimeout(() => setRefreshTrigger(prev => prev + 1), 5000);
-    setTimeout(() => setRefreshTrigger(prev => prev + 1), 15000);
   }, []);
 
   // Debug function to list storage files
@@ -56,19 +51,6 @@ const DataUpload = () => {
     }
   };
 
-  // Less aggressive refresh mechanism
-  useEffect(() => {
-    // Only run automatic refresh if enabled
-    if (!autoRefreshEnabled) return;
-    
-    const intervalId = setInterval(() => {
-      console.log('Automatic refresh triggered');
-      setRefreshTrigger(prev => prev + 1);
-    }, 10000); // Reduced from 3s to 10s to make it less aggressive
-    
-    return () => clearInterval(intervalId);
-  }, [autoRefreshEnabled]);
-
   return (
     <MainLayout title="Data Upload">
       <div className="container mx-auto p-6">
@@ -80,14 +62,6 @@ const DataUpload = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button 
-              variant={autoRefreshEnabled ? "default" : "outline"} 
-              size="sm" 
-              onClick={() => setAutoRefreshEnabled(!autoRefreshEnabled)}
-              className="flex items-center gap-2"
-            >
-              {autoRefreshEnabled ? "Disable Auto-Refresh" : "Enable Auto-Refresh"}
-            </Button>
             <Button 
               variant="outline" 
               size="sm" 
