@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -10,16 +11,17 @@ import { Button } from '@/components/ui/button';
 
 interface ProcessingLogsProps {
   fileId?: string;
+  refreshTrigger?: number;
 }
 
-const ProcessingLogs: React.FC<ProcessingLogsProps> = ({ fileId }) => {
+const ProcessingLogs: React.FC<ProcessingLogsProps> = ({ fileId, refreshTrigger }) => {
   const { 
     logs, 
     loading, 
     groupedLogs, 
     expandedGroups, 
     toggleGroup 
-  } = useProcessingLogs(fileId);
+  } = useProcessingLogs(fileId, refreshTrigger);
 
   if (loading) {
     return <LoadingState message="Loading logs..." />;

@@ -1,9 +1,8 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProcessingLog, LogFilterType, filterLogsByType } from '../types/processingLogTypes';
 
-export const useProcessingLogs = (fileId?: string) => {
+export const useProcessingLogs = (fileId?: string, refreshTrigger?: number) => {
   const [logs, setLogs] = useState<ProcessingLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [groupedLogs, setGroupedLogs] = useState<Record<string, ProcessingLog[]>>({});
@@ -72,7 +71,7 @@ export const useProcessingLogs = (fileId?: string) => {
     const intervalId = setInterval(fetchLogs, 5000);
     
     return () => clearInterval(intervalId);
-  }, [fileId]);
+  }, [fileId, refreshTrigger]);
 
   // Apply filters and group logs whenever filter or search changes
   useEffect(() => {
