@@ -58,6 +58,7 @@ export async function reprocessFile(fileId: string) {
       .from('uploaded_files')
       .update({ 
         processed: false,
+        processing: true,
         extracted_data: null
       })
       .eq('id', fileId);
@@ -74,7 +75,7 @@ export async function reprocessFile(fileId: string) {
         try {
           console.log(`Attempt ${attempt} to invoke process-pdf Edge Function`);
           
-          const { data, error } = await supabase.functions
+          const response = await supabase.functions
             .invoke('process-pdf', {
               body: { 
                 fileId: fileId, 
@@ -85,10 +86,13 @@ export async function reprocessFile(fileId: string) {
               }
             });
           
-          console.log('Edge Function response:', { data, error });
+          console.log('Edge Function response:', response);
           
-          if (error) throw error;
-          return { data, error: null };
+          if (response.error) {
+            throw new Error(response.error.message || 'Edge function returned an error');
+          }
+          
+          return response;
         } catch (error) {
           console.error(`Edge Function attempt ${attempt} failed:`, error);
           
@@ -106,20 +110,21 @@ export async function reprocessFile(fileId: string) {
     
     try {
       // Trigger reprocessing via Edge Function with retry
-      const { data: processingData, error: processingError } = await invokeEdgeFunction();
+      const response = await invokeEdgeFunction();
       
-      if (processingError) {
-        console.error('Error reprocessing file with AI:', processingError);
-        toast.error(`AI reprocessing failed: ${processingError.message || 'Unknown error'}`);
+      if (response.error) {
+        console.error('Error reprocessing file with AI:', response.error);
+        toast.error(`AI reprocessing failed: ${response.error}`);
         
         // Update file status to error
         await supabase
           .from('uploaded_files')
           .update({ 
             processed: true, 
+            processing: false,
             extracted_data: { 
               error: true, 
-              message: processingError.message || 'Unknown error'
+              message: response.error || 'Unknown error'
             } 
           })
           .eq('id', fileId);
@@ -128,7 +133,8 @@ export async function reprocessFile(fileId: string) {
       }
       
       toast.success('File reprocessing started successfully');
-      return processingData;
+      
+      return response.data;
     } catch (error) {
       console.error('Edge Function invocation failed after retries:', error);
       
@@ -137,6 +143,7 @@ export async function reprocessFile(fileId: string) {
         .from('uploaded_files')
         .update({ 
           processed: true, 
+          processing: false,
           extracted_data: { 
             error: true, 
             message: error instanceof Error ? error.message : 'Edge Function invocation failed' 
@@ -144,7 +151,7 @@ export async function reprocessFile(fileId: string) {
         })
         .eq('id', fileId);
       
-      toast.error('Failed to connect to the processing service. Please try again later.');
+      toast.error(`Failed to reprocess file: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return null;
     }
   } catch (error) {

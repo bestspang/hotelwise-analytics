@@ -51,7 +51,8 @@ export async function uploadPdfFile(file: File) {
         file_path: filePath,
         file_type: file.type,
         file_size: file.size,
-        processed: false
+        processed: false,
+        processing: false
       }])
       .select()
       .single();
@@ -63,7 +64,7 @@ export async function uploadPdfFile(file: File) {
     // Show toast indicating that processing is starting
     toast.info(`Processing ${file.name} with AI data extraction...`);
     
-    // Call the Edge Function to process the PDF with OpenAI
+    // Call the Edge Function to process the PDF
     try {
       const { data: processingData, error: processingError } = await supabase.functions
         .invoke('process-pdf', {
@@ -71,19 +72,20 @@ export async function uploadPdfFile(file: File) {
             fileId: fileData.id, 
             filePath,
             filename: file.name,
-            notifyOnCompletion: true // Request email/notification when processing is complete
+            notifyOnCompletion: true
           }
         });
         
       if (processingError) {
         console.error('Error processing file with AI:', processingError);
-        toast.error(`AI processing failed for ${file.name}`);
+        toast.error(`AI processing failed: ${processingError.message || 'Unknown error'}`);
         
         // Update file status to error
         await supabase
           .from('uploaded_files')
           .update({ 
             processed: true, 
+            processing: false,
             extracted_data: { 
               error: true, 
               message: processingError.message || 'AI processing failed' 
@@ -91,6 +93,13 @@ export async function uploadPdfFile(file: File) {
           })
           .eq('id', fileData.id);
           
+        return null;
+      }
+      
+      console.log('Processing result:', processingData);
+      
+      if (processingData.error) {
+        toast.error(`AI processing failed: ${processingData.error}`);
         return null;
       }
       
