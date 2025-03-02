@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -6,6 +5,8 @@ import { FileText } from 'lucide-react';
 import { useProcessingLogs } from './hooks/useProcessingLogs';
 import { LogGroupItem } from './log-components/LogGroupItem';
 import { LoadingState } from './log-components/LoadingState';
+import { LogFilter } from './log-components/LogFilter';
+import { Button } from '@/components/ui/button';
 
 interface ProcessingLogsProps {
   fileId?: string;

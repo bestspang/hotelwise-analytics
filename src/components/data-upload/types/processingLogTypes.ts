@@ -11,6 +11,8 @@ export interface ProcessingLog {
   created_at: string;
 }
 
+export type LogFilterType = 'all' | 'error' | 'success' | 'processing';
+
 export const statusColors: Record<string, string> = {
   processing_started: 'bg-blue-500',
   sent_to_openai: 'bg-yellow-500',
@@ -22,4 +24,15 @@ export const statusColors: Record<string, string> = {
   api_error: 'bg-red-500',
   parse_error: 'bg-red-500',
   processing_error: 'bg-red-500'
+};
+
+export const filterLogsByType = (logs: ProcessingLog[], filterType: LogFilterType): ProcessingLog[] => {
+  if (filterType === 'all') return logs;
+  
+  return logs.filter(log => {
+    if (filterType === 'error') return log.status.includes('error');
+    if (filterType === 'success') return log.status.includes('success') || log.status.includes('complete');
+    if (filterType === 'processing') return log.status.includes('started') || log.status.includes('sent');
+    return true;
+  });
 };

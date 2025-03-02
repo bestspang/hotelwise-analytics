@@ -1,13 +1,15 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { ProcessingLog } from '../types/processingLogTypes';
+import { ProcessingLog, LogFilterType, filterLogsByType } from '../types/processingLogTypes';
 
 export const useProcessingLogs = (fileId?: string) => {
   const [logs, setLogs] = useState<ProcessingLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [groupedLogs, setGroupedLogs] = useState<Record<string, ProcessingLog[]>>({});
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [filterType, setFilterType] = useState<LogFilterType>('all');
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     const fetchLogs = async () => {
@@ -54,21 +56,8 @@ export const useProcessingLogs = (fileId?: string) => {
           
           setLogs(typedLogs);
           
-          // Group logs by request_id
-          const grouped = typedLogs.reduce((acc: Record<string, ProcessingLog[]>, log) => {
-            if (!acc[log.request_id]) {
-              acc[log.request_id] = [];
-            }
-            acc[log.request_id].push(log);
-            return acc;
-          }, {});
-          
-          setGroupedLogs(grouped);
-          
-          // Expand the most recent log group by default
-          if (Object.keys(grouped).length > 0) {
-            setExpandedGroups(new Set([Object.keys(grouped)[0]]));
-          }
+          // Apply filtering and grouping to the logs
+          applyFiltersAndGroup(typedLogs);
         }
       } catch (error) {
         console.error('Error in fetchLogs:', error);
@@ -84,6 +73,43 @@ export const useProcessingLogs = (fileId?: string) => {
     
     return () => clearInterval(intervalId);
   }, [fileId]);
+
+  // Apply filters and group logs whenever filter or search changes
+  useEffect(() => {
+    applyFiltersAndGroup(logs);
+  }, [filterType, searchTerm, logs]);
+
+  // Helper function to apply filters and group logs
+  const applyFiltersAndGroup = (allLogs: ProcessingLog[]) => {
+    // Apply type filter (error, success, etc)
+    let filteredLogs = filterLogsByType(allLogs, filterType);
+    
+    // Apply search term if present
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filteredLogs = filteredLogs.filter(log => 
+        log.file_name.toLowerCase().includes(term) || 
+        log.status.toLowerCase().includes(term) ||
+        (log.error_message && log.error_message.toLowerCase().includes(term))
+      );
+    }
+    
+    // Group logs by request_id
+    const grouped = filteredLogs.reduce((acc: Record<string, ProcessingLog[]>, log) => {
+      if (!acc[log.request_id]) {
+        acc[log.request_id] = [];
+      }
+      acc[log.request_id].push(log);
+      return acc;
+    }, {});
+    
+    setGroupedLogs(grouped);
+    
+    // Expand the most recent log group by default if we haven't expanded any yet
+    if (Object.keys(grouped).length > 0 && expandedGroups.size === 0) {
+      setExpandedGroups(new Set([Object.keys(grouped)[0]]));
+    }
+  };
 
   const toggleGroup = (requestId: string) => {
     setExpandedGroups(prev => {
@@ -102,6 +128,10 @@ export const useProcessingLogs = (fileId?: string) => {
     loading,
     groupedLogs,
     expandedGroups,
-    toggleGroup
+    toggleGroup,
+    filterType, 
+    setFilterType,
+    searchTerm,
+    setSearchTerm
   };
 };
