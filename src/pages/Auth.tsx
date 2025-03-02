@@ -44,7 +44,7 @@ const Auth: React.FC = () => {
       <div className="flex flex-col md:flex-row gap-8 items-center">
         {isDevelopment && (
           <div className="absolute top-4 right-4 z-10">
-            <Button asChild variant="outline" className="bg-amber-200 text-amber-800 hover:bg-amber-300 border-amber-400">
+            <Button asChild variant="outline" className="bg-green-200 text-green-800 hover:bg-green-300 border-green-400 font-bold shadow-md">
               <Link to="/dashboard">
                 Skip to Dashboard (Dev Mode)
               </Link>
@@ -55,6 +55,16 @@ const Auth: React.FC = () => {
         <div className="w-full max-w-md text-center mb-4">
           <h1 className="text-2xl font-bold mb-2">Hotel Financial Analysis</h1>
           <p className="text-muted-foreground">Advanced analytics for hotel management</p>
+          
+          {isDevelopment && (
+            <div className="mt-4">
+              <Button asChild variant="secondary" className="bg-blue-100 text-blue-800 hover:bg-blue-200">
+                <Link to="/dashboard">
+                  Enter Dev Mode (Skip Authentication)
+                </Link>
+              </Button>
+            </div>
+          )}
         </div>
         
         <AuthContainer
