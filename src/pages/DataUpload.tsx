@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import UploadCard from '@/components/data-upload/UploadCard';
 import UploadedFilesList from '@/components/data-upload/UploadedFilesList';
+import ProcessingLogs from '@/components/data-upload/ProcessingLogs';
 
 const DataUpload = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -27,6 +28,8 @@ const DataUpload = () => {
             refreshTrigger={refreshTrigger}
             onReprocessing={handleReprocessing}
           />
+          
+          <ProcessingLogs refreshTrigger={refreshTrigger} />
         </div>
       </div>
     </MainLayout>
