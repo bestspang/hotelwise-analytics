@@ -6,7 +6,7 @@ import RecordsPreview from './RecordsPreview';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 
-interface PreviewContentProps {
+export interface PreviewContentProps {
   file: any;
 }
 

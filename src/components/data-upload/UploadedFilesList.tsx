@@ -124,10 +124,7 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({ onReprocessing })
           file={selectedFile} 
           open={previewOpen} 
           onClose={handleClosePreview}
-          onDelete={() => {
-            // Return the Promise from handleFileDelete to fix the type error
-            return handleFileDelete(selectedFile.id);
-          }}
+          onDelete={() => handleFileDelete(selectedFile.id)}
         />
       )}
     </Card>

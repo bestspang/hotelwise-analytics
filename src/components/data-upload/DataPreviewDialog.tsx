@@ -13,7 +13,7 @@ interface DataPreviewDialogProps {
   file: any;
   open: boolean;
   onClose: () => void;
-  onDelete?: () => Promise<void>; // Changed to ensure it returns a Promise
+  onDelete?: () => Promise<boolean>; // Updated to accept Promise<boolean>
 }
 
 const DataPreviewDialog: React.FC<DataPreviewDialogProps> = ({ file, open, onClose, onDelete }) => {
@@ -26,13 +26,15 @@ const DataPreviewDialog: React.FC<DataPreviewDialogProps> = ({ file, open, onClo
   const confirmDelete = async () => {
     if (onDelete) {
       toast.promise(
-        onDelete(), // This should now return a Promise
+        onDelete().then(success => {
+          if (success) {
+            onClose();
+          }
+          return success;
+        }),
         {
           loading: 'Deleting file...',
-          success: () => {
-            onClose();
-            return 'File deleted successfully';
-          },
+          success: () => 'File deleted successfully',
           error: 'Failed to delete file',
         }
       );
