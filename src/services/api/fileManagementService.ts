@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -104,7 +103,6 @@ export async function deleteUploadedFile(fileId: string) {
   }
 }
 
-// Add function to check if a file exists in the database
 export async function checkFileExists(filename: string) {
   try {
     const { data, error } = await supabase
@@ -125,7 +123,6 @@ export async function checkFileExists(filename: string) {
   }
 }
 
-// Add function to clear old processing states
 export async function resetStuckProcessingFiles() {
   try {
     const oneHourAgo = new Date();
@@ -157,7 +154,6 @@ export async function resetStuckProcessingFiles() {
   }
 }
 
-// Add function to synchronize database records with storage
 export async function syncFilesWithStorage() {
   try {
     console.log('Starting synchronization of files with storage');

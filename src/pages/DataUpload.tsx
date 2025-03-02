@@ -2,7 +2,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import UploadCard from '@/components/data-upload/UploadCard';
-import { resetStuckProcessingFiles } from '@/services/api/fileManagementService';
+import { resetStuckProcessingFiles, syncFilesWithStorage } from '@/services/api/fileManagementService';
 import PageHeader from '@/components/data-upload/PageHeader';
 import ContentTabs from '@/components/data-upload/ContentTabs';
 
@@ -22,9 +22,16 @@ const DataUpload = () => {
     setRefreshTrigger(prev => prev + 1);
   }, []);
 
-  // Reset any stuck processing files on initial load
+  // Reset any stuck processing files and sync with storage on initial load
   useEffect(() => {
+    // Reset any stuck processing files
     resetStuckProcessingFiles();
+    
+    // Synchronize database records with storage
+    syncFilesWithStorage().then(() => {
+      console.log('Storage synchronization completed on page load');
+      setRefreshTrigger(prev => prev + 1);
+    });
   }, []);
 
   // Function to trigger refresh

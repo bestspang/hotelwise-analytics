@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -66,7 +67,7 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({ onReprocessing })
             size="sm" 
             onClick={handleForceSync} 
             disabled={isSyncing || isLoading}
-            title="Synchronize DB with storage"
+            title="Synchronize DB with storage and remove orphaned records"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
             Sync Files
