@@ -73,11 +73,11 @@ interface AdditionalService {
 // Helper function to fill mock data for development if needed
 const generateMockDataIfNeeded = async (date: string, hotelId: string) => {
   // Check if we have data for this date
-  const { count, error } = await supabase
+  const { count } = await supabase
     .from('daily_room_occupancy')
     .select('*', { count: 'exact', head: true })
     .eq('date', date)
-    .eq('hotel_id', hotelId);
+    .eq('hotel_id', hotelId) as { count: number | null };
     
   // If we already have data, don't generate mock data
   if (count && count > 0) return;
@@ -130,7 +130,7 @@ const generateMockDataIfNeeded = async (date: string, hotelId: string) => {
           total_spend: totalSpend
         })
         .select('id')
-        .single();
+        .single() as { data: { id: string } | null, error: any };
         
       if (revenueError) {
         console.error('Error inserting revenue data:', revenueError);
@@ -198,7 +198,7 @@ export const useDailySummaryData = (date: string) => {
         .from('daily_room_occupancy')
         .select('*')
         .eq('date', date)
-        .eq('hotel_id', hotelId);
+        .eq('hotel_id', hotelId) as { data: DailyRoomOccupancy[] | null, error: any };
       
       if (occupancyError) {
         throw occupancyError;
@@ -225,7 +225,7 @@ export const useDailySummaryData = (date: string) => {
         .from('daily_revenue_breakdown')
         .select('*')
         .eq('date', date)
-        .eq('hotel_id', hotelId);
+        .eq('hotel_id', hotelId) as { data: DailyRevenueBreakdown[] | null, error: any };
       
       if (revenueError) {
         throw revenueError;
@@ -238,7 +238,7 @@ export const useDailySummaryData = (date: string) => {
         const { data: services, error: servicesError } = await supabase
           .from('additional_services')
           .select('*')
-          .eq('daily_revenue_id', (item as DailyRevenueBreakdown).id);
+          .eq('daily_revenue_id', item.id) as { data: AdditionalService[] | null, error: any };
         
         if (servicesError) {
           console.error('Error fetching additional services:', servicesError);
@@ -246,13 +246,13 @@ export const useDailySummaryData = (date: string) => {
         }
         
         transformedRevenueData.push({
-          roomNumber: (item as DailyRevenueBreakdown).room_number,
-          roomRate: (item as DailyRevenueBreakdown).room_rate,
+          roomNumber: item.room_number,
+          roomRate: item.room_rate,
           additionalServices: (services || []).map((service: AdditionalService) => ({
             service: service.service,
             amount: service.amount
           })),
-          totalSpend: (item as DailyRevenueBreakdown).total_spend
+          totalSpend: item.total_spend
         });
       }
       
