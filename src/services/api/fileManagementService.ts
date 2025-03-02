@@ -1,6 +1,6 @@
 
-import { supabase, handleApiError } from './supabaseClient';
-import { toast } from '@/hooks/use-toast';
+import { supabase } from './supabaseClient';
+import { toast } from 'sonner';
 
 export async function getUploadedFiles() {
   try {
@@ -10,12 +10,16 @@ export async function getUploadedFiles() {
       .order('created_at', { ascending: false });
       
     if (error) {
-      return handleApiError(error, 'Failed to fetch uploaded files');
+      console.error('Failed to fetch uploaded files:', error);
+      toast.error('Failed to fetch uploaded files');
+      return [];
     }
     
     return data || [];
   } catch (error) {
-    return handleApiError(error, 'An unexpected error occurred while fetching files');
+    console.error('An unexpected error occurred while fetching files:', error);
+    toast.error('An unexpected error occurred while fetching files');
+    return [];
   }
 }
 
@@ -29,42 +33,30 @@ export async function deleteUploadedFile(fileId: string) {
       .single();
       
     if (fileError) {
-      toast({
-        title: "Error",
-        description: 'Failed to find the file to delete',
-        variant: "destructive"
-      });
+      toast.error('Failed to find the file to delete');
       console.error('Failed to find the file to delete:', fileError);
       return false;
     }
     
     if (!fileData || !fileData.file_path) {
-      toast({
-        title: "Error",
-        description: 'Invalid file data for deletion',
-        variant: "destructive"
-      });
+      toast.error('Invalid file data for deletion');
       console.error('Invalid file data for deletion:', fileData);
       return false;
     }
     
-    // Delete from database FIRST to prevent RLS issues - with HARD DELETE
+    // Delete from database FIRST to prevent listing in UI
     const { error: dbError } = await supabase
       .from('uploaded_files')
       .delete()
       .eq('id', fileId);
       
     if (dbError) {
-      toast({
-        title: "Error",
-        description: `Failed to delete file record: ${dbError.message}`,
-        variant: "destructive"
-      });
+      toast.error(`Failed to delete file record: ${dbError.message}`);
       console.error('Failed to delete file record:', dbError);
       return false;
     }
     
-    // Then delete from storage - if this fails, the database record is still deleted
+    // Then delete from storage
     try {
       const { error: storageError } = await supabase.storage
         .from('pdf_files')
@@ -73,25 +65,18 @@ export async function deleteUploadedFile(fileId: string) {
       if (storageError) {
         // Log the error but continue since the database record is already deleted
         console.warn('Failed to delete file from storage, but database record was removed:', storageError);
+        // Still consider this a success since the file is deleted from the database
       }
     } catch (storageError) {
       // Just log this error, don't return false since the database entry is gone
       console.warn('Error when trying to delete from storage, but database record was removed:', storageError);
     }
     
-    toast({
-      title: "Success",
-      description: `File "${fileData.filename}" deleted successfully`,
-    });
-    
+    toast.success(`File "${fileData.filename}" deleted successfully`);
     return true;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    toast({
-      title: "Error",
-      description: `An unexpected error occurred while deleting the file: ${message}`,
-      variant: "destructive"
-    });
+    toast.error(`An unexpected error occurred while deleting the file: ${message}`);
     console.error('Unexpected error deleting file:', error);
     return false;
   }
