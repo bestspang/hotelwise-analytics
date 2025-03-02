@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -47,31 +48,8 @@ export async function deleteUploadedFile(fileId: string) {
 
     console.log('Found file to delete:', fileData);
     
-    // Important: Delete from storage FIRST to ensure the file is gone
-    const bucketName = 'pdf_files';
-    console.log(`Attempting to delete file from storage bucket '${bucketName}' at path: ${fileData.file_path}`);
-    
-    // Delete from storage - don't create a bucket or check if it exists, just try to delete
-    try {
-      // Note: We're not checking bucket existence first since we know it should exist
-      // and this caused issues before
-      const { data: storageData, error: storageError } = await supabase.storage
-        .from(bucketName)
-        .remove([fileData.file_path]);
-        
-      if (storageError) {
-        console.error('Failed to delete file from storage:', storageError);
-        toast.error(`Failed to delete file from storage: ${storageError.message}`);
-        // Continue to database deletion anyway to keep things clean
-      } else {
-        console.log('Storage file deleted successfully:', storageData);
-      }
-    } catch (storageError) {
-      console.error('Error when trying to delete from storage:', storageError);
-      // Continue to database deletion anyway
-    }
-    
-    // Then delete from database 
+    // IMPORTANT FIX: Delete from database FIRST to ensure the record is gone
+    // even if storage deletion fails
     const { error: dbError } = await supabase
       .from('uploaded_files')
       .delete()
@@ -84,6 +62,28 @@ export async function deleteUploadedFile(fileId: string) {
     }
 
     console.log('Database record deleted successfully');
+    
+    // Then try to delete from storage too
+    const bucketName = 'pdf_files';
+    console.log(`Attempting to delete file from storage bucket '${bucketName}' at path: ${fileData.file_path}`);
+    
+    try {
+      const { data: storageData, error: storageError } = await supabase.storage
+        .from(bucketName)
+        .remove([fileData.file_path]);
+        
+      if (storageError) {
+        console.error('Failed to delete file from storage:', storageError);
+        // Don't fail the whole operation due to storage issues
+        console.log('Continuing despite storage deletion error');
+      } else {
+        console.log('Storage file deleted successfully:', storageData);
+      }
+    } catch (storageError) {
+      console.error('Error when trying to delete from storage:', storageError);
+      // Continue since the database record is already deleted
+    }
+    
     console.log('File deletion process completed successfully for:', fileData.filename);
     toast.success(`File "${fileData.filename}" deleted successfully`);
     return true;

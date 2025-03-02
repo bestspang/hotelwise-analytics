@@ -11,6 +11,7 @@ export const useFileManagement = () => {
   const deletedFileIds = useRef<Set<string>>(new Set());
   const isInitialMount = useRef(true);
   const fetchInProgress = useRef(false);
+  const apiCallCounter = useRef(0); // Add a counter to limit redundant API calls
 
   const fetchFiles = useCallback(async () => {
     // Prevent concurrent fetch operations
@@ -19,6 +20,14 @@ export const useFileManagement = () => {
       return;
     }
     
+    // Add a rate limit to API calls (max once per second)
+    const now = Date.now();
+    if (now - apiCallCounter.current < 1000) {
+      console.log('Rate limiting API calls, skipping this fetch');
+      return;
+    }
+    
+    apiCallCounter.current = now;
     fetchInProgress.current = true;
     setIsLoading(true);
     
@@ -30,6 +39,8 @@ export const useFileManagement = () => {
       const filteredFiles = uploadedFiles.filter(file => !deletedFileIds.current.has(file.id));
       
       console.log(`Filtered ${uploadedFiles.length - filteredFiles.length} deleted files from results`);
+      console.log('Current files after filtering:', filteredFiles.map(f => f.id));
+      
       setFiles(filteredFiles);
       
       // If this isn't the initial mount and we see files that should be deleted
@@ -58,8 +69,8 @@ export const useFileManagement = () => {
   useEffect(() => {
     fetchFiles();
     
-    // Poll for updates more frequently (every 2 seconds)
-    const intervalId = setInterval(fetchFiles, 2000);
+    // Poll for updates less frequently (every 5 seconds instead of 2)
+    const intervalId = setInterval(fetchFiles, 5000);
     return () => clearInterval(intervalId);
   }, [lastRefresh, fetchFiles]);
 
@@ -80,14 +91,12 @@ export const useFileManagement = () => {
       if (success) {
         console.log(`File ${fileId} confirmed deleted from backend`);
         
-        // Force multiple refreshes to ensure UI is updated
+        // Force one refresh after successful deletion
         setLastRefresh(new Date());
         
-        // Schedule additional refreshes to catch any potential delay in backend
-        setTimeout(() => setLastRefresh(new Date()), 1000);
-        setTimeout(() => setLastRefresh(new Date()), 3000);
-        
         toast.success('File deleted successfully');
+        // Forcefully ensure our files state doesn't contain the deleted file
+        setFiles(prevFiles => prevFiles.filter(file => file.id !== fileId));
         return true;
       }
       

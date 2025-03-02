@@ -14,6 +14,7 @@ const DataUpload = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [activeTab, setActiveTab] = useState('files');
   const [isDebugging, setIsDebugging] = useState(false);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
 
   const handleUploadComplete = () => {
     console.log('Upload completed, triggering refresh');
@@ -25,10 +26,9 @@ const DataUpload = () => {
     // Force an immediate refresh
     setRefreshTrigger(prev => prev + 1);
     
-    // Then schedule additional refreshes at 2s, 5s, and 10s intervals
-    setTimeout(() => setRefreshTrigger(prev => prev + 1), 2000);
+    // Then schedule additional refreshes at 5s and 15s intervals only
     setTimeout(() => setRefreshTrigger(prev => prev + 1), 5000);
-    setTimeout(() => setRefreshTrigger(prev => prev + 1), 10000);
+    setTimeout(() => setRefreshTrigger(prev => prev + 1), 15000);
   }, []);
 
   // Debug function to list storage files
@@ -56,16 +56,18 @@ const DataUpload = () => {
     }
   };
 
-  // Force a refresh more frequently to ensure UI is up-to-date
-  // This helps catch files that may have completed processing or been deleted
+  // Less aggressive refresh mechanism
   useEffect(() => {
+    // Only run automatic refresh if enabled
+    if (!autoRefreshEnabled) return;
+    
     const intervalId = setInterval(() => {
       console.log('Automatic refresh triggered');
       setRefreshTrigger(prev => prev + 1);
-    }, 3000); // Refresh every 3 seconds
+    }, 10000); // Reduced from 3s to 10s to make it less aggressive
     
     return () => clearInterval(intervalId);
-  }, []);
+  }, [autoRefreshEnabled]);
 
   return (
     <MainLayout title="Data Upload">
@@ -77,16 +79,26 @@ const DataUpload = () => {
               Upload PDF financial reports to automatically extract and analyze data using AI
             </p>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleDebugStorage}
-            disabled={isDebugging}
-            className="flex items-center gap-2"
-          >
-            <Bug className="h-4 w-4" />
-            {isDebugging ? 'Checking...' : 'Check Storage'}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant={autoRefreshEnabled ? "default" : "outline"} 
+              size="sm" 
+              onClick={() => setAutoRefreshEnabled(!autoRefreshEnabled)}
+              className="flex items-center gap-2"
+            >
+              {autoRefreshEnabled ? "Disable Auto-Refresh" : "Enable Auto-Refresh"}
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleDebugStorage}
+              disabled={isDebugging}
+              className="flex items-center gap-2"
+            >
+              <Bug className="h-4 w-4" />
+              {isDebugging ? 'Checking...' : 'Check Storage'}
+            </Button>
+          </div>
         </div>
         
         <div className="grid gap-6">
