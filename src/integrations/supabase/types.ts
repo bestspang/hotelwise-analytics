@@ -760,6 +760,7 @@ export type Database = {
           filename: string
           id: string
           processed: boolean | null
+          processing: boolean | null
         }
         Insert: {
           created_at?: string | null
@@ -770,6 +771,7 @@ export type Database = {
           filename: string
           id?: string
           processed?: boolean | null
+          processing?: boolean | null
         }
         Update: {
           created_at?: string | null
@@ -780,6 +782,7 @@ export type Database = {
           filename?: string
           id?: string
           processed?: boolean | null
+          processing?: boolean | null
         }
         Relationships: []
       }

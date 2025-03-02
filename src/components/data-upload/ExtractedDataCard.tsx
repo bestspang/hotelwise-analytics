@@ -79,7 +79,7 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ file, onViewRawDa
 
   const isUnprocessable = file.processed && !hasExtractedData && !hasExtractionError;
 
-  const isProcessing = !hasExtractedData && !hasExtractionError && !isUnprocessable;
+  const isProcessing = file.processing || (!file.processed && !hasExtractedData && !hasExtractionError && !isUnprocessable);
 
   // Error message helper - improves code readability
   const getErrorMessage = () => {
@@ -160,7 +160,7 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ file, onViewRawDa
           variant="outline" 
           size="sm" 
           onClick={handleReprocess}
-          disabled={isReprocessing}
+          disabled={isReprocessing || isProcessing}
           aria-label={isReprocessing ? "Reprocessing in progress" : "Reload extraction"}
         >
           <RotateCw className={`h-4 w-4 mr-2 ${isReprocessing ? 'animate-spin' : ''}`} aria-hidden="true" />

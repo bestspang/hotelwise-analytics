@@ -53,7 +53,7 @@ export async function reprocessFile(fileId: string) {
     
     console.log('File to reprocess:', fileData);
     
-    // Reset processing status - make sure we're using the correct column names
+    // Reset processing status - updating both processed and processing columns
     const { error: updateError } = await supabase
       .from('uploaded_files')
       .update({ 
