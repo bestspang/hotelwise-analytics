@@ -6,7 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import FileDropzone from '@/components/data-upload/FileDropzone';
 import FileQueue from '@/components/data-upload/FileQueue';
 import { uploadPdfFile } from '@/services/uploadService';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 
 interface UploadCardProps {
   onUploadComplete: () => void;
@@ -22,7 +22,10 @@ const UploadCard: React.FC<UploadCardProps> = ({ onUploadComplete }) => {
   const handleFileDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
     setSelectedFiles(prevFiles => [...prevFiles, ...acceptedFiles]);
-    toast.info(`${acceptedFiles.length} file(s) added to queue`);
+    toast({
+      title: "Files Added",
+      description: `${acceptedFiles.length} file(s) added to queue`
+    });
   };
 
   const removeFile = (index: number) => {
@@ -31,12 +34,18 @@ const UploadCard: React.FC<UploadCardProps> = ({ onUploadComplete }) => {
 
   const clearAllFiles = () => {
     setSelectedFiles([]);
-    toast.info('Upload queue cleared');
+    toast({
+      title: "Queue Cleared",
+      description: "Upload queue has been cleared"
+    });
   };
 
   const uploadFiles = async () => {
     if (selectedFiles.length === 0) {
-      toast.info('No files to upload');
+      toast({
+        title: "No Files",
+        description: "No files to upload"
+      });
       return;
     }
     
@@ -83,11 +92,22 @@ const UploadCard: React.FC<UploadCardProps> = ({ onUploadComplete }) => {
       
       // Show summary notification
       if (errorCount === 0) {
-        toast.success(`Successfully uploaded ${successCount} file(s)`);
+        toast({
+          title: "Upload Complete",
+          description: `Successfully uploaded ${successCount} file(s)`
+        });
       } else if (successCount === 0) {
-        toast.error(`Failed to upload all ${errorCount} file(s)`);
+        toast({
+          title: "Upload Failed",
+          description: `Failed to upload all ${errorCount} file(s)`,
+          variant: "destructive"
+        });
       } else {
-        toast.warning(`Uploaded ${successCount} file(s) with ${errorCount} error(s)`);
+        toast({
+          title: "Upload Partially Complete",
+          description: `Uploaded ${successCount} file(s) with ${errorCount} error(s)`,
+          variant: "destructive"
+        });
       }
       
       setSelectedFiles([]);
@@ -96,7 +116,11 @@ const UploadCard: React.FC<UploadCardProps> = ({ onUploadComplete }) => {
       onUploadComplete();
     } catch (error) {
       console.error('Error in file upload process:', error);
-      toast.error('There was an error processing your files');
+      toast({
+        title: "Upload Error",
+        description: "There was an error processing your files",
+        variant: "destructive"
+      });
       setProcessingStage('idle');
     } finally {
       setIsUploading(false);

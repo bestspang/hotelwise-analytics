@@ -1,6 +1,6 @@
 
 import { supabase, handleApiError } from './supabaseClient';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 
 export async function getUploadedFiles() {
   try {
@@ -29,13 +29,21 @@ export async function deleteUploadedFile(fileId: string) {
       .single();
       
     if (fileError) {
-      toast.error('Failed to find the file to delete');
+      toast({
+        title: "Error",
+        description: 'Failed to find the file to delete',
+        variant: "destructive"
+      });
       console.error('Failed to find the file to delete:', fileError);
       return false;
     }
     
     if (!fileData || !fileData.file_path) {
-      toast.error('Invalid file data for deletion');
+      toast({
+        title: "Error",
+        description: 'Invalid file data for deletion',
+        variant: "destructive"
+      });
       console.error('Invalid file data for deletion:', fileData);
       return false;
     }
@@ -46,7 +54,11 @@ export async function deleteUploadedFile(fileId: string) {
       .remove([fileData.file_path]);
       
     if (storageError) {
-      toast.error(`Failed to delete file from storage: ${storageError.message}`);
+      toast({
+        title: "Error",
+        description: `Failed to delete file from storage: ${storageError.message}`,
+        variant: "destructive"
+      });
       console.error('Failed to delete file from storage:', storageError);
       return false;
     }
@@ -58,16 +70,27 @@ export async function deleteUploadedFile(fileId: string) {
       .eq('id', fileId);
       
     if (dbError) {
-      toast.error(`Failed to delete file record: ${dbError.message}`);
+      toast({
+        title: "Error",
+        description: `Failed to delete file record: ${dbError.message}`,
+        variant: "destructive"
+      });
       console.error('Failed to delete file record:', dbError);
       return false;
     }
     
-    toast.success(`File "${fileData.filename}" deleted successfully`);
+    toast({
+      title: "Success",
+      description: `File "${fileData.filename}" deleted successfully`,
+    });
     return true;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    toast.error(`An unexpected error occurred while deleting the file: ${message}`);
+    toast({
+      title: "Error",
+      description: `An unexpected error occurred while deleting the file: ${message}`,
+      variant: "destructive"
+    });
     console.error('Unexpected error deleting file:', error);
     return false;
   }

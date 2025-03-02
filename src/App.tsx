@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Toaster } from 'sonner';
 import { AuthProvider } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Index from '@/pages/Index';
@@ -16,6 +15,7 @@ import GraphBuilder from '@/pages/tools/GraphBuilder';
 import AIRecommendations from '@/pages/tools/AIRecommendations';
 import DaySummary from '@/pages/DaySummary';
 import UserManagement from '@/pages/UserManagement';
+import { Toaster } from '@/components/ui/toaster';
 
 function App() {
   return (
@@ -109,7 +109,7 @@ function App() {
           
           <Route path="*" element={<NotFound />} />
         </Routes>
-        <Toaster position="top-right" />
+        <Toaster />
       </AuthProvider>
     </BrowserRouter>
   );

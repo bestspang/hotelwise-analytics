@@ -1,3 +1,4 @@
+
 import * as React from "react"
 
 import type {
@@ -5,8 +6,8 @@ import type {
   ToastProps,
 } from "@/components/ui/toast"
 
-const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 1000000
+const TOAST_LIMIT = 20
+const TOAST_REMOVE_DELAY = 300000 // 5 minutes for notifications to remain in dropdown
 
 type ToasterToast = ToastProps & {
   id: string

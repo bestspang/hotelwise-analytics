@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Bell, Calendar, ChevronDown } from 'lucide-react';
+import { Calendar, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import NotificationsDropdown from './NotificationsDropdown';
 
 interface HeaderProps {
   title: string;
@@ -51,10 +52,7 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle, sidebarWidth }) => {
             </SelectContent>
           </Select>
           
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell size={20} />
-            <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
-          </Button>
+          <NotificationsDropdown />
         </div>
       </div>
     </header>
