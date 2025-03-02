@@ -70,10 +70,23 @@ const ProcessingLogs: React.FC<{ fileId?: string }> = ({ fileId }) => {
         if (error) {
           console.error('Error fetching logs:', error);
         } else if (data) {
-          setLogs(data);
+          // We need to explicitly type our logs to match our interface
+          const typedLogs: ProcessingLog[] = data.map(log => ({
+            id: log.id,
+            request_id: log.request_id,
+            file_name: log.file_name || 'Unknown',
+            status: log.status || 'unknown',
+            timestamp_sent: log.timestamp_sent,
+            timestamp_received: log.timestamp_received,
+            timestamp_applied: log.timestamp_applied,
+            error_message: log.error_message,
+            created_at: log.created_at
+          }));
+          
+          setLogs(typedLogs);
           
           // Group logs by request_id
-          const grouped = data.reduce((acc: Record<string, ProcessingLog[]>, log) => {
+          const grouped = typedLogs.reduce((acc: Record<string, ProcessingLog[]>, log) => {
             if (!acc[log.request_id]) {
               acc[log.request_id] = [];
             }

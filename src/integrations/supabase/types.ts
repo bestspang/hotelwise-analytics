@@ -79,6 +79,57 @@ export type Database = {
           },
         ]
       }
+      api_logs: {
+        Row: {
+          api_model: string | null
+          applied_tables: Json | null
+          confidence_scores: Json | null
+          created_at: string | null
+          error_message: string | null
+          file_name: string | null
+          id: string
+          raw_result: Json | null
+          request_id: string
+          status: string | null
+          timestamp_applied: string | null
+          timestamp_received: string | null
+          timestamp_sent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          api_model?: string | null
+          applied_tables?: Json | null
+          confidence_scores?: Json | null
+          created_at?: string | null
+          error_message?: string | null
+          file_name?: string | null
+          id?: string
+          raw_result?: Json | null
+          request_id: string
+          status?: string | null
+          timestamp_applied?: string | null
+          timestamp_received?: string | null
+          timestamp_sent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          api_model?: string | null
+          applied_tables?: Json | null
+          confidence_scores?: Json | null
+          created_at?: string | null
+          error_message?: string | null
+          file_name?: string | null
+          id?: string
+          raw_result?: Json | null
+          request_id?: string
+          status?: string | null
+          timestamp_applied?: string | null
+          timestamp_received?: string | null
+          timestamp_sent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       city_ledger: {
         Row: {
           account_name: string
