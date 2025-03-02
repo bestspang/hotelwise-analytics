@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import UploadCard from '@/components/data-upload/UploadCard';
 import UploadedFilesList from '@/components/data-upload/UploadedFilesList';
@@ -10,6 +10,16 @@ const DataUpload = () => {
   const handleUploadComplete = () => {
     setRefreshTrigger(prev => prev + 1);
   };
+
+  const handleReprocessing = useCallback(() => {
+    // Force an immediate refresh
+    setRefreshTrigger(prev => prev + 1);
+    
+    // Then schedule additional refreshes at 5s, 10s, and 20s
+    setTimeout(() => setRefreshTrigger(prev => prev + 1), 5000);
+    setTimeout(() => setRefreshTrigger(prev => prev + 1), 10000);
+    setTimeout(() => setRefreshTrigger(prev => prev + 1), 20000);
+  }, []);
 
   // Force a refresh every 15 seconds to catch files that might be stuck
   // or to ensure deletions are properly reflected
@@ -33,7 +43,10 @@ const DataUpload = () => {
         
         <div className="grid gap-6">
           <UploadCard onUploadComplete={handleUploadComplete} />
-          <UploadedFilesList key={refreshTrigger} />
+          <UploadedFilesList 
+            key={refreshTrigger} 
+            onReprocessing={handleReprocessing}
+          />
         </div>
       </div>
     </MainLayout>

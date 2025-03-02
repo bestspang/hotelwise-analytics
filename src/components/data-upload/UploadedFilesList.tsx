@@ -10,7 +10,11 @@ import NoFilesAlert from './NoFilesAlert';
 import { useFileManagement } from './useFileManagement';
 import { useFileFiltering } from './useFileFiltering';
 
-const UploadedFilesList = () => {
+interface UploadedFilesListProps {
+  onReprocessing?: () => void;
+}
+
+const UploadedFilesList: React.FC<UploadedFilesListProps> = ({ onReprocessing }) => {
   const { files, isLoading, handleDelete, handleRefresh } = useFileManagement();
   const { activeTab, setActiveTab, filterFilesByStatus, getFileCount, getDocumentTypeCount, isStuckInProcessing } = useFileFiltering(files);
   const [selectedFile, setSelectedFile] = useState<any>(null);
@@ -42,6 +46,12 @@ const UploadedFilesList = () => {
     return success;
   };
 
+  const handleReprocessFile = () => {
+    if (onReprocessing) {
+      onReprocessing();
+    }
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -68,6 +78,7 @@ const UploadedFilesList = () => {
               onDelete={handleFileDelete}
               isActive={activeTab === 'all'}
               isStuckInProcessing={isStuckInProcessing}
+              onReprocessing={handleReprocessFile}
             />
             
             <FileTabContent
@@ -77,6 +88,7 @@ const UploadedFilesList = () => {
               onDelete={handleFileDelete}
               isActive={activeTab === 'processed'}
               isStuckInProcessing={isStuckInProcessing}
+              onReprocessing={handleReprocessFile}
             />
             
             <FileTabContent
@@ -86,6 +98,7 @@ const UploadedFilesList = () => {
               onDelete={handleFileDelete}
               isActive={activeTab === 'unprocessed'}
               isStuckInProcessing={isStuckInProcessing}
+              onReprocessing={handleReprocessFile}
             />
             
             {documentTypes.map((type) => (
@@ -97,6 +110,7 @@ const UploadedFilesList = () => {
                 onDelete={handleFileDelete}
                 isActive={activeTab === type.toLowerCase()}
                 isStuckInProcessing={isStuckInProcessing}
+                onReprocessing={handleReprocessFile}
               />
             ))}
           </Tabs>

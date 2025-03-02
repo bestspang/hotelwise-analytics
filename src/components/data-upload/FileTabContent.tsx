@@ -10,6 +10,7 @@ interface FileTabContentProps {
   onDelete?: (fileId: string) => Promise<boolean>;
   isActive: boolean;
   isStuckInProcessing?: (file: any) => boolean;
+  onReprocessing?: () => void;
 }
 
 const FileTabContent: React.FC<FileTabContentProps> = ({
@@ -18,7 +19,8 @@ const FileTabContent: React.FC<FileTabContentProps> = ({
   onViewRawData,
   onDelete,
   isActive,
-  isStuckInProcessing
+  isStuckInProcessing,
+  onReprocessing
 }) => {
   if (!isActive) return <TabsContent value={tabValue} />;
 
@@ -31,6 +33,7 @@ const FileTabContent: React.FC<FileTabContentProps> = ({
           onViewRawData={() => onViewRawData(file)}
           onDelete={onDelete}
           isStuckInProcessing={isStuckInProcessing}
+          onReprocessing={onReprocessing}
         />
       ))}
 

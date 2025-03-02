@@ -29,13 +29,16 @@ export const useFileManagement = () => {
   useEffect(() => {
     fetchFiles();
     
-    // Poll for updates every 10 seconds
-    const intervalId = setInterval(fetchFiles, 10000);
+    // Poll for updates every 8 seconds - more frequent than before
+    const intervalId = setInterval(fetchFiles, 8000);
     return () => clearInterval(intervalId);
   }, [lastRefresh, fetchFiles]);
 
   const handleDelete = async (fileId: string) => {
     try {
+      // Show "delete in progress" toast
+      toast.loading('Deleting file...');
+      
       const success = await deleteUploadedFile(fileId);
       if (success) {
         // Add to our local set of deleted file IDs to ensure it doesn't come back
@@ -51,8 +54,11 @@ export const useFileManagement = () => {
         // Force a refresh of the file list
         setLastRefresh(new Date());
         
+        toast.success('File deleted successfully');
         return true;
       }
+      
+      toast.error('Failed to delete file completely');
       return false;
     } catch (error) {
       console.error('Error deleting file:', error);

@@ -13,13 +13,15 @@ interface ExtractedDataCardProps {
   onViewRawData: () => void;
   onDelete?: (fileId: string) => Promise<boolean>;
   isStuckInProcessing?: (file: any) => boolean;
+  onReprocessing?: () => void;
 }
 
 const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ 
   file, 
   onViewRawData, 
   onDelete,
-  isStuckInProcessing: externalIsStuckCheck 
+  isStuckInProcessing: externalIsStuckCheck,
+  onReprocessing
 }) => {
   const [isReprocessing, setIsReprocessing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -69,6 +71,11 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
       const result = await reprocessFile(file.id);
       if (result === null) {
         toast.error(`Failed to reprocess ${file.filename}. Please try again later.`);
+      } else {
+        // Call the reprocessing callback to trigger UI updates
+        if (onReprocessing) {
+          onReprocessing();
+        }
       }
       // Success toast is shown in the reprocessFile function
     } catch (error) {
@@ -225,6 +232,7 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
           onClick={handleReprocess}
           disabled={isReprocessing || isProcessing}
           aria-label={isReprocessing ? "Reprocessing in progress" : "Reload extraction"}
+          className="relative"
         >
           <RotateCw className={`h-4 w-4 mr-2 ${isReprocessing ? 'animate-spin' : ''}`} aria-hidden="true" />
           {isReprocessing ? 'Reprocessing...' : 'Reload Extraction'}

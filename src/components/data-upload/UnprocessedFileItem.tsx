@@ -8,9 +8,14 @@ import { toast } from 'sonner';
 interface UnprocessedFileItemProps {
   file: any;
   onDelete: (fileId: string) => void;
+  onReprocessing?: () => void;
 }
 
-const UnprocessedFileItem: React.FC<UnprocessedFileItemProps> = ({ file, onDelete }) => {
+const UnprocessedFileItem: React.FC<UnprocessedFileItemProps> = ({ 
+  file, 
+  onDelete,
+  onReprocessing 
+}) => {
   const [isReprocessing, setIsReprocessing] = React.useState(false);
 
   const handleReprocess = async () => {
@@ -22,6 +27,11 @@ const UnprocessedFileItem: React.FC<UnprocessedFileItemProps> = ({ file, onDelet
       const result = await reprocessFile(file.id);
       if (result === null) {
         toast.error(`Failed to reprocess ${file.filename}. Please try again later.`);
+      } else {
+        // Call the reprocessing callback to trigger UI updates
+        if (onReprocessing) {
+          onReprocessing();
+        }
       }
       // Success toast is shown in the reprocessFile function
     } catch (error) {
