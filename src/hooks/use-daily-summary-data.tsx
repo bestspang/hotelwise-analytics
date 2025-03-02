@@ -35,10 +35,45 @@ export interface RevenueItem {
   totalSpend: number;
 }
 
+// Database interface types for type safety
+interface DailyRoomOccupancy {
+  id: string;
+  hotel_id: string;
+  date: string;
+  room_number: string;
+  is_occupied: boolean;
+  guest_name?: string;
+  check_in_date?: string;
+  check_out_date?: string;
+  room_rate?: number;
+  additional_spend?: number;
+  room_type: string;
+  floor: number;
+  created_at?: string;
+}
+
+interface DailyRevenueBreakdown {
+  id: string;
+  hotel_id: string;
+  date: string;
+  room_number: string;
+  room_rate: number;
+  total_spend: number;
+  created_at?: string;
+}
+
+interface AdditionalService {
+  id: string;
+  daily_revenue_id: string;
+  service: string;
+  amount: number;
+  created_at?: string;
+}
+
 // Helper function to fill mock data for development if needed
 const generateMockDataIfNeeded = async (date: string, hotelId: string) => {
   // Check if we have data for this date
-  const { count } = await supabase
+  const { count, error } = await supabase
     .from('daily_room_occupancy')
     .select('*', { count: 'exact', head: true })
     .eq('date', date)
@@ -101,7 +136,7 @@ const generateMockDataIfNeeded = async (date: string, hotelId: string) => {
         console.error('Error inserting revenue data:', revenueError);
       } else if (revenueData) {
         // Insert additional services
-        await supabase
+        const { error: servicesError } = await supabase
           .from('additional_services')
           .insert([
             {
@@ -115,6 +150,10 @@ const generateMockDataIfNeeded = async (date: string, hotelId: string) => {
               amount: Math.floor(Math.random() * 70)
             }
           ]);
+          
+        if (servicesError) {
+          console.error('Error inserting additional services:', servicesError);
+        }
       }
     }
   }
@@ -166,7 +205,7 @@ export const useDailySummaryData = (date: string) => {
       }
       
       // Transform room data to match our interface
-      const transformedRoomData: RoomData[] = (occupancyData || []).map(room => ({
+      const transformedRoomData: RoomData[] = (occupancyData || []).map((room: DailyRoomOccupancy) => ({
         roomNumber: room.room_number,
         isOccupied: room.is_occupied,
         guestName: room.guest_name,
@@ -199,7 +238,7 @@ export const useDailySummaryData = (date: string) => {
         const { data: services, error: servicesError } = await supabase
           .from('additional_services')
           .select('*')
-          .eq('daily_revenue_id', item.id);
+          .eq('daily_revenue_id', (item as DailyRevenueBreakdown).id);
         
         if (servicesError) {
           console.error('Error fetching additional services:', servicesError);
@@ -207,13 +246,13 @@ export const useDailySummaryData = (date: string) => {
         }
         
         transformedRevenueData.push({
-          roomNumber: item.room_number,
-          roomRate: item.room_rate,
-          additionalServices: (services || []).map(service => ({
+          roomNumber: (item as DailyRevenueBreakdown).room_number,
+          roomRate: (item as DailyRevenueBreakdown).room_rate,
+          additionalServices: (services || []).map((service: AdditionalService) => ({
             service: service.service,
             amount: service.amount
           })),
-          totalSpend: item.total_spend
+          totalSpend: (item as DailyRevenueBreakdown).total_spend
         });
       }
       

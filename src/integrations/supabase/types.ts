@@ -9,6 +9,38 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      additional_services: {
+        Row: {
+          amount: number
+          created_at: string | null
+          daily_revenue_id: string
+          id: string
+          service: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          daily_revenue_id: string
+          id?: string
+          service: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          daily_revenue_id?: string
+          id?: string
+          service?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "additional_services_daily_revenue_id_fkey"
+            columns: ["daily_revenue_id"]
+            isOneToOne: false
+            referencedRelation: "daily_revenue_breakdown"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_recommendations: {
         Row: {
           anomaly_detected: boolean | null
@@ -87,6 +119,100 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "city_ledger_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["hotel_id"]
+          },
+        ]
+      }
+      daily_revenue_breakdown: {
+        Row: {
+          created_at: string | null
+          date: string
+          hotel_id: string
+          id: string
+          room_number: string
+          room_rate: number
+          total_spend: number
+        }
+        Insert: {
+          created_at?: string | null
+          date: string
+          hotel_id: string
+          id?: string
+          room_number: string
+          room_rate: number
+          total_spend: number
+        }
+        Update: {
+          created_at?: string | null
+          date?: string
+          hotel_id?: string
+          id?: string
+          room_number?: string
+          room_rate?: number
+          total_spend?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_revenue_breakdown_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["hotel_id"]
+          },
+        ]
+      }
+      daily_room_occupancy: {
+        Row: {
+          additional_spend: number | null
+          check_in_date: string | null
+          check_out_date: string | null
+          created_at: string | null
+          date: string
+          floor: number
+          guest_name: string | null
+          hotel_id: string
+          id: string
+          is_occupied: boolean
+          room_number: string
+          room_rate: number | null
+          room_type: string
+        }
+        Insert: {
+          additional_spend?: number | null
+          check_in_date?: string | null
+          check_out_date?: string | null
+          created_at?: string | null
+          date: string
+          floor: number
+          guest_name?: string | null
+          hotel_id: string
+          id?: string
+          is_occupied?: boolean
+          room_number: string
+          room_rate?: number | null
+          room_type: string
+        }
+        Update: {
+          additional_spend?: number | null
+          check_in_date?: string | null
+          check_out_date?: string | null
+          created_at?: string | null
+          date?: string
+          floor?: number
+          guest_name?: string | null
+          hotel_id?: string
+          id?: string
+          is_occupied?: boolean
+          room_number?: string
+          room_rate?: number | null
+          room_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_room_occupancy_hotel_id_fkey"
             columns: ["hotel_id"]
             isOneToOne: false
             referencedRelation: "hotels"
