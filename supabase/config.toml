@@ -28,8 +28,7 @@ enabled = true
 [storage]
 enabled = true
 
-# Change the functions configuration from a boolean to a map
+# Define functions that should be deployed
 [functions]
-[functions.serve]
-enabled = true
-
+# Previously there was a "serve" function that does not exist
+# We're now defining the specific functions that do exist
