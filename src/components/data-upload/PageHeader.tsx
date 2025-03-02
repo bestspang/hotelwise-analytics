@@ -1,6 +1,5 @@
 
 import React from 'react';
-import DebugControls from './DebugControls';
 
 interface PageHeaderProps {
   onBucketStatusChange: (status: 'unchecked' | 'ok' | 'error') => void;
@@ -14,18 +13,11 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   bucketStatus 
 }) => {
   return (
-    <div className="flex items-center justify-between mb-6">
-      <div>
-        <h1 className="text-3xl font-bold">Data Upload</h1>
-        <p className="text-muted-foreground mt-2">
-          Upload PDF financial reports to automatically extract and analyze data using AI
-        </p>
-      </div>
-      <DebugControls 
-        onBucketStatusChange={onBucketStatusChange}
-        onRefreshTrigger={onRefreshTrigger}
-        bucketStatus={bucketStatus}
-      />
+    <div className="mb-6">
+      <h1 className="text-3xl font-bold">Data Upload</h1>
+      <p className="text-muted-foreground mt-2">
+        Upload PDF financial reports to automatically extract and analyze data using AI
+      </p>
     </div>
   );
 };
