@@ -42,8 +42,9 @@ export const useProcessingLogs = ({ fileId, requestId, refreshTrigger = 0 }: Use
           throw queryError;
         }
         
-        // Type assertion is safe since we know the structure
-        setLogs(data as ProcessingLog[] || []);
+        // First cast to unknown, then to ProcessingLog[] to avoid type errors
+        // This is safe since we know the structure matches our ProcessingLog type
+        setLogs((data as unknown) as ProcessingLog[] || []);
       } catch (err) {
         console.error('Error fetching processing logs:', err);
         setError(err as Error);
