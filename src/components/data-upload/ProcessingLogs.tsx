@@ -42,7 +42,7 @@ const ProcessingLogs: React.FC<ProcessingLogsProps> = ({ fileId, requestId, refr
   }, [filteredLogs]);
 
   if (loading) {
-    return <LoadingState />;
+    return <LoadingState message="Loading processing logs..." />;
   }
 
   if (error) {

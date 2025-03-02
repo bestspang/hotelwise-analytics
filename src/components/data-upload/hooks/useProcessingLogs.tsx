@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { supabaseClient } from '@/services/api/supabaseClient';
+import { supabase } from '@/services/api/supabaseClient';
 import { ProcessingLog } from '../types/processingLogTypes';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -22,7 +22,7 @@ export const useProcessingLogs = ({ fileId, requestId, refreshTrigger = 0 }: Use
         setLoading(true);
         
         // Define a base query on the processing_logs table
-        let query = supabaseClient
+        let query = supabase
           .from('processing_logs')
           .select('*')
           .order('created_at', { ascending: false });
