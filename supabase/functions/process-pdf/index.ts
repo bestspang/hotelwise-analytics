@@ -1,266 +1,253 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.42.0";
 
-// Define cors headers for browser requests
+// Define CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Create a Supabase client with the Deno runtime
-const supabaseClient = createClient(
-  Deno.env.get('SUPABASE_URL') ?? '',
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-);
+// Create a Supabase client
+const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-serve(async (req) => {
+serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
-
+  
   try {
-    console.log("Process-PDF Edge Function invoked");
-    
-    // Get the request body
+    // Get request data
     const { fileId, filePath, filename, isReprocessing, notifyOnCompletion } = await req.json();
-
-    console.log(`Processing file ${filename} (${fileId}), isReprocessing: ${isReprocessing}`);
-
-    // Get the file from storage
-    const { data: fileData, error: fileError } = await supabaseClient.storage
+    
+    console.log(`Processing file: ${filename}, ID: ${fileId}, Path: ${filePath}`);
+    console.log(`Is reprocessing: ${isReprocessing}, Notify on completion: ${notifyOnCompletion}`);
+    
+    if (!fileId || !filePath) {
+      throw new Error("Missing required parameters: fileId and filePath");
+    }
+    
+    // Download the file from Storage
+    const { data: fileData, error: downloadError } = await supabase.storage
       .from('pdf_files')
       .download(filePath);
-
-    if (fileError) {
-      console.error('Error downloading file:', fileError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to download the file' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      
+    if (downloadError) {
+      console.error("Error downloading file:", downloadError);
+      throw new Error(`Failed to download file: ${downloadError.message}`);
     }
-
-    console.log(`File downloaded successfully, size: ${fileData.size} bytes`);
-
-    // Extract document type if possible before full processing
-    const documentTypeResult = await detectDocumentType(fileData, filename);
-    let documentType = documentTypeResult.documentType;
-
+    
+    if (!fileData) {
+      throw new Error("No file data received from storage");
+    }
+    
+    console.log(`Successfully downloaded file: ${filename}, size: ${fileData.size} bytes`);
+    
+    // Determine document type based on filename or content
+    // This would typically involve AI/ML analysis or regex patterns
+    const detectDocumentType = (filename: string): string => {
+      const lowerFilename = filename.toLowerCase();
+      
+      if (lowerFilename.includes("expense") || lowerFilename.includes("voucher")) {
+        return "expense_voucher";
+      } else if (lowerFilename.includes("statistics")) {
+        return lowerFilename.includes("monthly") ? "monthly_statistics" : "yearly_statistics";
+      } else if (lowerFilename.includes("noshow")) {
+        return "no_show_report";
+      } else if (lowerFilename.includes("cityledger") || lowerFilename.includes("city_ledger")) {
+        return "city_ledger";
+      } else if (lowerFilename.includes("manager")) {
+        return "manager_report";
+      } else if (lowerFilename.includes("frontdesk") || lowerFilename.includes("front_desk")) {
+        return "front_desk_activity";
+      } else if (lowerFilename.includes("nightaudit") || lowerFilename.includes("night_audit")) {
+        return "night_audit";
+      } else if (lowerFilename.includes("occupancy")) {
+        return "monthly_occupancy";
+      }
+      
+      return "unknown";
+    };
+    
+    const documentType = detectDocumentType(filename);
     console.log(`Detected document type: ${documentType}`);
-
-    // Check for existing mappings for this document type
-    const { data: existingMappings, error: mappingError } = await supabaseClient
+    
+    // Check if there are existing mappings for this document type
+    const { data: mappingsData, error: mappingsError } = await supabase
       .from('data_mappings')
       .select('mappings')
       .eq('document_type', documentType)
-      .maybeSingle();
-
-    if (mappingError) {
-      console.error('Error fetching mappings:', mappingError);
-    }
-
-    // Process the PDF data
-    let processingResult;
-    if (existingMappings?.mappings && Object.keys(existingMappings.mappings).length > 0) {
-      console.log('Using existing mappings for document type:', documentType);
-      processingResult = await extractDataWithExistingMappings(fileData, existingMappings.mappings);
-    } else {
-      console.log('No existing mappings found, processing with AI');
-      processingResult = await processWithAI(fileData, filename);
+      .single();
       
-      // Ensure document type is set
-      if (!documentType && processingResult.documentType) {
-        documentType = processingResult.documentType;
-      }
+    let extractedData: Record<string, any> = {};
+    
+    if (mappingsData && mappingsData.mappings) {
+      console.log(`Found existing mappings for document type: ${documentType}`);
+      
+      // Use the mappings to extract data
+      // In a real implementation, this would use OCR/AI to extract data based on mappings
+      // For this demo, we'll simulate extraction with placeholder data
+      extractedData = simulateDataExtraction(documentType, mappingsData.mappings);
+    } else {
+      console.log(`No existing mappings found for document type: ${documentType}, using AI extraction`);
+      
+      // Simulate AI extraction without mappings
+      // In a real implementation, this would call OpenAI or another AI service
+      extractedData = simulateAIExtraction(documentType, filename);
     }
-
-    // Update the file record with the extracted data
-    const { error: updateError } = await supabaseClient
+    
+    // Update the database with the extracted data
+    const { error: updateError } = await supabase
       .from('uploaded_files')
-      .update({
-        processed: true,
+      .update({ 
+        processed: true, 
+        extracted_data: extractedData,
         document_type: documentType,
-        extracted_data: {
-          ...processingResult,
-          documentType: documentType
-        }
+        processed_at: new Date().toISOString()
       })
       .eq('id', fileId);
-
+      
     if (updateError) {
-      console.error('Error updating file record:', updateError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to update file record' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.error("Error updating database:", updateError);
+      throw new Error(`Failed to update database: ${updateError.message}`);
     }
-
-    console.log('File processed successfully, database updated');
-
-    // Send notification if requested
+    
+    console.log(`Successfully processed file ${filename} (ID: ${fileId})`);
+    
+    // If notification is requested, we would send an email or notification here
     if (notifyOnCompletion) {
-      await sendProcessingNotification(fileId, filename);
+      console.log(`Notification requested for file ${filename}, would send email/notification here`);
+      // In a real implementation, this would send an email or push notification
     }
-
+    
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'File processed successfully',
-        usedExistingMappings: existingMappings?.mappings !== undefined
+        message: `Successfully processed ${filename}`,
+        document_type: documentType
       }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        headers: { 
+          'Content-Type': 'application/json',
+          ...corsHeaders
+        } 
+      }
     );
-
   } catch (error) {
-    console.error('Unexpected error:', error);
+    console.error("Error processing file:", error);
+    
     return new Response(
-      JSON.stringify({ error: 'An unexpected error occurred', details: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ 
+        success: false, 
+        message: error instanceof Error ? error.message : "Unknown error occurred" 
+      }),
+      { 
+        status: 500,
+        headers: { 
+          'Content-Type': 'application/json',
+          ...corsHeaders
+        } 
+      }
     );
   }
 });
 
-/**
- * Detects the document type from the PDF file name and content
- */
-async function detectDocumentType(pdfData: Uint8Array, filename: string): Promise<{ documentType: string }> {
-  // This is a simplified detection based on filename patterns
-  // In a production environment, you would use more robust detection methods
+// Helper function to simulate data extraction based on mappings
+function simulateDataExtraction(documentType: string, mappings: any): Record<string, any> {
+  // In a real implementation, this would use the mappings to extract data from the PDF
+  // For this demo, we'll return placeholder data based on document type
   
-  const lowerFilename = filename.toLowerCase();
+  const currentDate = new Date().toISOString().split('T')[0];
   
-  if (lowerFilename.includes('cityledger') || lowerFilename.includes('ledger')) {
-    return { documentType: "City Ledger" };
-  } else if (lowerFilename.includes('expense') || lowerFilename.includes('voucher')) {
-    return { documentType: "Expense Voucher" };
-  } else if (lowerFilename.includes('statistics') || lowerFilename.includes('stats')) {
-    return { documentType: "Monthly Statistics" };
-  } else if (lowerFilename.includes('occupancy')) {
-    return { documentType: "Occupancy Report" };
-  } else if (lowerFilename.includes('nightaudit') || lowerFilename.includes('night_audit')) {
-    return { documentType: "Night Audit" };
-  } else if (lowerFilename.includes('noshow') || lowerFilename.includes('no-show')) {
-    return { documentType: "No-show Report" };
-  }
-  
-  // Default if no match found
-  return { documentType: "Unknown" };
-}
-
-/**
- * Process PDF with AI to extract data and determine table mappings
- */
-async function processWithAI(pdfData: Uint8Array, filename: string) {
-  // This function would use OpenAI's Vision API to extract all data
-  // For now, we'll use a placeholder implementation with mock data based on the filename
-  
-  const lowerFilename = filename.toLowerCase();
-  
-  if (lowerFilename.includes('cityledger') || lowerFilename.includes('ledger')) {
-    return {
-      records: [
-        { date: "2025-02-28", account: "Booking.com", amount: 1250.00, reference: "BOK-123456" },
-        { date: "2025-02-28", account: "Expedia", amount: 980.75, reference: "EXP-654321" }
-      ],
-      metrics: {
-        totalLedgerAmount: 2230.75,
-        outstandingBalance: 1450.00,
-        recentTransactions: 2
-      },
-      documentType: "City Ledger"
-    };
-  } else if (lowerFilename.includes('expense') || lowerFilename.includes('voucher')) {
-    return {
-      records: [
-        { date: "2025-02-28", vendor: "Office Supplies Inc", amount: 450.25, category: "Supplies" },
-        { date: "2025-02-28", vendor: "Cleaning Services Ltd", amount: 1200.00, category: "Services" }
-      ],
-      metrics: {
-        totalExpenses: 1650.25,
-        budgetUsage: "68%",
-        categoryBreakdown: {
-          Supplies: 450.25,
-          Services: 1200.00
+  switch (documentType) {
+    case "expense_voucher":
+      return {
+        voucher_number: `V-${Math.floor(Math.random() * 10000)}`,
+        date: currentDate,
+        amount: Math.floor(Math.random() * 10000) / 100,
+        department: ["Housekeeping", "F&B", "Maintenance", "Front Desk"][Math.floor(Math.random() * 4)],
+        description: "Expense for hotel operations",
+        approved_by: "Manager Name"
+      };
+      
+    case "city_ledger":
+      return {
+        report_date: currentDate,
+        total_accounts: Math.floor(Math.random() * 100),
+        total_balance: Math.floor(Math.random() * 100000) / 100,
+        aging_summary: {
+          "0-30 days": Math.floor(Math.random() * 50000) / 100,
+          "31-60 days": Math.floor(Math.random() * 30000) / 100, 
+          "61-90 days": Math.floor(Math.random() * 15000) / 100,
+          "90+ days": Math.floor(Math.random() * 5000) / 100
+        },
+        accounts: Array.from({ length: 5 }, (_, i) => ({
+          account_number: `ACC-${1000 + i}`,
+          company_name: `Company ${String.fromCharCode(65 + i)}`,
+          balance: Math.floor(Math.random() * 10000) / 100,
+          last_payment_date: new Date(Date.now() - Math.floor(Math.random() * 90) * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        }))
+      };
+      
+    case "monthly_statistics":
+    case "yearly_statistics":
+      return {
+        period: documentType === "monthly_statistics" ? "Monthly" : "Yearly",
+        report_date: currentDate,
+        occupancy_rate: Math.floor(Math.random() * 40 + 60), // 60-100%
+        adr: Math.floor(Math.random() * 10000 + 15000) / 100, // $150-$250
+        revpar: Math.floor(Math.random() * 8000 + 12000) / 100, // $120-$200
+        total_room_nights: Math.floor(Math.random() * 1000 + 2000),
+        total_revenue: Math.floor(Math.random() * 500000 + 1000000) / 100,
+        revenue_breakdown: {
+          rooms: Math.floor(Math.random() * 300000 + 700000) / 100,
+          fnb: Math.floor(Math.random() * 100000 + 200000) / 100,
+          other: Math.floor(Math.random() * 50000 + 100000) / 100
+        },
+        comparison_to_previous: {
+          occupancy: Math.floor(Math.random() * 20 - 10), // -10% to +10%
+          adr: Math.floor(Math.random() * 20 - 10),
+          revpar: Math.floor(Math.random() * 20 - 10),
+          total_revenue: Math.floor(Math.random() * 20 - 10)
         }
-      },
-      documentType: "Expense Voucher"
-    };
-  } else if (lowerFilename.includes('statistics') || lowerFilename.includes('stats')) {
-    return {
-      records: [
-        { month: "February", year: 2025, revPAR: 120.50, occupancy: 0.78 },
-        { month: "January", year: 2025, revPAR: 115.20, occupancy: 0.75 }
-      ],
-      metrics: {
-        averageRevPAR: 117.85,
-        averageOccupancy: 0.765,
-        yearToDateGrowth: "5.2%"
-      },
-      documentType: "Monthly Statistics"
-    };
-  } else {
-    // Generic response for other document types
-    return {
-      records: [
-        { date: "2025-02-28", key: "Value 1", metric: 100 },
-        { date: "2025-02-28", key: "Value 2", metric: 200 }
-      ],
-      metrics: {
-        total: 300,
-        average: 150
-      },
-      documentType: "Unknown"
-    };
+      };
+      
+    default:
+      return {
+        document_type: documentType,
+        extraction_date: currentDate,
+        message: "Basic extraction completed",
+        data: {
+          key1: "Value 1",
+          key2: "Value 2",
+          key3: Math.floor(Math.random() * 1000)
+        }
+      };
   }
 }
 
-/**
- * Extract data using existing mappings without full AI processing
- */
-async function extractDataWithExistingMappings(pdfData: Uint8Array, mappings: Record<string, string>) {
-  // This function would use the mappings to extract data from the PDF
-  // For now, return similar mock data as the AI version
+// Helper function to simulate AI extraction without mappings
+function simulateAIExtraction(documentType: string, filename: string): Record<string, any> {
+  // This would call OpenAI or another AI service in a real implementation
+  // For now, we'll return similar placeholder data
+  const basicData = simulateDataExtraction(documentType, {});
   
+  // Add some additional "AI-discovered" fields
   return {
-    records: [
-      { date: "2025-02-28", account: "Booking.com", amount: 1250.00, reference: "BOK-123456" },
-      { date: "2025-02-28", account: "Expedia", amount: 980.75, reference: "EXP-654321" }
-    ],
-    metrics: {
-      totalLedgerAmount: 2230.75,
-      outstandingBalance: 1450.00,
-      recentTransactions: 2
+    ...basicData,
+    ai_confidence: Math.floor(Math.random() * 20 + 80) / 100, // 0.8-1.0
+    extracted_fields_count: Object.keys(basicData).length,
+    suggested_mappings: {
+      sample_field_1: "coordinates or pattern for extraction",
+      sample_field_2: "another extraction pattern"
+    },
+    filename_analysis: {
+      original_filename: filename,
+      detected_patterns: [`pattern_${Math.floor(Math.random() * 100)}`],
+      suggested_document_type: documentType
     }
   };
-}
-
-/**
- * Send notification that processing is complete
- */
-async function sendProcessingNotification(fileId: string, filename: string) {
-  try {
-    console.log(`Sending notification for processed file: ${filename}`);
-    
-    // Add a notification to the notifications table
-    const { error } = await supabaseClient
-      .from('notifications')
-      .insert({
-        user_id: 'system', // In a real implementation, this would be tied to the user who uploaded the file
-        notification_text: `Processing of "${filename}" is complete.`,
-        read_status: false,
-        notification_type: 'file_processing',
-        related_id: fileId
-      });
-
-    if (error) {
-      console.error('Error creating notification:', error);
-    } else {
-      console.log('Notification created successfully');
-    }
-    
-    // Additional notification methods like email could be implemented here
-  } catch (error) {
-    console.error('Error sending notification:', error);
-  }
 }
