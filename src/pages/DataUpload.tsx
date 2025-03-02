@@ -17,6 +17,8 @@ const DataUpload = () => {
   const [progress, setProgress] = useState(0);
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
   const [processingStage, setProcessingStage] = useState<'uploading' | 'processing' | 'idle'>('idle');
+  // Add state for refreshing file list
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const handleFileDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
@@ -70,6 +72,9 @@ const DataUpload = () => {
       setProcessingStage('idle');
       toast.success(`Successfully uploaded and processed ${selectedFiles.length} file(s)`);
       setSelectedFiles([]);
+      
+      // Trigger refresh of uploaded files list
+      setRefreshTrigger(prev => prev + 1);
     } catch (error) {
       console.error('Error in file upload:', error);
       toast.error('There was an error processing your files');
@@ -204,7 +209,7 @@ const DataUpload = () => {
             </CardContent>
           </Card>
           
-          <UploadedFilesList />
+          <UploadedFilesList key={refreshTrigger} />
         </div>
       </div>
     </MainLayout>

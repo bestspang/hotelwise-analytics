@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -21,6 +20,7 @@ const UploadedFilesList = () => {
     setIsLoading(true);
     try {
       const uploadedFiles = await getUploadedFiles();
+      console.log('Fetched files:', uploadedFiles);
       setFiles(uploadedFiles);
     } catch (error) {
       console.error('Error fetching files:', error);
@@ -31,6 +31,9 @@ const UploadedFilesList = () => {
 
   useEffect(() => {
     fetchFiles();
+    
+    const intervalId = setInterval(fetchFiles, 15000);
+    return () => clearInterval(intervalId);
   }, []);
 
   const handleDelete = async (fileId: string) => {
@@ -58,7 +61,6 @@ const UploadedFilesList = () => {
     if (status === 'processed') return files.filter(file => file.processed);
     if (status === 'unprocessed') return files.filter(file => !file.processed);
     
-    // Filter by document type
     return files.filter(file => 
       file.document_type && file.document_type.toLowerCase() === status.toLowerCase()
     );
@@ -77,16 +79,20 @@ const UploadedFilesList = () => {
     'No-show Report'
   ];
 
-  // Count documents by type for badges
   const getDocumentTypeCount = (type: string) => {
-    return files.filter(file => file.document_type === type).length;
+    return files.filter(file => {
+      return (
+        file.document_type === type || 
+        (file.extracted_data && file.extracted_data.documentType === type)
+      );
+    }).length;
   };
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-xl">
-          Uploaded Files
+          Uploaded Files {isLoading && <span className="text-sm text-muted-foreground">(Loading...)</span>}
         </CardTitle>
         <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isLoading}>
           <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
@@ -120,7 +126,6 @@ const UploadedFilesList = () => {
                 </TabsList>
               </div>
 
-              {/* Document type filter pills */}
               {activeTab === 'all' || activeTab === 'processed' ? (
                 <div className="flex flex-wrap gap-2 mb-4 overflow-x-auto pb-2">
                   {documentTypes.map((type) => {
@@ -192,7 +197,6 @@ const UploadedFilesList = () => {
                 </div>
               </TabsContent>
               
-              {/* Dynamic tabs for document types */}
               {documentTypes.map((type) => (
                 <TabsContent key={type} value={type.toLowerCase()} className="mt-0">
                   <div className="grid grid-cols-1 gap-4">
@@ -214,12 +218,12 @@ const UploadedFilesList = () => {
             <AlertTitle>No files uploaded</AlertTitle>
             <AlertDescription>
               Upload PDF files using the form above to see them listed here.
+              {isLoading && " Loading your files..."}
             </AlertDescription>
           </Alert>
         )}
       </CardContent>
 
-      {/* Data Preview Dialog */}
       {selectedFile && (
         <DataPreviewDialog 
           file={selectedFile} 
