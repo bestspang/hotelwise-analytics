@@ -1,84 +1,75 @@
 
 import { supabase, handleApiError } from './supabaseClient';
-import { toast } from 'sonner';
 import { saveDataMappings } from './dataMappingService';
+import { toast } from 'sonner';
 
+/**
+ * Resolves data discrepancies for a specific file
+ */
 export async function resolveDataDiscrepancies(fileId: string, mappings: Record<string, string>) {
   try {
-    // Get the document type from the file metadata
+    // First, get the file information to determine document type
     const { data: fileData, error: fileError } = await supabase
       .from('uploaded_files')
-      .select('extracted_data')
+      .select('*')
       .eq('id', fileId)
       .single();
       
     if (fileError) {
-      console.error('Error fetching file data:', fileError);
-      throw new Error(fileError.message);
+      return handleApiError(fileError, 'Failed to fetch file information');
     }
     
-    const documentType = fileData?.extracted_data?.documentType;
+    // Extract document type from the extracted_data
+    const extractedData = fileData.extracted_data;
+    const documentType = typeof extractedData === 'object' && extractedData 
+      ? (extractedData as any).documentType || 'unknown' 
+      : 'unknown';
     
-    // Call the edge function to resolve discrepancies
-    const { error } = await supabase.functions
-      .invoke('resolve-discrepancies', {
-        body: { 
-          fileId,
-          mappings
-        }
-      });
-      
+    // Call Supabase Edge Function to resolve discrepancies
+    const { data, error } = await supabase.functions.invoke('resolve-discrepancies', {
+      body: { fileId, mappings }
+    });
+    
     if (error) {
       console.error('Error resolving discrepancies:', error);
-      throw new Error(error.message);
+      toast.error('Failed to resolve data discrepancies');
+      return false;
     }
     
-    // Update UI to reflect the resolved discrepancies
-    await supabase
-      .from('uploaded_files')
-      .update({ 
-        processed: true
-      })
-      .eq('id', fileId);
-    
-    // Save the mappings for future use if document type is available
-    if (documentType) {
+    // If successful, save the mappings for future use
+    if (documentType !== 'unknown') {
       await saveDataMappings(documentType, mappings);
     }
     
+    toast.success('Data discrepancies resolved successfully');
     return true;
   } catch (error) {
-    console.error('Unexpected error resolving discrepancies:', error);
-    throw error;
+    console.error('Error in resolveDataDiscrepancies:', error);
+    toast.error('An unexpected error occurred while resolving data discrepancies');
+    return false;
   }
 }
 
+/**
+ * Resolves data overlaps for a specific file
+ */
 export async function resolveDataOverlaps(fileId: string, resolutions: Record<string, string>) {
   try {
-    const { error } = await supabase.functions
-      .invoke('resolve-overlaps', {
-        body: { 
-          fileId,
-          resolutions
-        }
-      });
-      
+    const { data, error } = await supabase.functions.invoke('resolve-overlaps', {
+      body: { fileId, resolutions }
+    });
+    
     if (error) {
       console.error('Error resolving overlaps:', error);
-      throw new Error(error.message);
+      toast.error('Failed to resolve data overlaps');
+      return false;
     }
     
-    // Update UI to reflect the resolved overlaps
-    await supabase
-      .from('uploaded_files')
-      .update({ 
-        processed: true
-      })
-      .eq('id', fileId);
-    
+    toast.success('Data overlaps resolved successfully');
     return true;
   } catch (error) {
-    console.error('Unexpected error resolving overlaps:', error);
-    throw error;
+    console.error('Error in resolveDataOverlaps:', error);
+    toast.error('An unexpected error occurred while resolving data overlaps');
+    return false;
   }
 }

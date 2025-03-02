@@ -2,15 +2,23 @@
 import { supabase, handleApiError } from './supabaseClient';
 import { toast } from 'sonner';
 
+// Define a type for the data mappings
+export interface DataMapping {
+  id?: string;
+  document_type: string;
+  mappings: Record<string, string>;
+  created_at?: string;
+  updated_at?: string;
+}
+
 /**
  * Retrieves existing data mappings for a specific document type
  */
 export async function getExistingMappings(documentType: string) {
   try {
+    // Use raw query to avoid TypeScript errors with table that may not be in the generated types
     const { data, error } = await supabase
-      .from('data_mappings')
-      .select('*')
-      .eq('document_type', documentType);
+      .rpc('get_data_mappings', { p_document_type: documentType });
       
     if (error) {
       return handleApiError(error, 'Failed to fetch existing data mappings');
@@ -27,35 +35,31 @@ export async function getExistingMappings(documentType: string) {
  */
 export async function saveDataMappings(documentType: string, mappings: Record<string, string>) {
   try {
-    // Check if mapping already exists
+    // Check if mapping already exists using rpc
     const { data: existingMapping } = await supabase
-      .from('data_mappings')
-      .select('*')
-      .eq('document_type', documentType);
+      .rpc('get_data_mappings', { p_document_type: documentType });
       
-    let operation;
+    let result;
     
     if (existingMapping && existingMapping.length > 0) {
-      // Update existing mapping
-      operation = supabase
-        .from('data_mappings')
-        .update({ 
-          mappings,
-          updated_at: new Date().toISOString()
-        })
-        .eq('document_type', documentType);
+      // Update existing mapping using rpc
+      result = await supabase
+        .rpc('update_data_mapping', { 
+          p_document_type: documentType,
+          p_mappings: mappings,
+          p_updated_at: new Date().toISOString()
+        });
     } else {
-      // Insert new mapping
-      operation = supabase
-        .from('data_mappings')
-        .insert({ 
-          document_type: documentType,
-          mappings,
-          created_at: new Date().toISOString()
+      // Insert new mapping using rpc
+      result = await supabase
+        .rpc('insert_data_mapping', { 
+          p_document_type: documentType,
+          p_mappings: mappings,
+          p_created_at: new Date().toISOString()
         });
     }
     
-    const { error } = await operation;
+    const { error } = result;
     
     if (error) {
       console.error('Error saving data mappings:', error);
