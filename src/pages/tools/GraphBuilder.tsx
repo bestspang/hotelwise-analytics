@@ -17,6 +17,8 @@ const GraphBuilder: React.FC = () => {
   const [showLegend, setShowLegend] = useState(true);
   const [showGrid, setShowGrid] = useState(true);
   const [chartTitle, setChartTitle] = useState('Custom Analysis');
+  // Add the missing metric state
+  const [metric, setMetric] = useState('revpar');
   
   // State for multi-metric visualization
   const [metrics, setMetrics] = useState<MetricItem[]>([
@@ -57,6 +59,8 @@ const GraphBuilder: React.FC = () => {
                 setChartType={setChartType}
                 timeframe={timeframe}
                 setTimeframe={setTimeframe}
+                metric={metric}
+                setMetric={setMetric}
                 showLegend={showLegend}
                 setShowLegend={setShowLegend}
                 showGrid={showGrid}
