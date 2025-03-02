@@ -11,16 +11,33 @@ export interface DataMapping {
   updated_at?: string;
 }
 
+// Define types for RPC function parameters
+type GetDataMappingsParams = {
+  p_document_type: string;
+}
+
+type UpdateDataMappingParams = {
+  p_document_type: string;
+  p_mappings: Record<string, string>;
+  p_updated_at: string;
+}
+
+type InsertDataMappingParams = {
+  p_document_type: string;
+  p_mappings: Record<string, string>;
+  p_created_at: string;
+}
+
 /**
  * Retrieves existing data mappings for a specific document type
  */
 export async function getExistingMappings(documentType: string): Promise<DataMapping[] | null> {
   try {
-    // Use rpc function to get mappings
+    // Use rpc function to get mappings with proper type casting
     const { data, error } = await supabase
       .rpc('get_data_mappings', {
         p_document_type: documentType
-      });
+      } as GetDataMappingsParams);
       
     if (error) {
       return handleApiError(error, 'Failed to fetch existing data mappings');
@@ -49,7 +66,7 @@ export async function saveDataMappings(documentType: string, mappings: Record<st
           p_document_type: documentType,
           p_mappings: mappings,
           p_updated_at: new Date().toISOString()
-        });
+        } as UpdateDataMappingParams);
     } else {
       // Insert new mapping using rpc
       result = await supabase
@@ -57,7 +74,7 @@ export async function saveDataMappings(documentType: string, mappings: Record<st
           p_document_type: documentType,
           p_mappings: mappings,
           p_created_at: new Date().toISOString()
-        });
+        } as InsertDataMappingParams);
     }
     
     const { error } = result;
