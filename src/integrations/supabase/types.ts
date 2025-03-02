@@ -739,6 +739,36 @@ export type Database = {
           },
         ]
       }
+      processing_logs: {
+        Row: {
+          created_at: string | null
+          details: Json | null
+          file_id: string | null
+          id: string
+          log_level: string
+          message: string
+          request_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          details?: Json | null
+          file_id?: string | null
+          id?: string
+          log_level: string
+          message: string
+          request_id: string
+        }
+        Update: {
+          created_at?: string | null
+          details?: Json | null
+          file_id?: string | null
+          id?: string
+          log_level?: string
+          message?: string
+          request_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           email: string

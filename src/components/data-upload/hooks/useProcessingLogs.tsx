@@ -21,29 +21,29 @@ export const useProcessingLogs = ({ fileId, requestId, refreshTrigger = 0 }: Use
       try {
         setLoading(true);
         
-        // Define a base query on the processing_logs table
-        let query = supabase
-          .from('processing_logs')
+        // Use a type assertion for now until types are regenerated
+        const query = supabase
+          .from('processing_logs' as any)
           .select('*')
           .order('created_at', { ascending: false });
         
         // Apply filters if provided
         if (fileId) {
-          query = query.eq('file_id', fileId);
+          query.eq('file_id', fileId);
         }
         
         if (requestId) {
-          query = query.eq('request_id', requestId);
+          query.eq('request_id', requestId);
         }
         
-        const { data, error } = await query.limit(100);
+        const { data, error: queryError } = await query.limit(100);
         
-        if (error) {
-          throw error;
+        if (queryError) {
+          throw queryError;
         }
         
-        // Ensure data is of the correct type using type assertion
-        setLogs(data as unknown as ProcessingLog[]);
+        // Type assertion is safe since we know the structure
+        setLogs(data as ProcessingLog[] || []);
       } catch (err) {
         console.error('Error fetching processing logs:', err);
         setError(err as Error);
