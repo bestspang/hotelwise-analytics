@@ -53,7 +53,7 @@ export async function reprocessFile(fileId: string) {
     
     console.log('File to reprocess:', fileData);
     
-    // Reset processing status
+    // Reset processing status - make sure we're using the correct column names
     const { error: updateError } = await supabase
       .from('uploaded_files')
       .update({ 
@@ -75,7 +75,7 @@ export async function reprocessFile(fileId: string) {
         try {
           console.log(`Attempt ${attempt} to invoke process-pdf Edge Function`);
           
-          const response = await supabase.functions
+          const { data, error } = await supabase.functions
             .invoke('process-pdf', {
               body: { 
                 fileId: fileId, 
@@ -86,13 +86,13 @@ export async function reprocessFile(fileId: string) {
               }
             });
           
-          console.log('Edge Function response:', response);
+          console.log('Edge Function response:', { data, error });
           
-          if (response.error) {
-            throw new Error(response.error.message || 'Edge function returned an error');
+          if (error) {
+            throw new Error(error.message || 'Edge function returned an error');
           }
           
-          return response;
+          return { data, error: null };
         } catch (error) {
           console.error(`Edge Function attempt ${attempt} failed:`, error);
           
@@ -112,7 +112,7 @@ export async function reprocessFile(fileId: string) {
       // Trigger reprocessing via Edge Function with retry
       const response = await invokeEdgeFunction();
       
-      if (response.error) {
+      if (response?.error) {
         console.error('Error reprocessing file with AI:', response.error);
         toast.error(`AI reprocessing failed: ${response.error}`);
         
@@ -134,7 +134,7 @@ export async function reprocessFile(fileId: string) {
       
       toast.success('File reprocessing started successfully');
       
-      return response.data;
+      return response?.data;
     } catch (error) {
       console.error('Edge Function invocation failed after retries:', error);
       

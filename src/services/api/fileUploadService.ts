@@ -43,7 +43,7 @@ export async function uploadPdfFile(file: File) {
       return handleApiError(uploadError, `Failed to upload ${file.name}: ${uploadError.message}`);
     }
     
-    // Store file metadata in database
+    // Store file metadata in database - include the processing column
     const { data: fileData, error: fileError } = await supabase
       .from('uploaded_files')
       .insert([{ 
@@ -52,7 +52,7 @@ export async function uploadPdfFile(file: File) {
         file_type: file.type,
         file_size: file.size,
         processed: false,
-        processing: false
+        processing: true
       }])
       .select()
       .single();
@@ -98,8 +98,22 @@ export async function uploadPdfFile(file: File) {
       
       console.log('Processing result:', processingData);
       
-      if (processingData.error) {
+      if (processingData?.error) {
         toast.error(`AI processing failed: ${processingData.error}`);
+        
+        // Update file status to error
+        await supabase
+          .from('uploaded_files')
+          .update({ 
+            processed: true, 
+            processing: false,
+            extracted_data: { 
+              error: true, 
+              message: processingData.error || 'AI processing failed' 
+            } 
+          })
+          .eq('id', fileData.id);
+          
         return null;
       }
       
@@ -112,6 +126,19 @@ export async function uploadPdfFile(file: File) {
     } catch (functionError) {
       console.error('Edge function error:', functionError);
       toast.warning(`File uploaded, but automatic processing failed. Manual processing may be required.`);
+      
+      // Update file status to error
+      await supabase
+        .from('uploaded_files')
+        .update({ 
+          processed: true, 
+          processing: false,
+          extracted_data: { 
+            error: true, 
+            message: functionError instanceof Error ? functionError.message : 'Edge function invocation failed' 
+          } 
+        })
+        .eq('id', fileData.id);
       
       // Even if processing fails, return the file data
       return fileData;
