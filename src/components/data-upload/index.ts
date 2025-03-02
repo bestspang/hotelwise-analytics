@@ -22,3 +22,11 @@ export { default as UploadedFilesList } from './UploadedFilesList';
 export { default as FileHeader } from './card-components/FileHeader';
 export { default as StatusIndicator } from './card-components/StatusIndicator';
 export { default as CardActions } from './card-components/CardActions';
+
+// Hooks
+export { useFileManagement } from './useFileManagement';
+export { useFileFiltering } from './useFileFiltering';
+export { useFileSync } from './hooks/useFileSync';
+export { useFileState } from './hooks/useFileState';
+export { useFileFetch } from './hooks/useFileFetch';
+export { useFileDelete } from './hooks/useFileDelete';
