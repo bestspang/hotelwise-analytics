@@ -1,11 +1,11 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import UploadCard from '@/components/data-upload/UploadCard';
 import UploadedFilesList from '@/components/data-upload/UploadedFilesList';
 import ProcessingLogs from '@/components/data-upload/ProcessingLogs';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, BarChart2, Bug, Shield } from 'lucide-react';
+import { FileText, BarChart2, Bug, Shield, RefreshCw } from 'lucide-react';
 import { listBucketFiles, checkAndFixBucketAccess } from '@/services/api/storageDebugService';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -15,10 +15,13 @@ const DataUpload = () => {
   const [activeTab, setActiveTab] = useState('files');
   const [isDebugging, setIsDebugging] = useState(false);
   const [isFixingAccess, setIsFixingAccess] = useState(false);
+  const [bucketStatus, setBucketStatus] = useState<'unchecked' | 'ok' | 'error'>('unchecked');
 
   const handleUploadComplete = () => {
     console.log('Upload completed, triggering refresh');
     setRefreshTrigger(prev => prev + 1);
+    // Automatically check bucket status after upload
+    handleCheckBucketStatus();
   };
 
   const handleReprocessing = useCallback(() => {
@@ -26,6 +29,43 @@ const DataUpload = () => {
     // Force an immediate refresh
     setRefreshTrigger(prev => prev + 1);
   }, []);
+
+  // Check bucket status on initial load
+  useEffect(() => {
+    handleCheckBucketStatus();
+  }, []);
+
+  // Function to check bucket status
+  const handleCheckBucketStatus = async () => {
+    try {
+      setIsDebugging(true);
+      console.log('Checking storage bucket status...');
+      
+      const result = await checkAndFixBucketAccess();
+      
+      if (result.error) {
+        console.error(`Bucket check failed: ${result.error}`);
+        setBucketStatus('error');
+        toast.error(`Storage bucket issue detected: ${result.error}`);
+      } else if (result.success) {
+        console.log('Bucket check successful:', result.message);
+        setBucketStatus('ok');
+        if (result.bucketStatus?.public) {
+          toast.success('Storage bucket is properly configured');
+        } else {
+          toast.warning('Storage bucket needs to be set to public', {
+            description: 'Click "Fix Storage Access" to resolve this issue',
+            duration: 5000,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error checking bucket status:', error);
+      setBucketStatus('error');
+    } finally {
+      setIsDebugging(false);
+    }
+  };
 
   // Debug function to list storage files
   const handleDebugStorage = async () => {
@@ -56,18 +96,23 @@ const DataUpload = () => {
   const handleFixBucketAccess = async () => {
     try {
       setIsFixingAccess(true);
-      toast.info('Checking bucket access permissions...');
+      toast.info('Checking and fixing bucket access permissions...');
       
       const result = await checkAndFixBucketAccess();
       
       if (result.error) {
         toast.error(`Failed to fix bucket access: ${result.error}`);
+        setBucketStatus('error');
       } else if (result.success) {
         toast.success(result.message);
+        setBucketStatus('ok');
+        // Trigger refresh to make sure files are displayed correctly
+        setRefreshTrigger(prev => prev + 1);
       }
     } catch (error) {
       console.error('Error fixing bucket access:', error);
       toast.error('Failed to fix bucket access');
+      setBucketStatus('error');
     } finally {
       setIsFixingAccess(false);
     }
@@ -85,7 +130,7 @@ const DataUpload = () => {
           </div>
           <div className="flex items-center gap-2">
             <Button 
-              variant="outline" 
+              variant={bucketStatus === 'error' ? "destructive" : "outline"} 
               size="sm" 
               onClick={handleFixBucketAccess}
               disabled={isFixingAccess}
@@ -103,6 +148,16 @@ const DataUpload = () => {
             >
               <Bug className="h-4 w-4" />
               {isDebugging ? 'Checking...' : 'Check Storage'}
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleCheckBucketStatus}
+              disabled={isDebugging}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Refresh Status
             </Button>
           </div>
         </div>

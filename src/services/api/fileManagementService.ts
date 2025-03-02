@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 
 export async function getUploadedFiles() {
   try {
+    console.log('Fetching uploaded files from database');
     const { data, error } = await supabase
       .from('uploaded_files')
       .select('*')
@@ -11,8 +12,16 @@ export async function getUploadedFiles() {
       
     if (error) {
       console.error('Failed to fetch uploaded files:', error);
-      toast.error('Failed to fetch uploaded files');
+      toast.error('Failed to fetch uploaded files: ' + error.message);
       return [];
+    }
+    
+    console.log(`Retrieved ${data?.length || 0} files from database`);
+    
+    if (!data || data.length === 0) {
+      console.log('No files found in the database');
+    } else {
+      console.log('File IDs retrieved:', data.map(file => file.id));
     }
     
     return data || [];

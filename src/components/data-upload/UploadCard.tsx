@@ -5,8 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import FileDropzone from '@/components/data-upload/FileDropzone';
 import FileQueue from '@/components/data-upload/FileQueue';
-import { uploadPdfFile } from '@/services/uploadService';
-import { toast } from '@/hooks/use-toast';
+import { uploadPdfFile } from '@/services/api/fileUploadService';
+import { toast } from 'sonner';
 
 interface UploadCardProps {
   onUploadComplete: () => void;
@@ -22,9 +22,8 @@ const UploadCard: React.FC<UploadCardProps> = ({ onUploadComplete }) => {
   const handleFileDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
     setSelectedFiles(prevFiles => [...prevFiles, ...acceptedFiles]);
-    toast({
-      title: "Files Added",
-      description: `${acceptedFiles.length} file(s) added to queue`
+    toast(`${acceptedFiles.length} file(s) added to upload queue`, {
+      description: "Click Upload when ready to process.",
     });
   };
 
@@ -34,17 +33,15 @@ const UploadCard: React.FC<UploadCardProps> = ({ onUploadComplete }) => {
 
   const clearAllFiles = () => {
     setSelectedFiles([]);
-    toast({
-      title: "Queue Cleared",
-      description: "Upload queue has been cleared"
+    toast("Upload queue cleared", {
+      description: "All files have been removed from the queue.",
     });
   };
 
   const uploadFiles = async () => {
     if (selectedFiles.length === 0) {
-      toast({
-        title: "No Files",
-        description: "No files to upload"
+      toast.error("No files to upload", {
+        description: "Please add PDF files to the queue first.",
       });
       return;
     }
@@ -71,19 +68,26 @@ const UploadCard: React.FC<UploadCardProps> = ({ onUploadComplete }) => {
         // Short delay to show uploading stage
         await new Promise(resolve => setTimeout(resolve, 500));
         
-        // Set processing stage
-        setProcessingStage('processing');
-        
         try {
+          console.log(`Processing file ${i+1}/${selectedFiles.length}: ${file.name}`);
+          
+          // Set processing stage
+          setProcessingStage('processing');
+          
           const result = await uploadPdfFile(file);
           if (result) {
+            console.log(`File ${file.name} uploaded successfully:`, result);
             successCount++;
           } else {
+            console.error(`File ${file.name} upload failed with null result`);
             errorCount++;
           }
         } catch (error) {
           console.error(`Error uploading file ${file.name}:`, error);
           errorCount++;
+          toast.error(`Failed to upload ${file.name}`, {
+            description: error instanceof Error ? error.message : "Unknown error occurred",
+          });
         }
       }
       
@@ -92,34 +96,28 @@ const UploadCard: React.FC<UploadCardProps> = ({ onUploadComplete }) => {
       
       // Show summary notification
       if (errorCount === 0) {
-        toast({
-          title: "Upload Complete",
-          description: `Successfully uploaded ${successCount} file(s)`
+        toast.success(`Upload complete`, {
+          description: `Successfully uploaded ${successCount} file(s)`,
         });
       } else if (successCount === 0) {
-        toast({
-          title: "Upload Failed",
+        toast.error(`Upload failed`, {
           description: `Failed to upload all ${errorCount} file(s)`,
-          variant: "destructive"
         });
       } else {
-        toast({
-          title: "Upload Partially Complete",
+        toast.warning(`Upload partially complete`, {
           description: `Uploaded ${successCount} file(s) with ${errorCount} error(s)`,
-          variant: "destructive"
         });
       }
       
+      // Clear the queue after upload
       setSelectedFiles([]);
       
       // Trigger refresh of uploaded files list
       onUploadComplete();
     } catch (error) {
       console.error('Error in file upload process:', error);
-      toast({
-        title: "Upload Error",
-        description: "There was an error processing your files",
-        variant: "destructive"
+      toast.error(`Upload error`, {
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
       });
       setProcessingStage('idle');
     } finally {

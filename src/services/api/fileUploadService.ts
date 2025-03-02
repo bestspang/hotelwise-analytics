@@ -19,48 +19,69 @@ export async function uploadPdfFile(file: File) {
 
     console.log(`Starting upload process for file: ${file.name}`);
 
-    // Upload file to Supabase Storage
-    const fileName = `${Date.now()}_${file.name.replace(/[^\x00-\x7F]/g, '')}`;
+    // Create a unique filename to avoid collisions
+    const timestamp = Date.now();
+    const sanitizedName = file.name.replace(/[^\x00-\x7F]/g, '');
+    const fileName = `${timestamp}_${sanitizedName}`;
     const filePath = `uploads/${fileName}`;
     
+    console.log(`Prepared sanitized filename: ${fileName}`);
+    
+    // First check if the bucket exists and is accessible
     try {
-      // Try to get the bucket info first
-      const { data: bucketData, error: bucketError } = await supabase.storage
+      console.log('Checking bucket status before upload...');
+      const { data: bucketInfo, error: bucketError } = await supabase.storage
         .getBucket('pdf_files');
         
       if (bucketError) {
         console.error('Error checking bucket:', bucketError);
-        
-        // Make bucket public to ensure accessibility
-        console.log('Attempting to update bucket access...');
-        await supabase.storage.updateBucket('pdf_files', {
-          public: true
-        });
+        // Try to update bucket permissions
+        const { error: updateError } = await supabase.storage
+          .updateBucket('pdf_files', { public: true });
+          
+        if (updateError) {
+          console.error('Failed to update bucket access:', updateError);
+          toast.error('Storage bucket access issue. Please try again or contact support.');
+          return null;
+        }
+        console.log('Updated bucket to public access');
       } else {
-        console.log('pdf_files bucket exists:', bucketData);
+        console.log('pdf_files bucket exists:', bucketInfo);
+        // If bucket exists but is not public, make it public
+        if (!bucketInfo.public) {
+          const { error: updateError } = await supabase.storage
+            .updateBucket('pdf_files', { public: true });
+          
+          if (updateError) {
+            console.error('Failed to update bucket access:', updateError);
+          } else {
+            console.log('Updated bucket to public access');
+          }
+        }
       }
     } catch (bucketCheckError) {
       console.error('Error checking/updating bucket:', bucketCheckError);
       // Continue with the upload process anyway
     }
     
-    // Upload the file
-    console.log(`Uploading file to ${filePath}`);
+    // Upload the file to storage
+    console.log(`Uploading file to storage path: ${filePath}`);
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('pdf_files')
       .upload(filePath, file, {
-        cacheControl: 'no-cache', // Prevent caching to ensure fresh content
-        upsert: false // Don't allow overwriting existing files
+        cacheControl: '3600',
+        upsert: false
       });
       
     if (uploadError) {
-      console.error('Upload error:', uploadError);
-      return handleApiError(uploadError, `Failed to upload ${file.name}: ${uploadError.message}`);
+      console.error('Storage upload error:', uploadError);
+      toast.error(`Failed to upload ${file.name}: ${uploadError.message}`);
+      return null;
     }
     
-    console.log('File uploaded successfully, creating database record');
+    console.log('File uploaded successfully to storage, creating database record');
     
-    // Determine document type based on filename (simple heuristic for now)
+    // Determine document type based on filename
     let document_type = 'Unknown';
     const lowerName = file.name.toLowerCase();
     
@@ -78,7 +99,8 @@ export async function uploadPdfFile(file: File) {
       document_type = 'No-show Report';
     }
     
-    // Store file metadata in database - include the processing and document_type columns
+    // Store file metadata in database
+    console.log('Creating database record with document type:', document_type);
     const { data: fileData, error: fileError } = await supabase
       .from('uploaded_files')
       .insert([{ 
@@ -95,10 +117,20 @@ export async function uploadPdfFile(file: File) {
       
     if (fileError) {
       console.error('Database record creation error:', fileError);
-      return handleApiError(fileError, `Failed to process metadata for ${file.name}`);
+      toast.error(`Failed to create database record for ${file.name}: ${fileError.message}`);
+      
+      // Try to clean up the uploaded file since database insert failed
+      try {
+        await supabase.storage.from('pdf_files').remove([filePath]);
+        console.log('Cleaned up orphaned file from storage');
+      } catch (cleanupError) {
+        console.error('Failed to clean up orphaned file:', cleanupError);
+      }
+      
+      return null;
     }
     
-    console.log('Database record created successfully:', fileData.id);
+    console.log('Database record created successfully with ID:', fileData.id);
     
     // Show toast indicating that processing is starting
     toast.info(`Processing ${file.name} with AI data extraction...`);
@@ -134,7 +166,7 @@ export async function uploadPdfFile(file: File) {
           })
           .eq('id', fileData.id);
           
-        return null;
+        return fileData; // Still return the file data as the upload was successful
       }
       
       console.log('Processing result:', processingData);
@@ -155,7 +187,7 @@ export async function uploadPdfFile(file: File) {
           })
           .eq('id', fileData.id);
           
-        return null;
+        return fileData; // Still return the file data as the upload was successful
       }
       
       // Only show success notification for immediate processing, otherwise show the "in progress" notification
@@ -173,7 +205,7 @@ export async function uploadPdfFile(file: File) {
       console.error('Edge function error:', functionError);
       toast.warning(`File uploaded, but automatic processing failed. Manual processing may be required.`);
       
-      // Update file status to error
+      // Update file status to error but still mark as uploaded
       await supabase
         .from('uploaded_files')
         .update({ 
@@ -186,11 +218,13 @@ export async function uploadPdfFile(file: File) {
         })
         .eq('id', fileData.id);
       
-      // Even if processing fails, return the file data
+      // Even if processing fails, return the file data as the upload succeeded
       return fileData;
     }
   } catch (error) {
     console.error('Unexpected error during file upload:', error);
-    return handleApiError(error, `An unexpected error occurred with ${file.name}`);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    toast.error(`Upload failed: ${errorMessage}`);
+    return null;
   }
 }

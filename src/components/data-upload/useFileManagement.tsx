@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getUploadedFiles, deleteUploadedFile } from '@/services/uploadService';
+import { getUploadedFiles, deleteUploadedFile } from '@/services/api/fileManagementService';
 import { toast } from 'sonner';
 
 export const useFileManagement = () => {
@@ -32,8 +32,18 @@ export const useFileManagement = () => {
     setIsLoading(true);
     
     try {
-      console.log('Fetching files, deleted IDs tracked:', [...deletedFileIds.current]);
+      console.log('Fetching files from database, deleted IDs tracked:', [...deletedFileIds.current]);
       const uploadedFiles = await getUploadedFiles();
+      
+      console.log('Files fetched from database:', uploadedFiles.length);
+      
+      if (uploadedFiles.length === 0) {
+        console.log('No files found in database');
+        setFiles([]);
+        setIsLoading(false);
+        fetchInProgress.current = false;
+        return;
+      }
       
       // Filter out any files that have been deleted during this session
       const filteredFiles = uploadedFiles.filter(file => !deletedFileIds.current.has(file.id));
@@ -59,17 +69,24 @@ export const useFileManagement = () => {
       isInitialMount.current = false;
     } catch (error) {
       console.error('Error fetching files:', error);
-      toast.error('Failed to fetch uploaded files');
+      toast.error('Failed to fetch uploaded files from database');
     } finally {
       setIsLoading(false);
       fetchInProgress.current = false;
     }
   }, []);
 
-  // Only fetch files on initial load and when refresh is triggered
+  // Fetch files on initial load and when refresh is triggered
   useEffect(() => {
     fetchFiles();
-    // No more polling interval
+    
+    // Add a polling interval to check for new files every 10 seconds
+    const intervalId = setInterval(() => {
+      console.log('Polling for new files');
+      fetchFiles();
+    }, 10000);
+    
+    return () => clearInterval(intervalId);
   }, [lastRefresh, fetchFiles]);
 
   const handleDelete = async (fileId: string) => {
