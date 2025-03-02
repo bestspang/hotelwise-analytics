@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, FileText, Eye, AlertTriangle, RotateCw } from 'lucide-react';
@@ -14,7 +14,7 @@ interface ExtractedDataCardProps {
 }
 
 const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ file, onViewRawData }) => {
-  const [isReprocessing, setIsReprocessing] = React.useState(false);
+  const [isReprocessing, setIsReprocessing] = useState(false);
 
   // Function to determine document type and display appropriate badge
   const renderDocumentTypeBadge = () => {
@@ -59,11 +59,15 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ file, onViewRawDa
     toast.info(`Reprocessing ${file.filename}...`);
     
     try {
-      await reprocessFile(file.id);
-      toast.success(`Reprocessing of ${file.filename} started successfully`);
+      const result = await reprocessFile(file.id);
+      if (result === null) {
+        toast.error(`Failed to reprocess ${file.filename}. Please try again later.`);
+      } else {
+        toast.success(`Reprocessing of ${file.filename} started successfully`);
+      }
     } catch (error) {
       console.error('Error reprocessing file:', error);
-      toast.error(`Failed to reprocess ${file.filename}`);
+      toast.error(`Failed to reprocess ${file.filename}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsReprocessing(false);
     }
@@ -144,17 +148,15 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ file, onViewRawDa
         </div>
       </CardContent>
       <CardFooter className="p-4 pt-0 gap-2 flex justify-end">
-        {!hasExtractedData && (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleReprocess}
-            disabled={isReprocessing}
-          >
-            <RotateCw className={`h-4 w-4 mr-2 ${isReprocessing ? 'animate-spin' : ''}`} />
-            {isReprocessing ? 'Reprocessing...' : 'Reload Extraction'}
-          </Button>
-        )}
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleReprocess}
+          disabled={isReprocessing}
+        >
+          <RotateCw className={`h-4 w-4 mr-2 ${isReprocessing ? 'animate-spin' : ''}`} />
+          {isReprocessing ? 'Reprocessing...' : 'Reload Extraction'}
+        </Button>
         <Button 
           variant="outline" 
           size="sm" 

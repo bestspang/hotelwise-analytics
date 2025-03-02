@@ -30,6 +30,7 @@ export async function downloadExtractedData(fileId: string) {
 
 export async function reprocessFile(fileId: string) {
   try {
+    console.log('Reprocessing file:', fileId);
     // Get file info
     const { data: fileData, error: fileError } = await supabase
       .from('uploaded_files')
@@ -40,17 +41,31 @@ export async function reprocessFile(fileId: string) {
     if (fileError) {
       console.error('Error fetching file to reprocess:', fileError);
       toast.error('Failed to find the file to reprocess');
-      throw new Error('File not found');
+      return null;
     }
     
+    if (!fileData || !fileData.file_path) {
+      console.error('Invalid file data for reprocessing:', fileData);
+      toast.error('File data is incomplete or invalid');
+      return null;
+    }
+    
+    console.log('File to reprocess:', fileData);
+    
     // Reset processing status
-    await supabase
+    const { error: updateError } = await supabase
       .from('uploaded_files')
       .update({ 
         processed: false,
         extracted_data: null
       })
       .eq('id', fileId);
+      
+    if (updateError) {
+      console.error('Error updating file status:', updateError);
+      toast.error('Failed to reset file processing status');
+      return null;
+    }
     
     // Trigger reprocessing via Edge Function
     const { data: processingData, error: processingError } = await supabase.functions
@@ -80,12 +95,14 @@ export async function reprocessFile(fileId: string) {
         })
         .eq('id', fileId);
         
-      throw new Error(processingError.message);
+      return null;
     }
     
+    toast.success('File reprocessing started successfully');
     return processingData;
   } catch (error) {
     console.error('Unexpected error reprocessing file:', error);
-    throw error;
+    toast.error(`Failed to reprocess file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return null;
   }
 }
