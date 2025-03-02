@@ -8,13 +8,28 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { reprocessFile } from '@/services/uploadService';
 import { toast } from 'sonner';
 
+interface DocumentType {
+  type: string;
+  color: string;
+}
+
 interface ExtractedDataCardProps {
-  file: any;
+  file: any; // Ideally this would be a proper type definition
   onViewRawData: () => void;
 }
 
 const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ file, onViewRawData }) => {
   const [isReprocessing, setIsReprocessing] = useState(false);
+
+  // Document type definitions with their respective colors for consistent styling
+  const documentTypeColors: Record<string, string> = {
+    'expense voucher': 'bg-red-500',
+    'monthly statistics': 'bg-blue-500',
+    'occupancy report': 'bg-green-500',
+    'city ledger': 'bg-amber-500',
+    'night audit': 'bg-purple-500',
+    'no-show report': 'bg-pink-500'
+  };
 
   // Function to determine document type and display appropriate badge
   const renderDocumentTypeBadge = () => {
@@ -23,31 +38,11 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ file, onViewRawDa
     
     if (!documentType) return null;
     
-    let badgeColor = 'bg-slate-500';
-    
-    switch(documentType.toLowerCase()) {
-      case 'expense voucher':
-        badgeColor = 'bg-red-500';
-        break;
-      case 'monthly statistics':
-        badgeColor = 'bg-blue-500';
-        break;
-      case 'occupancy report':
-        badgeColor = 'bg-green-500';
-        break;
-      case 'city ledger':
-        badgeColor = 'bg-amber-500';
-        break;
-      case 'night audit':
-        badgeColor = 'bg-purple-500';
-        break;
-      case 'no-show report':
-        badgeColor = 'bg-pink-500';
-        break;
-    }
+    const lowerCaseType = documentType.toLowerCase();
+    const badgeColor = documentTypeColors[lowerCaseType] || 'bg-slate-500';
     
     return (
-      <Badge className={`${badgeColor} hover:${badgeColor}`}>
+      <Badge className={`${badgeColor} hover:${badgeColor}`} aria-label={`Document type: ${documentType}`}>
         {documentType}
       </Badge>
     );
@@ -55,6 +50,8 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ file, onViewRawDa
 
   // Function to handle reprocessing of a file
   const handleReprocess = async () => {
+    if (isReprocessing) return;
+    
     setIsReprocessing(true);
     toast.info(`Reprocessing ${file.filename}...`);
     
@@ -73,23 +70,31 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ file, onViewRawDa
     }
   };
 
-  // Check if file has extracted data
+  // Status helper functions - improves code readability
   const hasExtractedData = file.extracted_data && 
     !file.extracted_data.error && 
     Object.keys(file.extracted_data).length > 0;
 
-  // Check if file has extraction error
   const hasExtractionError = file.extracted_data && file.extracted_data.error;
 
-  // Check if file is unprocessable (neither has data nor is being processed)
   const isUnprocessable = file.processed && !hasExtractedData && !hasExtractionError;
+
+  const isProcessing = !hasExtractedData && !hasExtractionError && !isUnprocessable;
+
+  // Error message helper - improves code readability
+  const getErrorMessage = () => {
+    if (hasExtractionError) {
+      return `Data extraction failed: ${file.extracted_data.message || 'Unknown error'}`;
+    }
+    return 'File could not be processed';
+  };
 
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-4">
         <div className="flex justify-between items-start">
           <div className="flex items-start space-x-3">
-            <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded">
+            <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded" aria-hidden="true">
               <FileText className="h-6 w-6 text-blue-500" />
             </div>
             <div>
@@ -101,11 +106,11 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ file, onViewRawDa
             </div>
           </div>
           
-          {!hasExtractedData && !hasExtractionError && !isUnprocessable && (
+          {isProcessing && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="flex items-center">
+                  <div className="flex items-center" aria-label="Processing status">
                     <AlertCircle className="h-4 w-4 text-amber-500 mr-1" />
                     <span className="text-xs text-amber-500">Processing</span>
                   </div>
@@ -121,18 +126,13 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ file, onViewRawDa
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="flex items-center">
+                  <div className="flex items-center" aria-label="Error status">
                     <X className="h-4 w-4 text-red-500 mr-1" />
                     <span className="text-xs text-red-500">Error</span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>
-                    {hasExtractionError 
-                      ? `Data extraction failed: ${file.extracted_data.message || 'Unknown error'}`
-                      : 'File could not be processed'
-                    }
-                  </p>
+                  <p>{getErrorMessage()}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -142,8 +142,8 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ file, onViewRawDa
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="flex items-center">
-                    <div className="h-2 w-2 bg-green-500 rounded-full mr-1"></div>
+                  <div className="flex items-center" aria-label="Processed status">
+                    <div className="h-2 w-2 bg-green-500 rounded-full mr-1" aria-hidden="true"></div>
                     <span className="text-xs text-green-500">Processed</span>
                   </div>
                 </TooltipTrigger>
@@ -161,16 +161,18 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ file, onViewRawDa
           size="sm" 
           onClick={handleReprocess}
           disabled={isReprocessing}
+          aria-label={isReprocessing ? "Reprocessing in progress" : "Reload extraction"}
         >
-          <RotateCw className={`h-4 w-4 mr-2 ${isReprocessing ? 'animate-spin' : ''}`} />
+          <RotateCw className={`h-4 w-4 mr-2 ${isReprocessing ? 'animate-spin' : ''}`} aria-hidden="true" />
           {isReprocessing ? 'Reprocessing...' : 'Reload Extraction'}
         </Button>
         <Button 
           variant="outline" 
           size="sm" 
           onClick={onViewRawData}
+          aria-label="View extracted data"
         >
-          <Eye className="h-4 w-4 mr-2" />
+          <Eye className="h-4 w-4 mr-2" aria-hidden="true" />
           View Data
         </Button>
       </CardFooter>
