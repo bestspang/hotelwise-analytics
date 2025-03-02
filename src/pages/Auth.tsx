@@ -52,6 +52,11 @@ const Auth: React.FC = () => {
           </div>
         )}
         
+        <div className="w-full max-w-md text-center mb-4">
+          <h1 className="text-2xl font-bold mb-2">Hotel Financial Analysis</h1>
+          <p className="text-muted-foreground">Advanced analytics for hotel management</p>
+        </div>
+        
         <AuthContainer
           email={email}
           password={password}
