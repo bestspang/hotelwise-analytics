@@ -1,195 +1,303 @@
 
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.31.0';
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 serve(async (req) => {
   // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Get the file ID and path from the request body
-    const { fileId, filePath, filename } = await req.json();
-    console.log(`Processing file: ${filename} (ID: ${fileId}, Path: ${filePath})`);
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Get request data
+    const payload = await req.json();
+    const { fileId, filePath, filename, isReprocessing = false, notifyOnCompletion = false } = payload;
 
     if (!fileId || !filePath) {
-      throw new Error('File ID and path are required');
+      return new Response(
+        JSON.stringify({ error: "Missing required parameters" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+      );
     }
 
-    // Initialize Supabase client using service role key for admin access
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    // Create a background task for processing to continue even if the user closes the browser
+    const processingPromise = async () => {
+      try {
+        console.log(`Starting ${isReprocessing ? 're' : ''}processing for file: ${filename}`);
+        
+        // Get file from storage
+        const { data: fileData, error: fileError } = await supabase.storage
+          .from("pdf_files")
+          .download(filePath);
 
-    // Download the file from Storage
-    console.log(`Downloading file from path: ${filePath}`);
-    const { data: fileData, error: downloadError } = await supabaseAdmin.storage
-      .from('pdf_files')
-      .download(filePath);
+        if (fileError) {
+          console.error("Error downloading file:", fileError);
+          
+          // Update file status to error
+          await supabase
+            .from("uploaded_files")
+            .update({ 
+              processed: true, 
+              extracted_data: { 
+                error: true, 
+                message: `Failed to download file: ${fileError.message}` 
+              } 
+            })
+            .eq("id", fileId);
+            
+          return;
+        }
 
-    if (downloadError) {
-      console.error('Error downloading file:', downloadError);
-      throw new Error(`Failed to download file: ${downloadError.message}`);
-    }
+        // Convert file data to text
+        const pdfText = await extractTextFromPdf(fileData);
+        
+        // Identify document type
+        const documentType = identifyDocumentType(pdfText, filename);
+        console.log(`Identified document type: ${documentType}`);
+        
+        // Extract relevant data based on document type
+        const extractedData = await extractDataFromPdf(pdfText, documentType);
+        
+        // Check for potential data overlaps with existing records
+        const overlaps = await detectDataOverlaps(supabase, extractedData, documentType);
+        
+        // Check for data discrepancies
+        const discrepancies = findDataDiscrepancies(extractedData, documentType);
+        
+        // Prepare the final extracted data object
+        const finalExtractedData = {
+          documentType,
+          rawText: pdfText.substring(0, 1000), // Store a preview of the text
+          extractedData,
+          processingDate: new Date().toISOString(),
+          isReprocessed: isReprocessing,
+          overlaps,
+          discrepancies
+        };
 
-    // Determine document type based on file name pattern
-    let documentType = 'Unknown';
-    if (filename.toLowerCase().includes('cityledger')) {
-      documentType = 'City Ledger';
-    } else if (filename.toLowerCase().includes('expense')) {
-      documentType = 'Expense Voucher';
-    } else if (filename.toLowerCase().includes('monthly') || filename.toLowerCase().includes('statistics')) {
-      documentType = 'Monthly Statistics';
-    } else if (filename.toLowerCase().includes('occupancy')) {
-      documentType = 'Occupancy Report';
-    } else if (filename.toLowerCase().includes('night') || filename.toLowerCase().includes('audit')) {
-      documentType = 'Night Audit';
-    } else if (filename.toLowerCase().includes('noshow')) {
-      documentType = 'No-show Report';
-    }
+        // Update file record with extracted data
+        const { error: updateError } = await supabase
+          .from("uploaded_files")
+          .update({
+            processed: true,
+            document_type: documentType,
+            extracted_data: finalExtractedData
+          })
+          .eq("id", fileId);
 
-    console.log(`Detected document type: ${documentType}`);
-    
-    // Simulate AI processing with mock data based on document type
-    let extractedData: any = {
-      documentType,
-      processingDate: new Date().toISOString(),
-      confidence: Math.floor(Math.random() * 10) + 90, // 90-99% confidence
-      dbRecordId: fileId,
+        if (updateError) {
+          console.error("Error updating file record:", updateError);
+          return;
+        }
+
+        console.log(`Completed processing for file: ${filename}`);
+        
+        // If notification was requested, send a notification
+        if (notifyOnCompletion) {
+          await sendProcessingCompletionNotification(supabase, fileId, filename, documentType);
+        }
+      } catch (error) {
+        console.error("Unexpected error during processing:", error);
+        
+        // Update file status to error
+        await supabase
+          .from("uploaded_files")
+          .update({ 
+            processed: true, 
+            extracted_data: { 
+              error: true, 
+              message: `Unexpected error: ${error.message}` 
+            } 
+          })
+          .eq("id", fileId);
+      }
     };
 
-    // Add type-specific mock data
-    switch (documentType) {
-      case 'City Ledger':
-        extractedData = {
-          ...extractedData,
-          accountName: 'Luxury Tours & Travel Co.',
-          referenceNumber: 'CL-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0'),
-          openingBalance: parseFloat((Math.random() * 5000 + 1000).toFixed(2)),
-          closingBalance: parseFloat((Math.random() * 5000 + 1000).toFixed(2)),
-          charges: parseFloat((Math.random() * 3000 + 500).toFixed(2)),
-          payments: parseFloat((Math.random() * 3000 + 500).toFixed(2)),
-        };
-        break;
-      case 'Expense Voucher':
-        extractedData = {
-          ...extractedData,
-          expenseAmount: parseFloat((Math.random() * 1000 + 100).toFixed(2)),
-          expenseType: ['Maintenance', 'Food & Beverage', 'Utilities', 'Payroll', 'Marketing'][Math.floor(Math.random() * 5)],
-          expenseDate: new Date().toISOString().split('T')[0],
-          taxesIncluded: parseFloat((Math.random() * 100).toFixed(2)),
-          vendorName: ['ABC Supplies', 'XYZ Services', 'Premium Foods', 'Metro Utilities', 'Global Marketing'][Math.floor(Math.random() * 5)],
-        };
-        break;
-      case 'Monthly Statistics':
-        extractedData = {
-          ...extractedData,
-          reportMonth: new Date().toISOString().substr(0, 7),
-          occupancyRate: parseFloat((Math.random() * 30 + 60).toFixed(1)),
-          averageDailyRate: parseFloat((Math.random() * 100 + 150).toFixed(2)),
-          revPAR: parseFloat((Math.random() * 80 + 100).toFixed(2)),
-          totalRevenue: parseFloat((Math.random() * 500000 + 300000).toFixed(2)),
-          revenueBreakdown: {
-            rooms: parseFloat((Math.random() * 0.2 + 0.6).toFixed(2)),
-            foodAndBeverage: parseFloat((Math.random() * 0.1 + 0.2).toFixed(2)),
-            other: parseFloat((Math.random() * 0.1).toFixed(2)),
-          },
-        };
-        break;
-      case 'Occupancy Report':
-        extractedData = {
-          ...extractedData,
-          occupancyRate: parseFloat((Math.random() * 30 + 60).toFixed(1)),
-          averageRate: parseFloat((Math.random() * 100 + 150).toFixed(2)),
-          revPAR: parseFloat((Math.random() * 80 + 100).toFixed(2)),
-          totalRooms: 100 + Math.floor(Math.random() * 100),
-          occupiedRooms: 60 + Math.floor(Math.random() * 40),
-          reportDate: new Date().toISOString().split('T')[0],
-        };
-        break;
-      case 'Night Audit':
-        extractedData = {
-          ...extractedData,
-          totalRevenue: parseFloat((Math.random() * 20000 + 10000).toFixed(2)),
-          roomRevenue: parseFloat((Math.random() * 15000 + 8000).toFixed(2)),
-          fbRevenue: parseFloat((Math.random() * 5000 + 2000).toFixed(2)),
-          occupancyPercent: parseFloat((Math.random() * 30 + 60).toFixed(1)),
-          adr: parseFloat((Math.random() * 100 + 150).toFixed(2)),
-          auditDate: new Date().toISOString().split('T')[0],
-        };
-        break;
-      case 'No-show Report':
-        extractedData = {
-          ...extractedData,
-          numberOfNoShows: Math.floor(Math.random() * 10) + 1,
-          potentialRevenueLoss: parseFloat((Math.random() * 2000 + 500).toFixed(2)),
-          reportDate: new Date().toISOString().split('T')[0],
-          bookingSources: ['Direct Website', 'OTA', 'Travel Agent', 'Phone Reservation'].slice(0, Math.floor(Math.random() * 3) + 1),
-        };
-        break;
-      default:
-        extractedData.genericData = {
-          text: "Sample extracted text from the document",
-          date: new Date().toISOString().split('T')[0],
-          amount: parseFloat((Math.random() * 1000 + 100).toFixed(2)),
-        };
-    }
+    // Start background processing (will continue even if response is sent)
+    EdgeRuntime.waitUntil(processingPromise());
 
-    console.log('Generated mock extracted data');
-
-    // Update the file record with the extracted data
-    const { error: updateError } = await supabaseAdmin
-      .from('uploaded_files')
-      .update({ 
-        processed: true, 
-        extracted_data: extractedData,
-        document_type: documentType
-      })
-      .eq('id', fileId);
-
-    if (updateError) {
-      console.error('Error updating file record:', updateError);
-      throw new Error(`Failed to update file record: ${updateError.message}`);
-    }
-
-    console.log('Successfully processed file and updated record');
-
+    // Return immediately to client
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'File processed successfully',
-        documentType,
-        extractedData 
+        message: `PDF processing started for ${filename}`,
+        fileId: fileId,
+        backgroundProcessing: true
       }),
-      { 
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        } 
-      }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 202 }
     );
   } catch (error) {
-    console.error('Error in process-pdf function:', error);
+    console.error("Unexpected error:", error);
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error.message 
-      }),
-      { 
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        },
-        status: 500 
-      }
+      JSON.stringify({ error: "An unexpected error occurred" }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
     );
   }
+});
+
+// Mock function for PDF text extraction (replace with actual implementation)
+async function extractTextFromPdf(fileData: Blob): Promise<string> {
+  // In a real implementation, this would use a PDF parsing library
+  // For now, we'll return a mock result
+  return "This is extracted text from the PDF file. It would contain financial data, dates, amounts, etc.";
+}
+
+// Function to identify document type based on content and filename
+function identifyDocumentType(pdfText: string, filename: string): string {
+  // In a real implementation, this would use NLP or pattern matching
+  // For demonstration, we'll use the filename to determine the type
+  const lowerFilename = filename.toLowerCase();
+  
+  if (lowerFilename.includes("expense") || lowerFilename.includes("voucher")) {
+    return "Expense Voucher";
+  } else if (lowerFilename.includes("statistics") || lowerFilename.includes("monthly")) {
+    return "Monthly Statistics";
+  } else if (lowerFilename.includes("occupancy")) {
+    return "Occupancy Report";
+  } else if (lowerFilename.includes("ledger") || lowerFilename.includes("city")) {
+    return "City Ledger";
+  } else if (lowerFilename.includes("audit") || lowerFilename.includes("night")) {
+    return "Night Audit";
+  } else if (lowerFilename.includes("no-show") || lowerFilename.includes("noshow")) {
+    return "No-show Report";
+  } else {
+    // Default or unknown
+    return "Unknown Document";
+  }
+}
+
+// Mock function for data extraction (replace with actual implementation)
+async function extractDataFromPdf(pdfText: string, documentType: string): Promise<any> {
+  // In a real implementation, this would use specific extraction logic for each document type
+  // For demonstration, we'll return mock data based on document type
+  switch (documentType) {
+    case "Expense Voucher":
+      return {
+        date: "2025-02-15",
+        amount: 1250.75,
+        category: "Maintenance",
+        vendor: "ABC Supplies"
+      };
+    case "Monthly Statistics":
+      return {
+        month: "January 2025",
+        totalRevenue: 125000.50,
+        occupancyRate: 78.5,
+        averageDailyRate: 195.25
+      };
+    case "Occupancy Report":
+      return {
+        date: "2025-02-15",
+        totalRooms: 120,
+        occupiedRooms: 98,
+        occupancyRate: 81.7,
+        averageDailyRate: 189.50
+      };
+    default:
+      return {
+        extractionDate: new Date().toISOString(),
+        documentType: documentType
+      };
+  }
+}
+
+// Function to detect potential data overlaps with existing records
+async function detectDataOverlaps(supabase: any, extractedData: any, documentType: string): Promise<any[]> {
+  // This is a simplified implementation - in a real system, you would check
+  // the appropriate tables based on document type and look for matching records
+  
+  // For demonstration, we'll return a mock overlap
+  return [
+    {
+      id: crypto.randomUUID(),
+      entity_type: documentTypeToEntityType(documentType),
+      entity_id: crypto.randomUUID(),
+      existing_data: {
+        date: "2025-02-15",
+        totalRevenue: 120000.00,
+        occupancyRate: 75.0
+      },
+      new_data: {
+        date: "2025-02-15",
+        totalRevenue: 125000.50,
+        occupancyRate: 78.5,
+        averageDailyRate: 195.25
+      }
+    }
+  ];
+}
+
+// Function to find data that can't be mapped to database columns
+function findDataDiscrepancies(extractedData: any, documentType: string): any[] {
+  // In a real implementation, this would compare extracted fields against known database schema
+  // For demonstration, we'll return mock discrepancies
+  
+  return [
+    {
+      field: "unknownMetric",
+      value: "42.5%",
+      reason: "No matching database column"
+    },
+    {
+      field: "specialDiscount",
+      value: "Corporate rate",
+      reason: "Field not in schema"
+    }
+  ];
+}
+
+// Helper function to map document types to entity types
+function documentTypeToEntityType(documentType: string): string {
+  const mapping: Record<string, string> = {
+    "Expense Voucher": "expense_voucher",
+    "Monthly Statistics": "financial_report",
+    "Occupancy Report": "occupancy_report",
+    "City Ledger": "city_ledger",
+    "Night Audit": "night_audit",
+    "No-show Report": "no_show_report"
+  };
+  
+  return mapping[documentType] || "unknown";
+}
+
+// Function to send notification when processing is complete
+async function sendProcessingCompletionNotification(
+  supabase: any, 
+  fileId: string, 
+  filename: string, 
+  documentType: string
+): Promise<void> {
+  try {
+    // In a real implementation, this could send an email using a service like Resend
+    // or create an in-app notification
+    
+    // For now, we'll create an in-app notification in the notifications table
+    const { error } = await supabase
+      .from("notifications")
+      .insert([{
+        user_id: "system", // In a real app, you'd get the user ID from the request
+        notification_text: `Processing of "${filename}" (${documentType}) is complete.`,
+        read_status: false
+      }]);
+      
+    if (error) {
+      console.error("Error creating notification:", error);
+    }
+  } catch (error) {
+    console.error("Error sending notification:", error);
+  }
+}
+
+// Handle function shutdown
+addEventListener("beforeunload", (ev) => {
+  console.log("Function shutting down:", ev.detail?.reason);
 });

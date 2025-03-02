@@ -69,14 +69,15 @@ export async function uploadPdfFile(file: File) {
     // Show toast indicating that processing is starting
     toast.info(`Processing ${file.name} with AI data extraction...`);
     
-    // Call the new Edge Function to process the PDF with OpenAI
+    // Call the Edge Function to process the PDF with OpenAI
     try {
       const { data: processingData, error: processingError } = await supabase.functions
         .invoke('process-pdf', {
           body: { 
             fileId: fileData.id, 
             filePath,
-            filename: file.name 
+            filename: file.name,
+            notifyOnCompletion: true // Request email/notification when processing is complete
           }
         });
         
@@ -99,7 +100,7 @@ export async function uploadPdfFile(file: File) {
         return null;
       }
       
-      toast.success(`Successfully extracted data from ${file.name}`);
+      toast.success(`${file.name} uploaded. Processing will continue in the background.`);
       
       return {
         ...fileData,
@@ -214,5 +215,127 @@ export async function downloadExtractedData(fileId: string) {
     console.error('Unexpected error downloading data:', error);
     toast.error('An unexpected error occurred while downloading data');
     return null;
+  }
+}
+
+export async function reprocessFile(fileId: string) {
+  try {
+    // Get file info
+    const { data: fileData, error: fileError } = await supabase
+      .from('uploaded_files')
+      .select('file_path, filename')
+      .eq('id', fileId)
+      .single();
+      
+    if (fileError) {
+      console.error('Error fetching file to reprocess:', fileError);
+      toast.error('Failed to find the file to reprocess');
+      throw new Error('File not found');
+    }
+    
+    // Reset processing status
+    await supabase
+      .from('uploaded_files')
+      .update({ 
+        processed: false,
+        extracted_data: null
+      })
+      .eq('id', fileId);
+    
+    // Trigger reprocessing via Edge Function
+    const { data: processingData, error: processingError } = await supabase.functions
+      .invoke('process-pdf', {
+        body: { 
+          fileId: fileId, 
+          filePath: fileData.file_path,
+          filename: fileData.filename,
+          isReprocessing: true,
+          notifyOnCompletion: true
+        }
+      });
+    
+    if (processingError) {
+      console.error('Error reprocessing file with AI:', processingError);
+      toast.error(`AI reprocessing failed: ${processingError.message}`);
+      
+      // Update file status to error
+      await supabase
+        .from('uploaded_files')
+        .update({ 
+          processed: true, 
+          extracted_data: { 
+            error: true, 
+            message: processingError.message 
+          } 
+        })
+        .eq('id', fileId);
+        
+      throw new Error(processingError.message);
+    }
+    
+    return processingData;
+  } catch (error) {
+    console.error('Unexpected error reprocessing file:', error);
+    throw error;
+  }
+}
+
+export async function resolveDataDiscrepancies(fileId: string, mappings: Record<string, string>) {
+  try {
+    const { error } = await supabase.functions
+      .invoke('resolve-discrepancies', {
+        body: { 
+          fileId,
+          mappings
+        }
+      });
+      
+    if (error) {
+      console.error('Error resolving discrepancies:', error);
+      throw new Error(error.message);
+    }
+    
+    // Update UI to reflect the resolved discrepancies
+    await supabase
+      .from('uploaded_files')
+      .update({ 
+        processed: true
+      })
+      .eq('id', fileId);
+    
+    return true;
+  } catch (error) {
+    console.error('Unexpected error resolving discrepancies:', error);
+    throw error;
+  }
+}
+
+export async function resolveDataOverlaps(fileId: string, resolutions: Record<string, string>) {
+  try {
+    const { error } = await supabase.functions
+      .invoke('resolve-overlaps', {
+        body: { 
+          fileId,
+          resolutions
+        }
+      });
+      
+    if (error) {
+      console.error('Error resolving overlaps:', error);
+      throw new Error(error.message);
+    }
+    
+    // Update UI to reflect the resolved overlaps
+    await supabase
+      .from('uploaded_files')
+      .update({ 
+        processed: true
+      })
+      .eq('id', fileId);
+    
+    return true;
+  } catch (error) {
+    console.error('Unexpected error resolving overlaps:', error);
+    throw error;
   }
 }
