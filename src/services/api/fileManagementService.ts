@@ -63,7 +63,7 @@ export async function deleteUploadedFile(fileId: string) {
       return false;
     }
     
-    // Delete from database
+    // Delete from database with a HARD DELETE to ensure it's completely removed
     const { error: dbError } = await supabase
       .from('uploaded_files')
       .delete()
@@ -79,10 +79,28 @@ export async function deleteUploadedFile(fileId: string) {
       return false;
     }
     
+    // Double-check deletion was successful by trying to fetch the file again
+    const { data: checkData } = await supabase
+      .from('uploaded_files')
+      .select('id')
+      .eq('id', fileId)
+      .single();
+      
+    if (checkData) {
+      toast({
+        title: "Warning",
+        description: `File deletion may not be complete. Please try again.`,
+        variant: "destructive"
+      });
+      console.error('File still exists after deletion attempt:', checkData);
+      return false;
+    }
+    
     toast({
       title: "Success",
       description: `File "${fileData.filename}" deleted successfully`,
     });
+    
     return true;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getUploadedFiles, deleteUploadedFile } from '@/services/uploadService';
@@ -18,20 +18,24 @@ const UploadedFilesList = () => {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
   const [lastRefresh, setLastRefresh] = useState(new Date());
+  const [deletedFileIds, setDeletedFileIds] = useState<Set<string>>(new Set());
 
-  const fetchFiles = async () => {
+  const fetchFiles = useCallback(async () => {
     setIsLoading(true);
     try {
       const uploadedFiles = await getUploadedFiles();
       console.log('Fetched files:', uploadedFiles);
-      setFiles(uploadedFiles);
+      
+      // Filter out any files that have been deleted during this session
+      const filteredFiles = uploadedFiles.filter(file => !deletedFileIds.has(file.id));
+      setFiles(filteredFiles);
     } catch (error) {
       console.error('Error fetching files:', error);
       toast.error('Failed to fetch uploaded files');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [deletedFileIds]);
 
   useEffect(() => {
     fetchFiles();
@@ -39,16 +43,24 @@ const UploadedFilesList = () => {
     // Poll for updates every 10 seconds
     const intervalId = setInterval(fetchFiles, 10000);
     return () => clearInterval(intervalId);
-  }, [lastRefresh]);
+  }, [lastRefresh, fetchFiles]);
 
   const handleDelete = async (fileId: string) => {
     try {
       const success = await deleteUploadedFile(fileId);
       if (success) {
+        // Add to our local set of deleted file IDs
+        setDeletedFileIds(prev => new Set([...prev, fileId]));
+        
+        // Update the files list immediately
         setFiles(files.filter(file => file.id !== fileId));
+        
         if (previewOpen && selectedFile && selectedFile.id === fileId) {
           setPreviewOpen(false);
         }
+        
+        // Force a refresh of the file list
+        setLastRefresh(new Date());
       }
     } catch (error) {
       console.error('Error deleting file:', error);
