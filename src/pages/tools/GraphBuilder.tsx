@@ -8,28 +8,26 @@ import GraphControls from '@/components/graph-builder/GraphControls';
 import MetricComparisonCard from '@/components/graph-builder/MetricComparisonCard';
 import useChartData from '@/components/graph-builder/useChartData';
 import ChartPreviewSection from '@/components/graph-builder/ChartPreviewSection';
-import MetricsManager from '@/components/graph-builder/MetricsManager';
+import MetricsManager, { MetricItem } from '@/components/graph-builder/MetricsManager';
 
 const GraphBuilder: React.FC = () => {
   // State for the chart builder
   const [chartType, setChartType] = useState('line');
-  const [metric, setMetric] = useState('revpar');
   const [timeframe, setTimeframe] = useState('monthly');
   const [showLegend, setShowLegend] = useState(true);
   const [showGrid, setShowGrid] = useState(true);
   const [chartTitle, setChartTitle] = useState('Custom Analysis');
   
   // State for multi-metric visualization
-  const [metrics, setMetrics] = useState([
+  const [metrics, setMetrics] = useState<MetricItem[]>([
     { id: 'metric-1', name: 'RevPAR', selected: true, color: COLORS[0] },
     { id: 'metric-2', name: 'Occupancy', selected: false, color: COLORS[1] },
     { id: 'metric-3', name: 'ADR', selected: false, color: COLORS[2] },
     { id: 'metric-4', name: 'GOPPAR', selected: false, color: COLORS[3] },
   ]);
 
-  // Custom hooks for chart data and metrics management
-  const { isLoading, chartData, error } = useChartData({ metric });
-  const { toggleMetric, onDragEnd } = MetricsManager({ metrics, setMetrics });
+  // Custom hooks for chart data
+  const { isLoading, chartData, error } = useChartData({ selectedMetrics: metrics, timeframe });
 
   return (
     <MainLayout title="Custom Graph Builder" subtitle="Create your own visualizations">
@@ -59,12 +57,16 @@ const GraphBuilder: React.FC = () => {
                 setChartType={setChartType}
                 timeframe={timeframe}
                 setTimeframe={setTimeframe}
-                metric={metric}
-                setMetric={setMetric}
                 showLegend={showLegend}
                 setShowLegend={setShowLegend}
                 showGrid={showGrid}
                 setShowGrid={setShowGrid}
+              />
+              
+              {/* Metrics Manager */}
+              <MetricsManager 
+                metrics={metrics}
+                setMetrics={setMetrics}
               />
             </CardContent>
           </Card>
@@ -78,16 +80,8 @@ const GraphBuilder: React.FC = () => {
               chartTitle={chartTitle}
               chartType={chartType}
               timeframe={timeframe}
-              metric={metric}
+              selectedMetrics={metrics}
               showGrid={showGrid}
-              showLegend={showLegend}
-            />
-
-            {/* Multi-Metric Visualization Builder */}
-            <MetricComparisonCard
-              metrics={metrics}
-              toggleMetric={toggleMetric}
-              onDragEnd={onDragEnd}
               showLegend={showLegend}
             />
           </div>

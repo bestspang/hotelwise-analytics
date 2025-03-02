@@ -2,6 +2,7 @@
 import React from 'react';
 import { ResponsiveContainer, LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { mockChannelData, mockSegmentData } from '@/components/graph-builder/mockData';
+import { MetricItem } from './MetricsManager';
 
 // Helper to get the full metric name
 export const getMetricName = (metric: string): string => {
@@ -25,7 +26,7 @@ export const getMetricName = (metric: string): string => {
 
 interface ChartProps {
   chartType: string;
-  metric: string;
+  metrics: MetricItem[];
   data: any[];
   showGrid: boolean;
   showLegend: boolean;
@@ -36,16 +37,18 @@ export const COLORS = ['#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#
 
 const ChartTypes: React.FC<ChartProps> = ({
   chartType,
-  metric,
+  metrics,
   data,
   showGrid,
   showLegend
 }) => {
-  // Use the appropriate data based on the metric
+  // Use the appropriate data based on the metrics
   let chartData = data;
-  if (metric === 'channels') {
+  const isPieChart = chartType === 'pie';
+  
+  if (metrics.length === 1 && metrics[0].id === 'channels') {
     chartData = mockChannelData;
-  } else if (metric === 'segments') {
+  } else if (metrics.length === 1 && metrics[0].id === 'segments') {
     chartData = mockSegmentData;
   }
   
@@ -59,7 +62,7 @@ const ChartTypes: React.FC<ChartProps> = ({
             margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
           >
             {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />}
-            <XAxis dataKey={chartData === mockChannelData || chartData === mockSegmentData ? "name" : "month"} />
+            <XAxis dataKey={isPieChart ? "name" : "month"} />
             <YAxis />
             <Tooltip
               contentStyle={{ 
@@ -68,16 +71,20 @@ const ChartTypes: React.FC<ChartProps> = ({
                 border: 'none',
                 padding: '8px 12px',
               }}
-              formatter={(value: number) => [`${value}`, metric === 'occupancy' ? 'Occupancy %' : metric.toUpperCase()]}
             />
             {showLegend && <Legend verticalAlign="top" height={36} />}
-            <Line 
-              type="monotone" 
-              dataKey="value" 
-              stroke="#3b82f6" 
-              activeDot={{ r: 8 }}
-              name={getMetricName(metric)}
-            />
+            {metrics.map((metric, index) => (
+              metric.selected && (
+                <Line 
+                  key={metric.id}
+                  type="monotone" 
+                  dataKey={metric.id}
+                  stroke={metric.color} 
+                  activeDot={{ r: 8 }}
+                  name={metric.name}
+                />
+              )
+            ))}
           </LineChart>
         </ResponsiveContainer>
       );
@@ -90,7 +97,7 @@ const ChartTypes: React.FC<ChartProps> = ({
             margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
           >
             {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />}
-            <XAxis dataKey={chartData === mockChannelData || chartData === mockSegmentData ? "name" : "month"} />
+            <XAxis dataKey={isPieChart ? "name" : "month"} />
             <YAxis />
             <Tooltip
               contentStyle={{ 
@@ -99,15 +106,19 @@ const ChartTypes: React.FC<ChartProps> = ({
                 border: 'none',
                 padding: '8px 12px',
               }}
-              formatter={(value: number) => [`${value}`, metric === 'occupancy' ? 'Occupancy %' : metric.toUpperCase()]}
             />
             {showLegend && <Legend verticalAlign="top" height={36} />}
-            <Bar 
-              dataKey="value" 
-              fill="#3b82f6" 
-              name={getMetricName(metric)}
-              radius={[4, 4, 0, 0]}
-            />
+            {metrics.map((metric, index) => (
+              metric.selected && (
+                <Bar 
+                  key={metric.id}
+                  dataKey={metric.id} 
+                  fill={metric.color} 
+                  name={metric.name}
+                  radius={[4, 4, 0, 0]}
+                />
+              )
+            ))}
           </BarChart>
         </ResponsiveContainer>
       );
@@ -119,14 +130,18 @@ const ChartTypes: React.FC<ChartProps> = ({
             data={chartData}
             margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
           >
-            <defs>
-              <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1}/>
-              </linearGradient>
-            </defs>
+            {metrics.map((metric, index) => (
+              metric.selected && (
+                <defs key={`gradient-${metric.id}`}>
+                  <linearGradient id={`color${metric.id}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={metric.color} stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor={metric.color} stopOpacity={0.1}/>
+                  </linearGradient>
+                </defs>
+              )
+            ))}
             {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />}
-            <XAxis dataKey={chartData === mockChannelData || chartData === mockSegmentData ? "name" : "month"} />
+            <XAxis dataKey={isPieChart ? "name" : "month"} />
             <YAxis />
             <Tooltip
               contentStyle={{ 
@@ -135,17 +150,21 @@ const ChartTypes: React.FC<ChartProps> = ({
                 border: 'none',
                 padding: '8px 12px',
               }}
-              formatter={(value: number) => [`${value}`, metric === 'occupancy' ? 'Occupancy %' : metric.toUpperCase()]}
             />
             {showLegend && <Legend verticalAlign="top" height={36} />}
-            <Area 
-              type="monotone" 
-              dataKey="value" 
-              stroke="#3b82f6" 
-              fillOpacity={1} 
-              fill="url(#colorValue)" 
-              name={getMetricName(metric)}
-            />
+            {metrics.map((metric, index) => (
+              metric.selected && (
+                <Area 
+                  key={metric.id}
+                  type="monotone" 
+                  dataKey={metric.id} 
+                  stroke={metric.color} 
+                  fillOpacity={1} 
+                  fill={`url(#color${metric.id})`} 
+                  name={metric.name}
+                />
+              )
+            ))}
           </AreaChart>
         </ResponsiveContainer>
       );

@@ -37,7 +37,28 @@ const useChartData = ({ selectedMetrics, timeframe }: UseChartDataProps) => {
 
         const dataPromises = activeMetrics.map(async (metric) => {
           try {
-            const metricType = metric.id as 'revpar' | 'occupancy' | 'adr' | 'goppar';
+            const metricId = metric.id.toLowerCase();
+            // Map metric ids to the actual api metric types
+            let metricType: 'revpar' | 'occupancy' | 'goppar' | 'adr';
+            
+            // Convert metric id to api metric type
+            switch(metricId) {
+              case 'metric-1':
+                metricType = 'revpar';
+                break;
+              case 'metric-2':
+                metricType = 'occupancy';
+                break;
+              case 'metric-3':
+                metricType = 'adr';
+                break;
+              case 'metric-4':
+                metricType = 'goppar';
+                break;
+              default:
+                metricType = 'revpar'; // fallback
+            }
+            
             const months = timeframe === 'annual' ? 12 : timeframe === 'quarterly' ? 3 : 1;
             const data = await fetchTrendData(undefined, metricType, months);
             

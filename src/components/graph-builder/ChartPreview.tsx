@@ -2,12 +2,13 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import ChartTypes from './ChartTypes';
+import { MetricItem } from './MetricsManager';
 
 interface ChartPreviewProps {
   chartTitle: string;
   chartType: string;
   timeframe: string;
-  metric: string;
+  metrics: MetricItem[];
   data: any[];
   showGrid: boolean;
   showLegend: boolean;
@@ -17,7 +18,7 @@ const ChartPreview: React.FC<ChartPreviewProps> = ({
   chartTitle,
   chartType,
   timeframe,
-  metric,
+  metrics,
   data,
   showGrid,
   showLegend
@@ -36,7 +37,7 @@ const ChartPreview: React.FC<ChartPreviewProps> = ({
         <div className="h-[400px] w-full">
           <ChartTypes 
             chartType={chartType} 
-            metric={metric} 
+            metrics={metrics} 
             data={data} 
             showGrid={showGrid} 
             showLegend={showLegend} 

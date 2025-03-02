@@ -5,13 +5,13 @@ import { TrendDataPoint } from './types/dashboardTypes';
 /**
  * Fetches trend data for RevPAR, GOPPAR, and Occupancy Rate
  * @param hotelId The ID of the hotel to fetch data for
- * @param metric The metric to fetch ('revpar', 'goppar', 'occupancy')
+ * @param metric The metric to fetch ('revpar', 'goppar', 'occupancy', 'adr')
  * @param months The number of months to fetch data for
  * @returns Array of trend data points or empty array if data is unavailable
  */
 export async function fetchTrendData(
   hotelId?: string, 
-  metric: 'revpar' | 'goppar' | 'occupancy' = 'revpar',
+  metric: 'revpar' | 'goppar' | 'occupancy' | 'adr' = 'revpar',
   months: number = 12
 ): Promise<TrendDataPoint[]> {
   try {
@@ -33,10 +33,10 @@ export async function fetchTrendData(
     startDate.setMonth(startDate.getMonth() - months);
     const startDateStr = startDate.toISOString().split('T')[0];
 
-    if (metric === 'revpar' || metric === 'occupancy') {
+    if (metric === 'revpar' || metric === 'occupancy' || metric === 'adr') {
       const { data, error } = await supabase
         .from('occupancy_reports')
-        .select('date, revenue_per_available_room, occupancy_rate')
+        .select('date, revenue_per_available_room, occupancy_rate, average_daily_rate')
         .eq('hotel_id', hotelId)
         .gte('date', startDateStr)
         .order('date', { ascending: true });
@@ -48,7 +48,11 @@ export async function fetchTrendData(
 
       return data.map(item => ({
         date: new Date(item.date).toLocaleString('default', { month: 'short' }),
-        value: metric === 'revpar' ? item.revenue_per_available_room : item.occupancy_rate
+        value: metric === 'revpar' 
+               ? item.revenue_per_available_room 
+               : metric === 'occupancy' 
+                 ? item.occupancy_rate 
+                 : item.average_daily_rate
       }));
     } else if (metric === 'goppar') {
       // We need to join financial_reports with occupancy_reports to calculate GOPPAR
