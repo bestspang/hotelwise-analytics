@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { Navigate, Link } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Navigate, Link, useNavigate } from 'react-router-dom';
 import AuthContainer from '@/components/auth/AuthContainer';
 import CreateTestAccount from '@/components/auth/CreateTestAccount';
 import { useAuthPage } from '@/hooks/useAuthPage';
@@ -8,6 +8,17 @@ import { Button } from '@/components/ui/button';
 import { Wand2 } from 'lucide-react';
 
 const Auth: React.FC = () => {
+  const navigate = useNavigate();
+  const isDevelopment = import.meta.env.DEV;
+  
+  // In development mode, automatically redirect to dashboard
+  useEffect(() => {
+    if (isDevelopment) {
+      console.log('Development mode: Automatically redirecting to dashboard');
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isDevelopment, navigate]);
+
   const {
     user,
     loading,
@@ -38,59 +49,28 @@ const Auth: React.FC = () => {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const isDevelopment = import.meta.env.DEV;
+  // If in development mode and still rendering, show minimal UI with redirect button
+  if (isDevelopment) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800 p-4">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Development Mode</h1>
+          <p className="mb-6">Authentication is bypassed in development mode.</p>
+          <Button onClick={() => navigate('/dashboard')}>
+            Go to Dashboard
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
+  // Regular auth UI for production mode
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800 p-4">
       <div className="flex flex-col md:flex-row gap-8 items-center">
-        {isDevelopment && (
-          <div className="absolute top-4 right-4 z-10">
-            <Button asChild variant="outline" className="bg-green-200 text-green-800 hover:bg-green-300 border-green-400 font-bold shadow-md">
-              <Link to="/dashboard">
-                Skip to Dashboard (Dev Mode)
-              </Link>
-            </Button>
-          </div>
-        )}
-        
         <div className="w-full max-w-md text-center mb-4">
           <h1 className="text-2xl font-bold mb-2">Hotel Financial Analysis</h1>
           <p className="text-muted-foreground">Advanced analytics for hotel management</p>
-          
-          {isDevelopment && (
-            <div className="mt-4 flex flex-col gap-2">
-              <Button asChild variant="secondary" className="bg-blue-100 text-blue-800 hover:bg-blue-200">
-                <Link to="/dashboard">
-                  Enter Dev Mode (Skip Authentication)
-                </Link>
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                className="bg-amber-100 text-amber-800 hover:bg-amber-200 border-amber-300"
-                onClick={() => {
-                  // Auto create and sign in with a test account
-                  const testEmail = `test_${Math.floor(Math.random() * 10000)}@example.com`;
-                  const testPassword = 'password123';
-                  const testUsername = `TestUser${Math.floor(Math.random() * 10000)}`;
-                  
-                  handleEmailChange({ target: { value: testEmail } } as React.ChangeEvent<HTMLInputElement>);
-                  handlePasswordChange({ target: { value: testPassword } } as React.ChangeEvent<HTMLInputElement>);
-                  handleUsernameChange({ target: { value: testUsername } } as React.ChangeEvent<HTMLInputElement>);
-                  setActiveTab('signup');
-                  
-                  // Give state time to update
-                  setTimeout(() => {
-                    // Create a proper React.FormEvent instead of a generic Event
-                    const formEvent = { preventDefault: () => {} } as React.FormEvent<HTMLFormElement>;
-                    handleSignUp(formEvent);
-                  }, 100);
-                }}
-              >
-                <Wand2 className="mr-2 h-4 w-4" /> Create & Login with Test Account
-              </Button>
-            </div>
-          )}
         </div>
         
         <AuthContainer
@@ -114,13 +94,6 @@ const Auth: React.FC = () => {
           setRememberMe={setRememberMe}
           setResendEmail={setResendEmail}
         />
-        
-        {/* Only show test account creation in development mode */}
-        {isDevelopment && (
-          <div className="mt-8 md:mt-0">
-            <CreateTestAccount />
-          </div>
-        )}
       </div>
     </div>
   );

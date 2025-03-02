@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/auth';
 import { toast } from 'sonner';
 
 type UserRole = 'admin' | 'manager' | 'analyst';
@@ -15,7 +15,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children, 
   requiredRole = 'analyst' 
 }) => {
-  const { user, loading, checkPermission } = useAuth();
+  const { user, loading, sessionChecked, checkPermission } = useAuth();
   const location = useLocation();
   const isDevelopment = import.meta.env.DEV;
 
@@ -25,9 +25,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <>{children}</>;
   }
   
-  // In production, show loading state while checking auth
-  if (loading) {
-    // Could replace with a loading spinner component
+  // If session is still being checked, show loading state
+  if (loading || !sessionChecked) {
     return <div className="flex h-screen items-center justify-center">Loading...</div>;
   }
   

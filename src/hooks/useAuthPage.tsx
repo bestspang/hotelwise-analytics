@@ -7,6 +7,7 @@ export const useAuthPage = () => {
   const { user, loading, signIn, signUp, resendConfirmationEmail } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const isDevelopment = import.meta.env.DEV;
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -18,8 +19,15 @@ export const useAuthPage = () => {
   const [emailSent, setEmailSent] = useState(false);
   const [resendEmail, setResendEmail] = useState('');
 
-  // Check for error parameters in URL
+  // In development mode, redirect to dashboard
   useEffect(() => {
+    if (isDevelopment) {
+      console.log('Development mode: Redirecting from Auth page');
+      navigate('/dashboard', { replace: true });
+      return;
+    }
+    
+    // Only process URL parameters in production mode
     const searchParams = new URLSearchParams(location.search);
     const hashParams = new URLSearchParams(location.hash.substring(1));
     
@@ -36,18 +44,23 @@ export const useAuthPage = () => {
     if (requestedTab === 'signup' || requestedTab === 'signin') {
       setActiveTab(requestedTab);
     }
-  }, [location]);
+  }, [location, navigate, isDevelopment]);
 
   // Check authentication and redirect
   useEffect(() => {
-    if (!loading && user) {
-      console.log('User authenticated, redirecting to dashboard');
+    if (isDevelopment || (!loading && user)) {
+      console.log('User authenticated or dev mode, redirecting to dashboard');
       navigate('/dashboard', { replace: true });
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, isDevelopment]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (isDevelopment) {
+      navigate('/dashboard');
+      return;
+    }
     
     if (!email || !password) {
       setAuthError('Please fill in all fields');
@@ -74,6 +87,11 @@ export const useAuthPage = () => {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (isDevelopment) {
+      navigate('/dashboard');
+      return;
+    }
+    
     if (!email || !password || !username) {
       setAuthError('Please fill in all fields');
       return;
@@ -97,6 +115,11 @@ export const useAuthPage = () => {
   };
 
   const handleResendConfirmation = async () => {
+    if (isDevelopment) {
+      navigate('/dashboard');
+      return;
+    }
+    
     if (!resendEmail) {
       setAuthError('Please enter your email address');
       return;
