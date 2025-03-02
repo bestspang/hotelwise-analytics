@@ -35,78 +35,91 @@ export interface RevenueItem {
   totalSpend: number;
 }
 
-// Mock data generator for development
-const generateMockData = (date: string) => {
+// Helper function to fill mock data for development if needed
+const generateMockDataIfNeeded = async (date: string, hotelId: string) => {
+  // Check if we have data for this date
+  const { count } = await supabase
+    .from('daily_room_occupancy')
+    .select('*', { count: 'exact', head: true })
+    .eq('date', date)
+    .eq('hotel_id', hotelId);
+    
+  // If we already have data, don't generate mock data
+  if (count && count > 0) return;
+  
+  console.log('Generating mock data for development...');
   const totalRooms = 30;
   const occupiedRooms = Math.floor(Math.random() * 10) + 15; // 15-25 rooms occupied
-  const occupancyRate = (occupiedRooms / totalRooms) * 100;
   
   // Generate room data
-  const rooms: RoomData[] = [];
-  let totalRevenue = 0;
-  const revenueItems: RevenueItem[] = [];
-  
   for (let i = 1; i <= totalRooms; i++) {
     const floor = Math.ceil(i / 10);
     const roomNumber = `${floor}${String(i % 10 || 10).padStart(2, '0')}`;
     const isOccupied = i <= occupiedRooms;
+    const roomType = i % 3 === 0 ? 'Suite' : i % 2 === 0 ? 'Deluxe' : 'Standard';
     
-    let roomData: RoomData = {
-      roomNumber,
-      isOccupied,
-      roomType: i % 3 === 0 ? 'Suite' : i % 2 === 0 ? 'Deluxe' : 'Standard',
-      floor,
-    };
+    // Insert room occupancy data
+    const { error: roomError } = await supabase
+      .from('daily_room_occupancy')
+      .insert({
+        hotel_id: hotelId,
+        date,
+        room_number: roomNumber,
+        is_occupied: isOccupied,
+        room_type: roomType,
+        floor,
+        ...(isOccupied && {
+          guest_name: `Guest ${i}`,
+          check_in_date: date,
+          check_out_date: date,
+          room_rate: i % 3 === 0 ? 250 : i % 2 === 0 ? 180 : 120,
+          additional_spend: Math.floor(Math.random() * 100)
+        })
+      });
+      
+    if (roomError) console.error('Error inserting room data:', roomError);
     
-    // Add additional data for occupied rooms
+    // Insert revenue data for occupied rooms
     if (isOccupied) {
       const roomRate = i % 3 === 0 ? 250 : i % 2 === 0 ? 180 : 120;
       const additionalSpend = Math.floor(Math.random() * 100);
       const totalSpend = roomRate + additionalSpend;
       
-      roomData = {
-        ...roomData,
-        guestName: `Guest ${i}`,
-        checkInDate: date,
-        checkOutDate: date, // Same day for simplicity
-        roomRate,
-        additionalSpend,
-        totalSpend,
-      };
-      
-      totalRevenue += totalSpend;
-      
-      // Create revenue breakdown
-      const revenueItem: RevenueItem = {
-        roomNumber,
-        roomRate,
-        additionalServices: [
-          { service: 'Minibar', amount: Math.floor(Math.random() * 30) },
-          { service: 'Room Service', amount: Math.floor(Math.random() * 70) },
-        ],
-        totalSpend,
-      };
-      
-      revenueItems.push(revenueItem);
+      const { data: revenueData, error: revenueError } = await supabase
+        .from('daily_revenue_breakdown')
+        .insert({
+          hotel_id: hotelId,
+          date,
+          room_number: roomNumber,
+          room_rate: roomRate,
+          total_spend: totalSpend
+        })
+        .select('id')
+        .single();
+        
+      if (revenueError) {
+        console.error('Error inserting revenue data:', revenueError);
+      } else if (revenueData) {
+        // Insert additional services
+        await supabase
+          .from('additional_services')
+          .insert([
+            {
+              daily_revenue_id: revenueData.id,
+              service: 'Minibar',
+              amount: Math.floor(Math.random() * 30)
+            },
+            {
+              daily_revenue_id: revenueData.id,
+              service: 'Room Service',
+              amount: Math.floor(Math.random() * 70)
+            }
+          ]);
+      }
     }
-    
-    rooms.push(roomData);
   }
   
-  // Calculate average daily rate
-  const averageDailyRate = totalRevenue / occupiedRooms;
-  
-  return {
-    summaryData: {
-      occupancyRate,
-      totalRevenue,
-      averageDailyRate,
-      totalRooms,
-      occupiedRooms,
-    },
-    roomData: rooms,
-    revenueData: revenueItems,
-  };
+  console.log('Mock data generation complete');
 };
 
 export const useDailySummaryData = (date: string) => {
@@ -120,13 +133,108 @@ export const useDailySummaryData = (date: string) => {
     setIsLoading(true);
     
     try {
-      // TODO: Replace with actual Supabase queries when database schema is ready
-      // For now, use mock data
-      const { summaryData, roomData, revenueData } = generateMockData(date);
+      // For development, use the first hotel in the database
+      const { data: hotels, error: hotelError } = await supabase
+        .from('hotels')
+        .select('hotel_id')
+        .limit(1);
       
-      setSummaryData(summaryData);
-      setRoomData(roomData);
-      setRevenueData(revenueData);
+      if (hotelError) {
+        throw hotelError;
+      }
+      
+      if (!hotels || hotels.length === 0) {
+        toast.error('No hotels found in the database');
+        setIsLoading(false);
+        return;
+      }
+      
+      const hotelId = hotels[0].hotel_id;
+      
+      // For development, generate mock data if needed
+      await generateMockDataIfNeeded(date, hotelId);
+      
+      // Fetch room occupancy data
+      const { data: occupancyData, error: occupancyError } = await supabase
+        .from('daily_room_occupancy')
+        .select('*')
+        .eq('date', date)
+        .eq('hotel_id', hotelId);
+      
+      if (occupancyError) {
+        throw occupancyError;
+      }
+      
+      // Transform room data to match our interface
+      const transformedRoomData: RoomData[] = (occupancyData || []).map(room => ({
+        roomNumber: room.room_number,
+        isOccupied: room.is_occupied,
+        guestName: room.guest_name,
+        checkInDate: room.check_in_date,
+        checkOutDate: room.check_out_date,
+        roomRate: room.room_rate,
+        additionalSpend: room.additional_spend,
+        totalSpend: room.room_rate && room.additional_spend 
+          ? room.room_rate + room.additional_spend 
+          : room.room_rate,
+        roomType: room.room_type,
+        floor: room.floor
+      }));
+      
+      // Fetch revenue breakdown data
+      const { data: revenueItems, error: revenueError } = await supabase
+        .from('daily_revenue_breakdown')
+        .select('*')
+        .eq('date', date)
+        .eq('hotel_id', hotelId);
+      
+      if (revenueError) {
+        throw revenueError;
+      }
+      
+      // Fetch additional services for each revenue item
+      const transformedRevenueData: RevenueItem[] = [];
+      
+      for (const item of revenueItems || []) {
+        const { data: services, error: servicesError } = await supabase
+          .from('additional_services')
+          .select('*')
+          .eq('daily_revenue_id', item.id);
+        
+        if (servicesError) {
+          console.error('Error fetching additional services:', servicesError);
+          continue;
+        }
+        
+        transformedRevenueData.push({
+          roomNumber: item.room_number,
+          roomRate: item.room_rate,
+          additionalServices: (services || []).map(service => ({
+            service: service.service,
+            amount: service.amount
+          })),
+          totalSpend: item.total_spend
+        });
+      }
+      
+      // Calculate summary data
+      const totalRooms = transformedRoomData.length;
+      const occupiedRooms = transformedRoomData.filter(room => room.isOccupied).length;
+      const occupancyRate = totalRooms > 0 ? (occupiedRooms / totalRooms) * 100 : 0;
+      const totalRevenue = transformedRevenueData.reduce((sum, item) => sum + item.totalSpend, 0);
+      const averageDailyRate = occupiedRooms > 0 ? totalRevenue / occupiedRooms : 0;
+      
+      // Set state with fetched data
+      setRoomData(transformedRoomData);
+      setRevenueData(transformedRevenueData);
+      setSummaryData({
+        occupancyRate,
+        totalRevenue,
+        averageDailyRate,
+        totalRooms,
+        occupiedRooms
+      });
+      
       setLastUpdated(new Date());
     } catch (error) {
       console.error('Error fetching daily summary data:', error);
@@ -141,19 +249,32 @@ export const useDailySummaryData = (date: string) => {
     toast.success('Data refreshed successfully');
   };
   
-  // Set up realtime subscription
+  // Set up initial data fetch and realtime subscription
   useEffect(() => {
     fetchData();
     
-    // TODO: Set up Supabase realtime channel when database tables are ready
-    /* Example:
+    // Set up Supabase realtime channel
     const channel = supabase
-      .channel('room-updates')
+      .channel('day-summary-updates')
       .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'rooms' }, 
-        (payload) => {
-          console.log('Room update:', payload);
-          refreshData();
+        { event: '*', schema: 'public', table: 'daily_room_occupancy' }, 
+        () => {
+          console.log('Room occupancy update received');
+          fetchData();
+        }
+      )
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'daily_revenue_breakdown' }, 
+        () => {
+          console.log('Revenue breakdown update received');
+          fetchData();
+        }
+      )
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'additional_services' }, 
+        () => {
+          console.log('Additional services update received');
+          fetchData();
         }
       )
       .subscribe();
@@ -161,7 +282,6 @@ export const useDailySummaryData = (date: string) => {
     return () => {
       supabase.removeChannel(channel);
     };
-    */
   }, [date]);
   
   return {
