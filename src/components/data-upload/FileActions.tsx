@@ -38,7 +38,8 @@ const FileActions: React.FC<FileActionsProps> = ({
       
       {onDelete && (
         <DeleteButton
-          onConfirmDelete={onDelete}
+          fileId={fileId}
+          onDelete={onDelete}
         />
       )}
     </div>
