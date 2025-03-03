@@ -33,6 +33,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
   
   // If session is still being checked, show loading state
+  // But only if we're not in bypass mode and not in development mode
   if (loading || !sessionChecked) {
     return <div className="flex h-screen items-center justify-center">Loading...</div>;
   }

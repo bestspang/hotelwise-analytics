@@ -52,7 +52,7 @@ const Auth: React.FC = () => {
   // Handle the bypass authentication click
   const handleBypassAuth = () => {
     console.log('Bypassing authentication and redirecting to dashboard');
-    navigate('/dashboard', { replace: true });
+    navigate('/dashboard', { state: { bypass: true }, replace: true });
   };
 
   // Always show bypass button for development ease, regardless of mode
