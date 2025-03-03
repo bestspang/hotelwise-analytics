@@ -1,52 +1,32 @@
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { ProcessingDetails } from '../types/statusTypes';
 import { toast } from 'sonner';
 
-export interface ProcessingStatusResult {
-  status: 'waiting' | 'processing' | 'completed' | 'failed' | 'timeout' | 'unknown';
-  details: any;
-  logs: any[];
-  lastUpdated: string | null;
-  processingTime: number | null; // in seconds
+interface UseProcessingStatusProps {
+  onStatusChange?: (status: ProcessingDetails) => void;
 }
 
-export const useProcessingStatus = () => {
-  const [checking, setChecking] = useState(false);
+export const useProcessingStatus = (props?: UseProcessingStatusProps) => {
+  const [isChecking, setIsChecking] = useState(false);
+  const [status, setStatus] = useState<ProcessingDetails | null>(null);
+  const [error, setError] = useState<Error | null>(null);
 
-  const checkProcessingStatus = async (fileId: string): Promise<ProcessingStatusResult | null> => {
-    if (!fileId) return null;
+  // Function to check if a file is still being processed
+  const checkProcessingStatus = useCallback(async (fileId: string): Promise<ProcessingDetails | null> => {
+    if (!fileId) {
+      console.error('No file ID provided for status check');
+      return null;
+    }
     
-    setChecking(true);
+    setIsChecking(true);
+    setError(null);
+    
     try {
       console.log('Checking processing status for file:', fileId);
       
-      // First, check if there are any recent logs for this file
-      const { data: logs, error: logsError } = await supabase
-        .from('processing_logs')
-        .select('*')
-        .eq('file_id', fileId)
-        .order('created_at', { ascending: false })
-        .limit(10);
-        
-      if (logsError) {
-        console.error('Error fetching logs:', logsError);
-        throw logsError;
-      }
-      
-      // Get the current file status
-      const { data: fileData, error: fileError } = await supabase
-        .from('uploaded_files')
-        .select('*')
-        .eq('id', fileId)
-        .single();
-        
-      if (fileError) {
-        console.error('Error fetching file data:', fileError);
-        throw fileError;
-      }
-      
-      // Check OpenAI status through the edge function
+      // Call the Supabase Edge Function
       const { data, error } = await supabase.functions.invoke('check-processing-status', {
         body: { fileId }
       });
@@ -56,54 +36,31 @@ export const useProcessingStatus = () => {
         throw error;
       }
       
-      // Calculate processing time if applicable
-      let processingTime = null;
-      if (fileData.processing) {
-        // Use created_at as fallback if updated_at doesn't exist yet
-        const startTime = new Date(fileData.created_at);
-        const currentTime = new Date();
-        processingTime = Math.round((currentTime.getTime() - startTime.getTime()) / 1000);
+      console.log('Processing status result:', data);
+      
+      // Update state with the result
+      setStatus(data as ProcessingDetails);
+      
+      // Call the callback if provided
+      if (props?.onStatusChange) {
+        props.onStatusChange(data as ProcessingDetails);
       }
       
-      // Determine the actual status
-      let status: ProcessingStatusResult['status'] = data?.status || 'unknown';
-      
-      // Override status based on file data if necessary
-      if (fileData.processed && !fileData.processing) {
-        status = 'completed';
-      } else if (!fileData.processed && !fileData.processing) {
-        status = 'waiting';
-      } else if (fileData.processing && processingTime && processingTime > 300) {
-        // If processing for more than 5 minutes, consider it stuck
-        status = 'timeout';
-      }
-      
-      console.log('Processing status result:', {
-        status,
-        details: data?.details || null,
-        logs: logs || [],
-        lastUpdated: fileData.created_at,
-        processingTime
-      });
-      
-      return {
-        status,
-        details: data?.details || null,
-        logs: logs || [],
-        lastUpdated: fileData.created_at,
-        processingTime
-      };
-    } catch (error) {
-      console.error('Error checking processing status:', error);
-      toast.error(`Failed to check processing status: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return data as ProcessingDetails;
+    } catch (err) {
+      console.error('Error checking processing status:', err);
+      setError(err as Error);
+      toast.error(`Failed to check processing status: ${err instanceof Error ? err.message : 'Unknown error'}`);
       return null;
     } finally {
-      setChecking(false);
+      setIsChecking(false);
     }
-  };
+  }, [props]);
 
   return {
-    checking,
+    isChecking,
+    status,
+    error,
     checkProcessingStatus
   };
 };
