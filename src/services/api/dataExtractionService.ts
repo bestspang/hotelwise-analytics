@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { processPdfWithOpenAI } from './openaiService';
 
 export async function downloadExtractedData(fileId: string) {
   try {
@@ -50,23 +51,24 @@ export async function reprocessFile(fileId: string) {
       return null;
     }
 
-    // Call the Edge Function to re-process the PDF
+    // Update file status to processing
+    await supabase
+      .from('uploaded_files')
+      .update({
+        processed: false,
+        processing: true,
+        extracted_data: null
+      })
+      .eq('id', fileId);
+
+    toast.info(`Starting AI processing for ${fileData.filename}`, { duration: 8000 });
+
+    // Process the PDF with OpenAI
     try {
-      console.log('Invoking process-pdf edge function for reprocessing');
-      const { data: processingData, error: processingError } = await supabase.functions
-        .invoke('process-pdf', {
-          body: { 
-            fileId: fileId,
-            filePath: fileData.file_path,
-            filename: fileData.filename,
-            documentType: fileData.document_type,
-            notifyOnCompletion: true
-          }
-        });
-
-      if (processingError) {
-        console.error('Error re-processing file with AI:', processingError);
-        toast.error(`AI re-processing failed: ${processingError.message || 'Unknown error'}`);
+      const processingResult = await processPdfWithOpenAI(fileId, fileData.file_path);
+      
+      if (!processingResult) {
+        toast.error(`AI re-processing failed for ${fileData.filename}`);
 
         // Update file status to error
         await supabase
@@ -76,28 +78,7 @@ export async function reprocessFile(fileId: string) {
             processing: false,
             extracted_data: { 
               error: true, 
-              message: processingError.message || 'AI processing failed' 
-            } 
-          })
-          .eq('id', fileId);
-
-        return null;
-      }
-
-      console.log('Re-processing result:', processingData);
-
-      if (processingData?.error) {
-        toast.error(`AI re-processing failed: ${processingData.error}`);
-
-        // Update file status to error
-        await supabase
-          .from('uploaded_files')
-          .update({ 
-            processed: true, 
-            processing: false,
-            extracted_data: { 
-              error: true, 
-              message: processingData.error || 'AI processing failed' 
+              message: 'AI processing failed: No result returned' 
             } 
           })
           .eq('id', fileId);
@@ -106,9 +87,9 @@ export async function reprocessFile(fileId: string) {
       }
 
       toast.success(`${fileData.filename} re-processed successfully.`);
-      return processingData;
+      return processingResult;
     } catch (functionError) {
-      console.error('Edge function error during re-processing:', functionError);
+      console.error('Error during re-processing:', functionError);
 
       // Update file status to error but still mark as uploaded
       await supabase
@@ -118,7 +99,7 @@ export async function reprocessFile(fileId: string) {
           processing: false,
           extracted_data: { 
             error: true, 
-            message: functionError instanceof Error ? functionError.message : 'Edge function invocation failed' 
+            message: functionError instanceof Error ? functionError.message : 'Processing failed' 
           } 
         })
         .eq('id', fileId);

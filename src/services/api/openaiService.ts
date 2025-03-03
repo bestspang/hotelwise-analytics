@@ -39,3 +39,36 @@ export async function getOpenAIResponse(prompt: string): Promise<OpenAIResponse 
     return null;
   }
 }
+
+// New function to process PDF with OpenAI
+export async function processPdfWithOpenAI(fileId: string, filePath: string): Promise<any> {
+  try {
+    console.log('Processing PDF with OpenAI, file ID:', fileId);
+    
+    const { data, error } = await supabase.functions.invoke('process-pdf-openai', {
+      body: { 
+        fileId, 
+        filePath 
+      }
+    });
+    
+    if (error) {
+      console.error('Error invoking process-pdf-openai function:', error);
+      toast.error(`PDF processing failed: ${error.message || 'Connection error'}`);
+      return null;
+    }
+    
+    if (data?.error) {
+      console.error('Error from PDF processing service:', data.error);
+      toast.error(`PDF processing error: ${data.error}`);
+      return null;
+    }
+    
+    console.log('OpenAI PDF processing result received:', data);
+    return data;
+  } catch (err) {
+    console.error('Error processing PDF with OpenAI:', err);
+    toast.error(`PDF processing error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    return null;
+  }
+}

@@ -2,6 +2,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { checkFileExists } from './fileManagementService';
+import { processPdfWithOpenAI } from './openaiService';
 
 export async function uploadPdfFile(file: File) {
   try {
@@ -101,22 +102,16 @@ export async function uploadPdfFile(file: File) {
     
     console.log('Database record created successfully with ID:', fileData.id);
     
-    // Call the Edge Function to process the PDF
+    // Process the PDF file with OpenAI
     try {
-      console.log('Invoking process-pdf edge function');
-      const { data: processingData, error: processingError } = await supabase.functions
-        .invoke('process-pdf', {
-          body: { 
-            fileId: fileData.id, 
-            filePath,
-            filename: file.name,
-            documentType: document_type
-          }
-        });
-        
-      if (processingError) {
-        console.error('Error processing file with AI:', processingError);
-        toast.error(`AI processing failed: ${processingError.message || 'Unknown error'}`);
+      console.log('Invoking process-pdf-openai function');
+      toast.info(`Starting AI processing for ${file.name}`, { duration: 8000 });
+      
+      const processingResult = await processPdfWithOpenAI(fileData.id, filePath);
+      
+      if (!processingResult) {
+        console.error('Error processing file with OpenAI: No result returned');
+        toast.error(`AI processing failed for ${file.name}`);
         
         // Update file status to error
         await supabase
@@ -126,7 +121,7 @@ export async function uploadPdfFile(file: File) {
             processing: false,
             extracted_data: { 
               error: true, 
-              message: processingError.message || 'AI processing failed' 
+              message: 'AI processing failed: No result returned' 
             } 
           })
           .eq('id', fileData.id);
@@ -134,15 +129,15 @@ export async function uploadPdfFile(file: File) {
         return fileData; // Still return the file data as the upload was successful
       }
       
-      console.log('AI processing successful:', processingData);
+      console.log('AI processing successful:', processingResult);
       toast.success(`${file.name} processed successfully`);
       
       return {
         ...fileData,
-        processingResult: processingData
+        processingResult
       };
     } catch (functionError) {
-      console.error('Edge function error:', functionError);
+      console.error('Processing error:', functionError);
       toast.warning(`File uploaded, but AI processing failed`);
       
       // Update file status to error but still mark as uploaded
@@ -153,7 +148,7 @@ export async function uploadPdfFile(file: File) {
           processing: false,
           extracted_data: { 
             error: true, 
-            message: functionError instanceof Error ? functionError.message : 'Edge function invocation failed' 
+            message: functionError instanceof Error ? functionError.message : 'Processing failed' 
           } 
         })
         .eq('id', fileData.id);

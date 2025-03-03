@@ -72,6 +72,5 @@ redirect_uri = ""
 # or any other third-party OIDC providers.
 url = ""
 
-# Port to use for the Functions API URL.
 [functions]
 port = 54321
