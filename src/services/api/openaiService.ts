@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { v4 as uuidv4 } from 'uuid';
 
 export interface OpenAIResponse {
   response: string;
@@ -46,9 +47,13 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string): Pr
     console.log('Processing PDF with OpenAI, file ID:', fileId);
     console.log('File path:', filePath);
     
+    // Generate a request ID for tracking this processing operation
+    const requestId = uuidv4();
+    
     // Add a processing log entry
     await supabase.from('processing_logs').insert({
       file_id: fileId,
+      request_id: requestId,
       message: 'Starting PDF processing with OpenAI',
       log_level: 'info'
     });
@@ -58,8 +63,7 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string): Pr
       .from('uploaded_files')
       .update({
         processing: true,
-        processed: false,
-        updated_at: new Date().toISOString()
+        processed: false
       })
       .eq('id', fileId);
       
@@ -69,6 +73,7 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string): Pr
       
       await supabase.from('processing_logs').insert({
         file_id: fileId,
+        request_id: requestId,
         message: `Failed to update processing status: ${updateError.message}`,
         log_level: 'error'
       });
@@ -80,7 +85,8 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string): Pr
     const { data, error } = await supabase.functions.invoke('process-pdf-openai', {
       body: { 
         fileId, 
-        filePath 
+        filePath,
+        requestId
       }
     });
     
@@ -90,6 +96,7 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string): Pr
       // Log the error
       await supabase.from('processing_logs').insert({
         file_id: fileId,
+        request_id: requestId,
         message: `Edge function error: ${error.message || 'Connection error'}`,
         log_level: 'error',
         details: { error: error }
@@ -112,8 +119,7 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string): Pr
         .update({
           processing: false,
           processed: false,
-          extracted_data: { error: true, message: error.message || 'Connection error' },
-          updated_at: new Date().toISOString()
+          extracted_data: { error: true, message: error.message || 'Connection error' }
         })
         .eq('id', fileId);
       
@@ -127,6 +133,7 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string): Pr
       // Log the error
       await supabase.from('processing_logs').insert({
         file_id: fileId,
+        request_id: requestId,
         message: `Processing error: ${data.error}`,
         log_level: 'error',
         details: { error: data.error }
@@ -138,8 +145,7 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string): Pr
         .update({
           processing: false,
           processed: true,
-          extracted_data: { error: true, message: data.error },
-          updated_at: new Date().toISOString()
+          extracted_data: { error: true, message: data.error }
         })
         .eq('id', fileId);
       
@@ -149,6 +155,7 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string): Pr
     // Log success
     await supabase.from('processing_logs').insert({
       file_id: fileId,
+      request_id: requestId,
       message: 'PDF processing completed successfully',
       log_level: 'info'
     });
@@ -160,9 +167,13 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string): Pr
     console.error('Error processing PDF with OpenAI:', err);
     toast.error(`PDF processing error: ${err instanceof Error ? err.message : 'Unknown error'}`);
     
+    // Generate a request ID for this error entry
+    const requestId = uuidv4();
+    
     // Log the error
     await supabase.from('processing_logs').insert({
       file_id: fileId,
+      request_id: requestId,
       message: `Unexpected error: ${err instanceof Error ? err.message : 'Unknown error'}`,
       log_level: 'error',
       details: { error: err instanceof Error ? err.stack : 'Unknown error' }
@@ -175,8 +186,7 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string): Pr
         .update({
           processing: false,
           processed: false,
-          extracted_data: { error: true, message: err instanceof Error ? err.message : 'Unknown error' },
-          updated_at: new Date().toISOString()
+          extracted_data: { error: true, message: err instanceof Error ? err.message : 'Unknown error' }
         })
         .eq('id', fileId);
     } catch (updateErr) {
