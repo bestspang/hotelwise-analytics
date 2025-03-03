@@ -41,6 +41,25 @@ const SignInForm: React.FC<SignInFormProps> = ({
     setShowPassword(!showPassword);
   };
 
+  const handleDevLogin = () => {
+    // First set the email and password fields
+    const emailEvent = { target: { value: 'dev@example.com' } } as React.ChangeEvent<HTMLInputElement>;
+    const passwordEvent = { target: { value: 'password123' } } as React.ChangeEvent<HTMLInputElement>;
+    
+    handleEmailChange(emailEvent);
+    onPasswordChange(passwordEvent);
+    setRememberMe(true);
+    
+    // Create a synthetic form submit event
+    const submitEvent = new Event('submit', { bubbles: true, cancelable: true }) as unknown as React.FormEvent;
+    
+    // Wait a moment to ensure state updates have taken effect
+    setTimeout(() => {
+      console.info('Bypassing authentication and redirecting to dashboard');
+      onSubmit(submitEvent);
+    }, 200);
+  };
+
   return (
     <Card className="border-none shadow-md">
       <CardHeader className="space-y-1">
@@ -123,16 +142,7 @@ const SignInForm: React.FC<SignInFormProps> = ({
               type="button" 
               variant="outline"
               className="w-full bg-amber-100 text-amber-800 hover:bg-amber-200 border-amber-300"
-              onClick={() => {
-                // Fill in some default login details
-                onEmailChange({ target: { value: 'dev@example.com' } } as React.ChangeEvent<HTMLInputElement>);
-                onPasswordChange({ target: { value: 'password123' } } as React.ChangeEvent<HTMLInputElement>);
-                setRememberMe(true);
-                // Submit the form after a short delay to allow state to update
-                setTimeout(() => {
-                  document.forms[0].dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-                }, 100);
-              }}
+              onClick={handleDevLogin}
             >
               <Wand2 className="mr-2 h-4 w-4" /> Developer Quick Login
             </Button>
