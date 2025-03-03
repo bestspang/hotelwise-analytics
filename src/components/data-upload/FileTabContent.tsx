@@ -1,53 +1,163 @@
-
 import React from 'react';
 import { TabsContent } from '@/components/ui/tabs';
-import ExtractedDataCard from './ExtractedDataCard';
+import { FileStatus } from './types/statusTypes';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface FileTabContentProps {
   tabValue: string;
   files: any[];
-  onViewRawData: (file: any) => void;
-  onDelete?: (fileId: string) => Promise<boolean>;
   isActive: boolean;
   isStuckInProcessing?: (file: any) => boolean;
+  onViewRawData?: (file: any) => void;
+  onDelete?: (fileId: string) => Promise<boolean>;
   onReprocessing?: () => void;
 }
 
 const FileTabContent: React.FC<FileTabContentProps> = ({
   tabValue,
   files,
-  onViewRawData,
-  onDelete,
   isActive,
   isStuckInProcessing,
+  onViewRawData,
+  onDelete,
   onReprocessing
 }) => {
-  // Only render content when the tab is active for performance
-  if (!isActive) {
+  const handleProcessFile = async (file: any) => {
+    if (!file.id || !file.file_path) return;
+    
+    try {
+      toast.info(`Processing ${file.filename}...`);
+      
+      // Update file status
+      await supabase
+        .from('uploaded_files')
+        .update({ 
+          processing: true,
+          processed: false
+        })
+        .eq('id', file.id);
+      
+      // Call process-pdf function
+      const { error } = await supabase.functions.invoke('process-pdf', {
+        body: { 
+          fileId: file.id, 
+          filePath: file.file_path,
+          documentType: file.document_type || 'Unknown'
+        }
+      });
+      
+      if (error) {
+        toast.error(`Error starting processing: ${error.message}`);
+      } else {
+        toast.success(`Processing started for ${file.filename}`);
+        if (onReprocessing) onReprocessing();
+      }
+    } catch (error) {
+      toast.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleRetryProcessing = async (file: any) => {
+    if (!file.id || !file.file_path) return;
+    
+    try {
+      // If a file is stuck in processing, reset its state
+      if (isStuckInProcessing && isStuckInProcessing(file)) {
+        await supabase
+          .from('uploaded_files')
+          .update({ 
+            processing: false,
+            processed: false
+          })
+          .eq('id', file.id);
+        
+        toast.info(`Reset processing state for ${file.filename}`);
+      }
+      
+      // Start processing again
+      handleProcessFile(file);
+    } catch (error) {
+      toast.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const renderActionButtons = (file: any) => {
+    if (!file.processing && !file.processed) {
+      return (
+        <>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleProcessFile(file);
+            }}
+            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-8 px-3 text-primary"
+          >
+            Process
+          </button>
+        </>
+      );
+    }
+
+    if ((file.processed && file.extracted_data?.error) || 
+        (isStuckInProcessing && isStuckInProcessing(file))) {
+      return (
+        <>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleRetryProcessing(file);
+            }}
+            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-8 px-3 text-yellow-600"
+          >
+            Retry
+          </button>
+        </>
+      );
+    }
+
     return (
-      <TabsContent value={tabValue} className="mt-4">
-        {/* This content will not be rendered until the tab is active */}
-      </TabsContent>
+      <>
+        {file.processed && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewRawData && onViewRawData(file);
+            }}
+            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-8 px-3 text-primary"
+          >
+            View Data
+          </button>
+        )}
+      </>
     );
-  }
+  };
 
   return (
-    <TabsContent value={tabValue} className="mt-4 animation-fade-in">
+    <TabsContent value={tabValue} className={isActive ? 'block' : 'hidden'}>
       {files.length === 0 ? (
-        <div className="text-center p-8 bg-gray-50 dark:bg-gray-800/30 rounded-md border border-dashed border-gray-200 dark:border-gray-700">
-          <p className="text-muted-foreground">No files found in this category.</p>
+        <div className="text-center py-10 text-muted-foreground">
+          No files found in this category
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="space-y-2">
           {files.map((file) => (
-            <ExtractedDataCard
+            <div
               key={file.id}
-              file={file}
-              onViewRawData={() => onViewRawData(file)}
-              onDelete={onDelete}
-              isStuckInProcessing={isStuckInProcessing}
-              onReprocessing={onReprocessing}
-            />
+              className="flex items-center justify-between p-3 rounded-md border border-border hover:bg-accent/5 cursor-pointer transition-colors"
+              onClick={() => onViewRawData && onViewRawData(file)}
+            >
+              <div className="flex flex-col">
+                <div className="font-medium">{file.filename}</div>
+                <div className="text-sm text-muted-foreground">
+                  {file.document_type || 'Unknown document type'} • {new Date(file.created_at).toLocaleString()}
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                {renderActionButtons(file)}
+              </div>
+            </div>
           ))}
         </div>
       )}

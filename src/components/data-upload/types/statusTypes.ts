@@ -9,6 +9,9 @@ export interface FileStatus {
   isUnprocessable: boolean;
   errorMessage: string | null;
   documentType: string | null;
+  isApproved: boolean;
+  isRejected: boolean;
+  isInserted: boolean;
 }
 
 export interface UploadState {

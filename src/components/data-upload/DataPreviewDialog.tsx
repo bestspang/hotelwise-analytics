@@ -1,9 +1,9 @@
-
-import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { FileText, Trash, Check, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertTriangle, CheckCircle, Clock, File, FileText, Processing, Trash2 } from 'lucide-react';
 import PreviewContent from './PreviewContent';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -11,7 +11,7 @@ interface DataPreviewDialogProps {
   file: any;
   open: boolean;
   onClose: () => void;
-  onDelete?: () => void;
+  onDelete?: (fileId: string) => Promise<boolean>;
   onReprocessing?: () => void;
 }
 
@@ -22,130 +22,98 @@ const DataPreviewDialog: React.FC<DataPreviewDialogProps> = ({
   onDelete,
   onReprocessing
 }) => {
-  const handleApproveData = async () => {
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!file.id || !onDelete) return;
+    
+    setIsDeleting(true);
     try {
-      // Update the file's extracted_data to mark it as approved
-      const { error } = await supabase
-        .from('uploaded_files')
-        .update({
-          extracted_data: {
-            ...file.extracted_data,
-            approved: true,
-            approved_at: new Date().toISOString()
-          }
-        })
-        .eq('id', file.id);
-        
-      if (error) {
-        throw error;
+      const success = await onDelete(file.id);
+      if (success) {
+        onClose();
       }
-      
-      // Call the edge function to insert data into appropriate tables
-      const { error: fnError } = await supabase.functions
-        .invoke('insert-extracted-data', {
-          body: { 
-            fileId: file.id,
-            documentType: file.document_type,
-            extractedData: file.extracted_data
-          }
-        });
-        
-      if (fnError) {
-        throw fnError;
-      }
-      
-      toast.success('Data approved and inserted successfully');
-      
-      // Refresh the file list if callback provided
-      if (onReprocessing) {
-        onReprocessing();
-      }
-      
-      // Close the dialog
-      onClose();
-    } catch (error) {
-      console.error('Error approving data:', error);
-      toast.error(`Failed to approve data: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  };
-  
-  const handleRejectData = async () => {
-    try {
-      // Update the file's extracted_data to mark it as rejected
-      const { error } = await supabase
-        .from('uploaded_files')
-        .update({
-          extracted_data: {
-            ...file.extracted_data,
-            rejected: true,
-            rejected_at: new Date().toISOString()
-          }
-        })
-        .eq('id', file.id);
-        
-      if (error) {
-        throw error;
-      }
-      
-      toast.info('Data rejected - no database changes were made');
-      
-      // Refresh the file list if callback provided
-      if (onReprocessing) {
-        onReprocessing();
-      }
-      
-      // Close the dialog
-      onClose();
-    } catch (error) {
-      console.error('Error rejecting data:', error);
-      toast.error(`Failed to reject data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
-  if (!file) return null;
+  const handleApproveData = async () => {
+    onReprocessing && onReprocessing();
+  };
+
+  const handleRejectData = async () => {
+    onReprocessing && onReprocessing();
+  };
+
+  const handleReprocessFile = async () => {
+    onReprocessing && onReprocessing();
+  };
+
+  const getStatusBadge = () => {
+    if (file.processing) {
+      return <Badge variant="secondary" className="flex items-center gap-1"><Processing className="h-3 w-3" /> Processing</Badge>;
+    } else if (file.processed && file.extracted_data && !file.extracted_data.error) {
+      if (file.extracted_data.approved) {
+        return <Badge variant="success" className="flex items-center gap-1 bg-green-100 text-green-800"><CheckCircle className="h-3 w-3" /> Approved</Badge>;
+      } else if (file.extracted_data.rejected) {
+        return <Badge variant="destructive" className="flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Rejected</Badge>;
+      } else {
+        return <Badge variant="outline" className="flex items-center gap-1"><Clock className="h-3 w-3" /> Pending Approval</Badge>;
+      }
+    } else if (file.processed && file.extracted_data?.error) {
+      return <Badge variant="destructive" className="flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Error</Badge>;
+    } else {
+      return <Badge variant="outline" className="flex items-center gap-1"><File className="h-3 w-3" /> Unprocessed</Badge>;
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-4xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-primary" />
-            <span className="font-medium truncate">
-              {file.filename}
-            </span>
-          </DialogTitle>
-        </DialogHeader>
-        
-        <div className="overflow-y-auto flex-grow p-1">
-          <PreviewContent 
-            file={file} 
-            onApproveData={handleApproveData}
-            onRejectData={handleRejectData}
-          />
-        </div>
-        
-        <DialogFooter className="flex justify-between border-t pt-3 mt-4">
-          <div className="flex gap-2">
-            {onDelete && (
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              <DialogTitle className="text-xl">
+                {file.filename}
+              </DialogTitle>
+              {getStatusBadge()}
+            </div>
+            <div className="flex gap-2">
               <Button
                 variant="outline"
                 size="sm"
-                className="text-red-500 hover:text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
-                onClick={onDelete}
+                className="text-red-500 border-red-200 hover:bg-red-50"
+                onClick={handleDelete}
+                disabled={isDeleting}
               >
-                <Trash className="h-4 w-4 mr-2" />
-                Delete File
+                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                {isDeleting ? 'Deleting...' : 'Delete'}
               </Button>
-            )}
+            </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onClose}
-          >
-            Close
-          </Button>
-        </DialogFooter>
+          <div className="text-sm text-muted-foreground mt-1">
+            {file.document_type && (
+              <span className="inline-block mr-3">
+                <strong>Type:</strong> {file.document_type}
+              </span>
+            )}
+            <span className="inline-block mr-3">
+              <strong>Size:</strong> {(file.file_size / 1024).toFixed(1)} KB
+            </span>
+            <span className="inline-block">
+              <strong>Uploaded:</strong> {new Date(file.created_at).toLocaleString()}
+            </span>
+          </div>
+        </DialogHeader>
+        
+        <PreviewContent 
+          file={file} 
+          onApproveData={handleApproveData}
+          onRejectData={handleRejectData}
+          onReprocessing={handleReprocessFile}
+        />
       </DialogContent>
     </Dialog>
   );

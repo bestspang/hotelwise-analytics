@@ -1,58 +1,79 @@
 
-import { useState, useCallback, useMemo } from 'react';
-import { isStuckInProcessing, hasExtractedData } from './utils/fileStatusUtils';
+import { useState, useMemo, useCallback } from 'react';
 
-// Hook for filtering the files list
 export const useFileFiltering = (files: any[]) => {
   const [activeTab, setActiveTab] = useState('all');
 
-  // Function to filter files based on the selected tab
-  const filterFilesByStatus = useCallback((filterValue: string) => {
-    if (filterValue === 'all') {
-      return files;
+  // Function to filter files based on the active tab
+  const filterFilesByStatus = useCallback((status: string) => {
+    switch (status) {
+      case 'all':
+        return files;
+      case 'processed':
+        return files.filter(file => file.processed === true);
+      case 'unprocessed':
+        return files.filter(file => !file.processed && !file.processing);
+      case 'processing':
+        return files.filter(file => file.processing === true);
+      case 'error':
+        return files.filter(file => 
+          file.processed === true && 
+          file.extracted_data && 
+          file.extracted_data.error === true
+        );
+      case 'pending':
+        return files.filter(file => 
+          file.processed === true && 
+          file.extracted_data && 
+          !file.extracted_data.error &&
+          !file.extracted_data.approved &&
+          !file.extracted_data.rejected
+        );
+      case 'approved':
+        return files.filter(file => 
+          file.processed === true && 
+          file.extracted_data && 
+          file.extracted_data.approved === true
+        );
+      case 'rejected':
+        return files.filter(file => 
+          file.processed === true && 
+          file.extracted_data && 
+          file.extracted_data.rejected === true
+        );
+      default:
+        // If it's not a status, treat it as a document type
+        return files.filter(file => 
+          file.document_type && 
+          file.document_type.toLowerCase() === status.toLowerCase()
+        );
     }
-    
-    if (filterValue === 'processed') {
-      return files.filter(file => {
-        return file.processed && hasExtractedData(file) && !file.processing;
-      });
-    }
-    
-    if (filterValue === 'unprocessed') {
-      return files.filter(file => {
-        return !file.processed || file.processing || isStuckInProcessing(file);
-      });
-    }
-    
-    // Filter by document type (case insensitive)
-    return files.filter(file => {
-      return file.document_type && 
-        file.document_type.toLowerCase() === filterValue.toLowerCase();
-    });
   }, [files]);
 
-  // Calculate file counts for each category
-  const getFileCount = useCallback((filterValue: string) => {
-    return filterFilesByStatus(filterValue).length;
+  // Count files for each tab
+  const getFileCount = useCallback((status: string) => {
+    return filterFilesByStatus(status).length;
   }, [filterFilesByStatus]);
 
-  // Calculate file counts for each document type
+  // Count files by document type
   const getDocumentTypeCount = useCallback((documentType: string) => {
     return files.filter(file => 
-      file.document_type && file.document_type.toLowerCase() === documentType.toLowerCase()
+      file.document_type && 
+      file.document_type.toLowerCase() === documentType.toLowerCase()
     ).length;
   }, [files]);
 
-  // Track document types that are actually present in the files
-  const availableDocumentTypes = useMemo(() => {
-    const types = new Set<string>();
-    files.forEach(file => {
-      if (file.document_type) {
-        types.add(file.document_type.toLowerCase());
-      }
-    });
-    return Array.from(types);
-  }, [files]);
+  // Detect files stuck in processing (processing for more than 5 minutes)
+  const isStuckInProcessing = useCallback((file: any) => {
+    if (file.processing !== true) return false;
+    
+    const processingStartTime = new Date(file.updated_at || file.created_at).getTime();
+    const currentTime = new Date().getTime();
+    const processingTimeMinutes = (currentTime - processingStartTime) / (1000 * 60);
+    
+    // If processing for more than 5 minutes, consider it stuck
+    return processingTimeMinutes > 5;
+  }, []);
 
   return {
     activeTab,
@@ -60,7 +81,8 @@ export const useFileFiltering = (files: any[]) => {
     filterFilesByStatus,
     getFileCount,
     getDocumentTypeCount,
-    availableDocumentTypes,
     isStuckInProcessing
   };
 };
+
+export default useFileFiltering;
