@@ -71,7 +71,7 @@ enable_confirmations = false
 
 [functions]
 # Port to serve Edge Functions on.
-port = 54321
+port = { port = 54321 }
 
 # Add external authentication providers/services
 [auth.external.apple]
