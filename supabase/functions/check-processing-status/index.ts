@@ -57,7 +57,8 @@ export const handler = async (req: Request) => {
       .from('processing_logs')
       .select('*')
       .eq('file_id', fileId)
-      .order('created_at', { ascending: true })
+      .order('created_at', { ascending: false })
+      .limit(10)
 
     if (logsError) {
       console.error('Error fetching logs:', logsError)
@@ -70,23 +71,41 @@ export const handler = async (req: Request) => {
       )
     }
 
-    // Determine the processing status
-    let status = 'unknown'
+    // Calculate processing time
+    const processingTime = fileData.processing ? 
+      Math.floor((new Date().getTime() - new Date(fileData.created_at).getTime()) / 1000) : 
+      null;
+
+    // Determine the status
+    let status = 'unknown';
+    
     if (fileData.processed) {
-      status = 'processed'
+      status = 'completed';
     } else if (fileData.processing) {
-      status = 'processing'
+      // Check if it's been processing for too long (over 5 minutes)
+      if (processingTime && processingTime > 300) {
+        status = 'timeout';
+      } else {
+        status = 'processing';
+      }
     } else {
-      status = 'unprocessed'
+      status = 'waiting';
     }
 
-    // Return the file and logs data
+    // Return the status details
     return new Response(
       JSON.stringify({
-        id: fileId,
+        fileId,
         status,
-        file: fileData,
-        logs
+        lastUpdated: logs && logs.length > 0 ? logs[0].created_at : fileData.created_at,
+        processingTime,
+        logs,
+        details: {
+          filename: fileData.filename,
+          documentType: fileData.document_type,
+          fileSize: fileData.file_size,
+          createdAt: fileData.created_at
+        }
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
