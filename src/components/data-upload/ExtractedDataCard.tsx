@@ -129,7 +129,7 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
               <div className="flex items-center text-sm text-primary">
                 <Brain className="h-4 w-4 mr-1.5 animate-pulse" />
                 <span className="font-medium">
-                  {aiProcessingStage === 'preparing' && 'Preparing for AI analysis...'}
+                  {aiProcessingStage === 'preparing' && 'Preparing for data extraction...'}
                   {aiProcessingStage === 'extracting' && 'Extracting text from PDF...'}
                   {aiProcessingStage === 'analyzing' && 'AI analyzing document contents...'}
                   {aiProcessingStage === 'storing' && 'Storing extracted data...'}
@@ -153,7 +153,7 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
           <Alert variant="destructive" className="mt-3">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription className="text-xs">
-              {processingStatus[file.id]?.error || 'An error occurred during AI processing.'}
+              {processingStatus[file.id]?.error || 'An error occurred during data extraction.'}
             </AlertDescription>
           </Alert>
         )}
@@ -167,7 +167,7 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
               className="w-full"
             >
               <Brain className="h-4 w-4 mr-2" />
-              Run AI Analysis
+              Extract Data
             </Button>
           </div>
         )}
@@ -181,7 +181,7 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
               className="w-full text-amber-600 border-amber-200 hover:bg-amber-50"
             >
               <Brain className="h-4 w-4 mr-2" />
-              Retry AI Analysis
+              Retry Data Extraction
             </Button>
           </div>
         )}
