@@ -1,124 +1,129 @@
 
-import { serve } from "https://deno.land/std@0.131.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.23.0";
-import { corsHeaders } from "../_shared/cors.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
-console.log("Function initialized: check-processing-status");
+// CORS headers for browser requests
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
-interface ProcessingDetails {
-  status: 'pending' | 'processing' | 'completed' | 'failed' | 'timeout';
-  progress?: number;
-  error?: string;
-  startTime?: string;
-  endTime?: string;
-  logs?: Array<{
-    id: string;
-    message: string;
-    log_level: string;
-    created_at: string;
-    details?: any;
-  }>;
-}
+const supabaseAdmin = createClient(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+);
 
-serve(async (req: Request) => {
+serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
-
-  // Add CORS headers to all responses
-  const responseInit = {
-    headers: { ...corsHeaders, "Content-Type": "application/json" }
-  };
 
   try {
     const { fileId } = await req.json();
     
     if (!fileId) {
       return new Response(
-        JSON.stringify({ error: "File ID is required" }),
-        { status: 400, ...responseInit }
+        JSON.stringify({ error: 'File ID is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Checking processing status for file: ${fileId}`);
-
-    // Create Supabase client using environment variables
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") || "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
-    );
-
-    // Get the file details
-    const { data: fileData, error: fileError } = await supabaseClient
-      .from("uploaded_files")
-      .select("*")
-      .eq("id", fileId)
+    // Get the file record from the database
+    const { data: file, error: fileError } = await supabaseAdmin
+      .from('uploaded_files')
+      .select('*')
+      .eq('id', fileId)
       .single();
-
+      
     if (fileError) {
-      console.error("Error fetching file:", fileError);
+      console.error('Error fetching file:', fileError);
       return new Response(
-        JSON.stringify({ error: "File not found" }),
-        { status: 404, ...responseInit }
+        JSON.stringify({ error: fileError.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // Get processing logs for this file
-    const { data: logs, error: logsError } = await supabaseClient
-      .from("processing_logs")
-      .select("*")
-      .eq("file_id", fileId)
-      .order("created_at", { ascending: true });
-
-    if (logsError) {
-      console.error("Error fetching logs:", logsError);
-    }
-
-    // Determine the current status based on the file data
-    let status: ProcessingDetails["status"] = "pending";
-    let error: string | undefined;
     
-    if (fileData) {
-      if (fileData.status === "processing") {
-        // Check if processing is stuck/timeout
-        const processingTime = fileData.processing_start_time 
-          ? Date.now() - new Date(fileData.processing_start_time).getTime()
-          : 0;
-          
-        // If processing for more than 5 minutes, consider it stuck
-        if (processingTime > 5 * 60 * 1000) {
-          status = "timeout";
-        } else {
-          status = "processing";
-        }
-      } else {
-        status = fileData.status as ProcessingDetails["status"];
-      }
-      
-      error = fileData.error_message || undefined;
+    if (!file) {
+      return new Response(
+        JSON.stringify({ error: 'File not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
-
-    // Prepare the response
-    const processingDetails: ProcessingDetails = {
+    
+    // Check for stuck processing
+    let status = 'unknown';
+    let error = null;
+    
+    if (file.processed) {
+      status = 'completed';
+    } else if (file.processing) {
+      // Check if the file has been in processing state for too long
+      const updatedAt = new Date(file.updated_at);
+      const now = new Date();
+      const processingTime = (now.getTime() - updatedAt.getTime()) / 1000; // in seconds
+      
+      if (processingTime > 180) { // 3 minutes threshold
+        status = 'timeout';
+        error = 'Processing has been running for too long without completion';
+      } else {
+        status = 'processing';
+      }
+    } else if (file.extracted_data?.error) {
+      status = 'failed';
+      error = file.extracted_data.message || 'Processing failed with an unknown error';
+    } else {
+      status = 'waiting';
+    }
+    
+    // Calculate processing time if available
+    let duration = null;
+    if (file.processed && file.updated_at && file.created_at) {
+      const startTime = new Date(file.created_at);
+      const endTime = new Date(file.updated_at);
+      duration = (endTime.getTime() - startTime.getTime()) / 1000; // in seconds
+    }
+    
+    // Extract fields if data is available
+    const extractedFields = file.processed && file.extracted_data && !file.extracted_data.error
+      ? Object.keys(file.extracted_data).filter(k => !['processedBy', 'processedAt', 'documentType'].includes(k))
+      : [];
+    
+    // Get processing logs if available
+    const { data: logs, error: logsError } = await supabaseAdmin
+      .from('processing_logs')
+      .select('*')
+      .eq('file_id', fileId)
+      .order('created_at', { ascending: false })
+      .limit(10);
+      
+    if (logsError) {
+      console.warn('Error fetching processing logs:', logsError);
+    }
+    
+    const result = {
+      fileId,
       status,
+      startTime: file.created_at,
+      endTime: file.processed ? file.updated_at : null,
+      duration,
       error,
-      startTime: fileData.processing_start_time,
-      endTime: fileData.processing_end_time,
+      confidence: file.extracted_data?.confidence || null,
+      extractedFields,
       logs: logs || [],
+      lastUpdated: file.updated_at
     };
-
-    console.log(`Status determined for file ${fileId}:`, processingDetails.status);
     
     return new Response(
-      JSON.stringify(processingDetails),
-      responseInit
+      JSON.stringify(result),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error("Function error:", error);
+    console.error('Error checking processing status:', error);
+    
     return new Response(
-      JSON.stringify({ error: error.message || "Internal server error" }),
-      { status: 500, ...responseInit }
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

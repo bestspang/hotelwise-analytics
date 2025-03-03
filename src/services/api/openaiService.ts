@@ -47,7 +47,7 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string): Pr
     console.log('File path:', filePath);
     
     // Update UI to show processing status immediately
-    await supabase
+    const { error: updateError } = await supabase
       .from('uploaded_files')
       .update({
         processing: true,
@@ -55,6 +55,12 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string): Pr
         updated_at: new Date().toISOString()
       })
       .eq('id', fileId);
+      
+    if (updateError) {
+      console.error('Error updating file status to processing:', updateError);
+      toast.error(`Failed to update file status: ${updateError.message}`);
+      return null;
+    }
     
     // Call the Supabase edge function to process the PDF
     const { data, error } = await supabase.functions.invoke('process-pdf-openai', {
