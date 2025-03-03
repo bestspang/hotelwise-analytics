@@ -69,14 +69,15 @@ export const useFileUpload = (onUploadComplete?: () => void) => {
           progress: (i / selectedFiles.length) * 100
         }));
         
-        // Upload the file to Supabase storage
+        // Upload the file to Supabase storage - ensure it goes to the uploads folder
         const filePath = `uploads/${fileId}-${file.name}`;
+        console.log(`Uploading file to: pdf_files/${filePath}`);
         
         // Create FormData for tracking upload progress
         const formData = new FormData();
         formData.append('file', file);
         
-        // Upload file to storage - using 'pdf_files' bucket to match the rest of the application
+        // Upload file to storage - using 'pdf_files' bucket and placing in 'uploads' folder
         const { data, error } = await supabase.storage
           .from('pdf_files')
           .upload(filePath, file, {
@@ -90,6 +91,8 @@ export const useFileUpload = (onUploadComplete?: () => void) => {
           toast.error(`Failed to upload ${file.name}: ${error.message}`);
           continue;
         }
+        
+        console.log('File uploaded successfully:', data);
         
         // Update progress
         setUploadState(prev => ({

@@ -42,7 +42,7 @@ const ReprocessButton: React.FC<ReprocessButtonProps> = ({
         .eq('id', fileId);
       
       // Call process-pdf function
-      await supabase.functions.invoke('process-pdf', {
+      const { error } = await supabase.functions.invoke('process-pdf', {
         body: { 
           fileId, 
           filePath,
@@ -50,10 +50,17 @@ const ReprocessButton: React.FC<ReprocessButtonProps> = ({
         }
       });
       
+      if (error) {
+        console.error('Error invoking function:', error);
+        toast.error(`Failed to reprocess: ${error.message || 'Unknown error'}`);
+        return;
+      }
+      
       if (onReprocessing) onReprocessing();
       
       toast.success('File queued for reprocessing');
     } catch (error) {
+      console.error('Reprocessing error:', error);
       toast.error(`Error reprocessing file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
