@@ -1,82 +1,94 @@
 
 import React from 'react';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 
 interface RecordsPreviewProps {
   data: any;
 }
 
 const RecordsPreview: React.FC<RecordsPreviewProps> = ({ data }) => {
-  if (!data || !data.records || data.records.length === 0) {
+  if (!data || Object.keys(data).length === 0) {
     return (
-      <div className="text-center py-8 text-muted-foreground">
-        No detailed records found in this file
-      </div>
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>No extracted data available</AlertDescription>
+      </Alert>
     );
   }
 
-  // In a real implementation, we would implement the toggle functionality
-  const onToggleRow = (index: number) => {
-    console.log('Toggle row:', index);
-    // This would update the state in a real implementation
+  // Function to render a nested object or array
+  const renderNestedObject = (obj: any, level = 0): JSX.Element => {
+    if (Array.isArray(obj)) {
+      return (
+        <div className="pl-4 border-l border-gray-200 dark:border-gray-700">
+          {obj.map((item, index) => (
+            <div key={index} className="my-1">
+              {typeof item === 'object' && item !== null ? (
+                <div>
+                  <span className="font-medium text-primary">[{index}]:</span>
+                  {renderNestedObject(item, level + 1)}
+                </div>
+              ) : (
+                <div>
+                  <span className="font-medium text-primary">[{index}]:</span> {String(item)}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      );
+    } else if (typeof obj === 'object' && obj !== null) {
+      return (
+        <div className={level > 0 ? "pl-4 border-l border-gray-200 dark:border-gray-700" : ""}>
+          {Object.entries(obj).map(([key, value]) => {
+            // Skip certain internal fields
+            if (key === 'error' || key === 'approved' || key === 'rejected' || key === 'inserted') {
+              return null;
+            }
+            
+            return (
+              <div key={key} className="my-1">
+                {typeof value === 'object' && value !== null ? (
+                  <div>
+                    <span className="font-medium text-primary">{key}:</span>
+                    {renderNestedObject(value, level + 1)}
+                  </div>
+                ) : (
+                  <div>
+                    <span className="font-medium text-primary">{key}:</span> {String(value)}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+    
+    return <></>;
   };
 
-  // Function to safely render cell values regardless of type
-  const renderCellValue = (value: unknown): React.ReactNode => {
-    if (value === null || value === undefined) {
-      return '';
-    }
-    
-    if (typeof value === 'object') {
-      return JSON.stringify(value);
-    }
-    
-    return String(value);
-  };
+  // Filter out metadata properties from the extracted data
+  const filteredData = { ...data };
+  delete filteredData.error;
+  delete filteredData.approved;
+  delete filteredData.rejected;
+  delete filteredData.inserted;
+  delete filteredData.message;
+  delete filteredData.targetTable;
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h3 className="font-medium">Detailed Records</h3>
-        <p className="text-sm text-muted-foreground">
-          Select records to import
-        </p>
+      <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-md overflow-auto max-h-[60vh]">
+        {renderNestedObject(filteredData)}
       </div>
       
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-12"></TableHead>
-            {Object.keys(data.records[0])
-              .filter(key => key !== '_selected')
-              .map(key => (
-                <TableHead key={key} className="capitalize">
-                  {key}
-                </TableHead>
-              ))
-            }
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.records.map((record: any, index: number) => (
-            <TableRow key={index}>
-              <TableCell>
-                <Checkbox
-                  checked={record._selected}
-                  onCheckedChange={() => onToggleRow(index)}
-                />
-              </TableCell>
-              {Object.entries(record)
-                .filter(([key]) => key !== '_selected')
-                .map(([key, value]) => (
-                  <TableCell key={key}>{renderCellValue(value)}</TableCell>
-                ))
-              }
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      {data.targetTable && (
+        <div className="text-sm text-muted-foreground">
+          <span className="font-medium">Target Table:</span> {data.targetTable}
+        </div>
+      )}
     </div>
   );
 };

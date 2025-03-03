@@ -1,8 +1,11 @@
+
 import React from 'react';
 import { TabsContent } from '@/components/ui/tabs';
 import { FileStatus } from './types/statusTypes';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Clock, AlertTriangle, CheckCircle, File } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 interface FileTabContentProps {
   tabValue: string;
@@ -82,6 +85,24 @@ const FileTabContent: React.FC<FileTabContentProps> = ({
     }
   };
 
+  const getStatusBadge = (file: any) => {
+    if (file.processing) {
+      return <Badge variant="secondary" className="text-xs py-0 px-2 flex items-center gap-1">Processing</Badge>;
+    } else if (file.processed && file.extracted_data && !file.extracted_data.error) {
+      if (file.extracted_data.approved) {
+        return <Badge variant="outline" className="bg-green-100 text-green-800 text-xs py-0 px-2 flex items-center gap-1">Approved</Badge>;
+      } else if (file.extracted_data.rejected) {
+        return <Badge variant="destructive" className="text-xs py-0 px-2 flex items-center gap-1">Rejected</Badge>;
+      } else {
+        return <Badge variant="outline" className="text-xs py-0 px-2 flex items-center gap-1">Pending Approval</Badge>;
+      }
+    } else if (file.processed && file.extracted_data?.error) {
+      return <Badge variant="destructive" className="text-xs py-0 px-2 flex items-center gap-1">Error</Badge>;
+    } else {
+      return <Badge variant="outline" className="text-xs py-0 px-2 flex items-center gap-1">Unprocessed</Badge>;
+    }
+  };
+
   const renderActionButtons = (file: any) => {
     if (!file.processing && !file.processed) {
       return (
@@ -148,7 +169,10 @@ const FileTabContent: React.FC<FileTabContentProps> = ({
               onClick={() => onViewRawData && onViewRawData(file)}
             >
               <div className="flex flex-col">
-                <div className="font-medium">{file.filename}</div>
+                <div className="flex items-center gap-2">
+                  <div className="font-medium">{file.filename}</div>
+                  {getStatusBadge(file)}
+                </div>
                 <div className="text-sm text-muted-foreground">
                   {file.document_type || 'Unknown document type'} • {new Date(file.created_at).toLocaleString()}
                 </div>
