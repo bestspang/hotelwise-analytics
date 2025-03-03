@@ -7,7 +7,13 @@ export interface ExtractedData {
   approved?: boolean;
   rejected?: boolean;
   inserted?: boolean;
-  // Add additional properties as needed based on your application
+  
+  // Additional properties used in mockDataGenerator
+  fileType?: string;
+  date?: string;
+  hotelName?: string;
+  records?: any[];
+  metrics?: Record<string, any>;
 }
 
 export default ExtractedData;

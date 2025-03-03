@@ -14,21 +14,26 @@ const documentTypeColors: Record<string, string> = {
 };
 
 export interface FileHeaderProps {
-  filename: string;
-  documentType: string | null;
+  file?: any; // For backward compatibility
+  filename?: string;
+  documentType?: string | null;
 }
 
-const FileHeader: React.FC<FileHeaderProps> = ({ filename, documentType }) => {
+const FileHeader: React.FC<FileHeaderProps> = ({ file, filename, documentType }) => {
+  // Handle both direct props and file object
+  const displayFilename = filename || (file && file.filename) || 'Unknown file';
+  const displayDocType = documentType || (file && file.document_type) || null;
+  
   // Function to determine document type and display appropriate badge
   const renderDocumentTypeBadge = () => {
-    if (!documentType) return null;
+    if (!displayDocType) return null;
     
-    const lowerCaseType = documentType.toLowerCase();
+    const lowerCaseType = displayDocType.toLowerCase();
     const badgeColor = documentTypeColors[lowerCaseType] || 'bg-slate-500 hover:bg-slate-600';
     
     return (
-      <Badge className={badgeColor} aria-label={`Document type: ${documentType}`}>
-        {documentType}
+      <Badge className={badgeColor} aria-label={`Document type: ${displayDocType}`}>
+        {displayDocType}
       </Badge>
     );
   };
@@ -39,7 +44,7 @@ const FileHeader: React.FC<FileHeaderProps> = ({ filename, documentType }) => {
         <FileText className="h-6 w-6 text-primary" />
       </div>
       <div>
-        <h3 className="font-medium text-sm text-gray-900 dark:text-gray-100">{filename}</h3>
+        <h3 className="font-medium text-sm text-gray-900 dark:text-gray-100">{displayFilename}</h3>
         <p className="text-xs text-muted-foreground mt-0.5">
           {new Date().toLocaleString()} {/* This should be updated with actual timestamp */}
         </p>

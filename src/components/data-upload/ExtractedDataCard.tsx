@@ -108,7 +108,11 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
     <Card className="overflow-hidden h-full flex flex-col shadow-sm hover:shadow-md transition-shadow border-gray-200 dark:border-gray-700">
       <CardContent className="p-4 flex-grow">
         <div className="flex justify-between items-start">
-          <FileHeader file={file} />
+          <FileHeader 
+            file={file} 
+            filename={file.filename}
+            documentType={file.document_type}
+          />
           
           <StatusIndicator
             isProcessing={status.isProcessing || isAIProcessing}
