@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { FileState, useFileManagement } from './useFileManagement';
 import FileFilterTabs from './FileFilterTabs';
@@ -5,6 +6,7 @@ import FileTabContent from './FileTabContent';
 import ContentTabs from './ContentTabs';
 import { DataDiscrepancyDialog } from './DataDiscrepancyDialog';
 import { DataOverlapDialog } from './DataOverlapDialog';
+import { TabsContent } from '@/components/ui/tabs';
 
 interface UploadedFilesListProps {
   refreshTrigger: number;
@@ -43,7 +45,7 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({ refreshTrigger })
 
   return (
     <div className="space-y-6">
-      <ContentTabs>
+      <ContentTabs defaultValue={activeTab}>
         <FileFilterTabs 
           activeTab={activeTab} 
           setActiveTab={setActiveTab} 
@@ -54,13 +56,15 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({ refreshTrigger })
             unprocessed: files.filter(file => !file.processed && !file.processing).length,
           }}
         />
-        <FileTabContent 
-          files={filteredFiles} 
-          isLoading={isLoading} 
-          onDelete={handleDelete}
-          onReprocess={handleReprocess}
-          onCheckStuck={checkStuckProcessing}
-        />
+        <TabsContent value={activeTab}>
+          <FileTabContent 
+            files={filteredFiles} 
+            isLoading={isLoading} 
+            onDelete={handleDelete}
+            onReprocess={handleReprocess}
+            onCheckStuck={checkStuckProcessing}
+          />
+        </TabsContent>
       </ContentTabs>
 
       {/* Keep the dialog components */}

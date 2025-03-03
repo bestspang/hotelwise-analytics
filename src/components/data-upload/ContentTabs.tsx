@@ -1,15 +1,17 @@
 
 import React from 'react';
+import { Tabs } from '@/components/ui/tabs';
 
 interface ContentTabsProps {
   children: React.ReactNode;
+  defaultValue?: string;
 }
 
-const ContentTabs: React.FC<ContentTabsProps> = ({ children }) => {
+const ContentTabs: React.FC<ContentTabsProps> = ({ children, defaultValue = "all" }) => {
   return (
-    <div className="space-y-4">
+    <Tabs defaultValue={defaultValue} className="space-y-4">
       {children}
-    </div>
+    </Tabs>
   );
 };
 
