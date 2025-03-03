@@ -2,7 +2,7 @@
 import React from 'react';
 import FileList from './FileList';
 import NoFilesAlert from './NoFilesAlert';
-import { FileState } from './useFileManagement';
+import { FileState } from './hooks/useFileManagement';
 import RetryButton from './RetryButton';
 import FileActions from './FileActions';
 

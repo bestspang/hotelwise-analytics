@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FileState } from './useFileManagement';
+import { FileState } from './hooks/useFileManagement';
 import { Card } from '@/components/ui/card';
 import StatusIndicator from './card-components/StatusIndicator';
 import FileHeader from './card-components/FileHeader';
