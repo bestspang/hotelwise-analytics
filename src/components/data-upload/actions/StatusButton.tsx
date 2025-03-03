@@ -22,11 +22,11 @@ export const StatusButton: React.FC<StatusButtonProps> = ({
     if (isChecking) return;
     
     setCheckFailed(false);
-    toast.loading('Checking processing status...');
+    const toastId = toast.loading('Checking processing status...');
     
     try {
       const result = await onCheckStatus();
-      toast.dismiss();
+      toast.dismiss(toastId);
       
       if (result) {
         setStatusResult(result);
@@ -49,7 +49,7 @@ export const StatusButton: React.FC<StatusButtonProps> = ({
     } catch (error) {
       console.error('Error in handleCheckStatus:', error);
       setCheckFailed(true);
-      toast.dismiss();
+      toast.dismiss(toastId);
       toast.error(`Error checking status: ${error instanceof Error ? error.message : 'Connection failed'}`);
     }
   };

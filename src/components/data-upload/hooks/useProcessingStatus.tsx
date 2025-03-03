@@ -2,6 +2,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProcessingDetails } from '../types/statusTypes';
+import { toast } from 'sonner';
 
 interface UseProcessingStatusProps {
   onStatusChange?: (status: ProcessingDetails) => void;
@@ -16,7 +17,9 @@ export const useProcessingStatus = (props?: UseProcessingStatusProps) => {
   const checkProcessingStatus = useCallback(async (fileId: string): Promise<ProcessingDetails | null> => {
     if (!fileId) {
       console.error('No file ID provided for status check');
-      throw new Error('No file ID provided');
+      const error = new Error('No file ID provided');
+      setError(error);
+      throw error;
     }
     
     setIsChecking(true);
@@ -32,10 +35,18 @@ export const useProcessingStatus = (props?: UseProcessingStatusProps) => {
       
       if (error) {
         console.error('Error invoking check-processing-status function:', error);
+        setError(error);
+        toast.error(`Status check failed: ${error.message || 'Connection error'}`);
         throw error;
       }
       
       console.log('Processing status result:', data);
+      
+      if (!data) {
+        const noDataError = new Error('No status data returned');
+        setError(noDataError);
+        throw noDataError;
+      }
       
       // Update state with the result
       setStatus(data as ProcessingDetails);
