@@ -1,296 +1,380 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.26.0";
-import { corsHeaders } from "../_shared/cors.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { PDFDocument } from "https://esm.sh/pdf-lib@1.17.1";
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-const openaiApiKey = Deno.env.get('OPENAI_API_KEY') ?? '';
+// Configure CORS headers
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
-serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
-
+// Function to convert PDF page to base64 image
+async function convertPDFPageToBase64(pdfBytes: Uint8Array, pageIndex: number): Promise<string> {
   try {
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Load the PDF document
+    const pdfDoc = await PDFDocument.load(pdfBytes);
     
-    // Parse the request body
-    const { fileId, filePath, requestId } = await req.json();
-    
-    if (!fileId || !filePath) {
-      return new Response(
-        JSON.stringify({ error: "Missing required parameters" }),
-        { 
-          status: 400, 
-          headers: { 
-            ...corsHeaders,
-            "Content-Type": "application/json" 
-          } 
-        }
-      );
+    // Extract the specific page
+    const page = pdfDoc.getPages()[pageIndex];
+    if (!page) {
+      throw new Error(`Page index ${pageIndex} does not exist in the document`);
     }
     
-    // Check if the file exists
-    const { data: fileData, error: fileError } = await supabase
-      .storage
-      .from('pdf_files')
-      .download(filePath);
-      
-    if (fileError) {
-      await logProcessingStatus(supabase, fileId, requestId, 'error', `File download error: ${fileError.message}`);
-      
-      return new Response(
-        JSON.stringify({ error: `Failed to download file: ${fileError.message}` }),
-        { 
-          status: 500, 
-          headers: { 
-            ...corsHeaders,
-            "Content-Type": "application/json" 
-          } 
-        }
-      );
-    }
+    // Get page dimensions
+    const { width, height } = page.getSize();
     
-    // Log the successful download
-    await logProcessingStatus(supabase, fileId, requestId, 'info', 'File downloaded successfully, preparing for processing');
-
-    // Convert the PDF to base64
-    const base64 = await fileToBase64(fileData);
+    // Create a new PDF document with just this page
+    const singlePagePdf = await PDFDocument.create();
+    const [copiedPage] = await singlePagePdf.copyPages(pdfDoc, [pageIndex]);
+    singlePagePdf.addPage(copiedPage);
     
-    await logProcessingStatus(supabase, fileId, requestId, 'info', 'Starting OpenAI GPT-4 Vision analysis');
+    // Save as PDF bytes
+    const singlePageBytes = await singlePagePdf.save();
     
-    // Call the OpenAI API to process the PDF
-    const extractedData = await processWithOpenAI(base64, filePath);
+    // Convert to base64
+    const base64String = btoa(String.fromCharCode(...new Uint8Array(singlePageBytes)));
     
-    // Update the database with the extracted data
-    const { error: updateError } = await supabase
-      .from('uploaded_files')
-      .update({
-        processing: false,
-        processed: true,
-        extracted_data: extractedData
-      })
-      .eq('id', fileId);
-      
-    if (updateError) {
-      await logProcessingStatus(supabase, fileId, requestId, 'error', `Failed to update database: ${updateError.message}`);
-      
-      return new Response(
-        JSON.stringify({ error: `Failed to update database: ${updateError.message}` }),
-        { 
-          status: 500, 
-          headers: { 
-            ...corsHeaders,
-            "Content-Type": "application/json" 
-          } 
-        }
-      );
-    }
-    
-    await logProcessingStatus(supabase, fileId, requestId, 'success', 'PDF processed successfully with OpenAI');
-    
-    return new Response(
-      JSON.stringify({ success: true, data: extractedData }),
-      { 
-        status: 200, 
-        headers: { 
-          ...corsHeaders,
-          "Content-Type": "application/json" 
-        } 
-      }
-    );
+    return `data:application/pdf;base64,${base64String}`;
   } catch (error) {
-    console.error("Unhandled error:", error);
-    
-    return new Response(
-      JSON.stringify({ error: error.message || "An unknown error occurred" }),
-      { 
-        status: 500, 
-        headers: { 
-          ...corsHeaders,
-          "Content-Type": "application/json" 
-        } 
-      }
-    );
-  }
-});
-
-// Helper function to convert file to base64
-async function fileToBase64(file: Blob): Promise<string> {
-  const bytes = await file.arrayBuffer();
-  const base64 = btoa(String.fromCharCode(...new Uint8Array(bytes)));
-  return base64;
-}
-
-// Helper function to log processing status
-async function logProcessingStatus(
-  supabase: any,
-  fileId: string,
-  requestId: string,
-  logLevel: 'info' | 'success' | 'warning' | 'error',
-  message: string,
-  details?: any
-) {
-  try {
-    await supabase.from('processing_logs').insert({
-      file_id: fileId,
-      request_id: requestId,
-      log_level: logLevel,
-      message: message,
-      details: details
-    });
-  } catch (error) {
-    console.error('Error logging processing status:', error);
-  }
-}
-
-// Process PDF with OpenAI GPT-4 Vision
-async function processWithOpenAI(base64Pdf: string, filename: string): Promise<any> {
-  try {
-    if (!openaiApiKey) {
-      throw new Error("OpenAI API key is not configured");
-    }
-    
-    const documentType = determineDocumentType(filename);
-    
-    // Prepare the prompt based on the document type
-    const prompt = createPromptForDocumentType(documentType, filename);
-    
-    const payload = {
-      model: "gpt-4-vision-preview",
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: prompt },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:application/pdf;base64,${base64Pdf}`,
-                detail: "high"
-              }
-            }
-          ]
-        }
-      ],
-      max_tokens: 4000
-    };
-    
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${openaiApiKey}`
-      },
-      body: JSON.stringify(payload)
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`OpenAI API error: ${errorData.error?.message || response.statusText}`);
-    }
-    
-    const result = await response.json();
-    
-    // Extract structured data from the OpenAI response
-    const structuredData = parseOpenAIResponse(result, documentType);
-    
-    return {
-      ...structuredData,
-      document_type: documentType,
-      raw_response: result.choices[0].message.content,
-      model_used: result.model,
-      timestamp: new Date().toISOString()
-    };
-  } catch (error) {
-    console.error("Error processing with OpenAI:", error);
+    console.error(`Error converting PDF page ${pageIndex} to base64:`, error);
     throw error;
   }
 }
 
-// Determine document type from filename
-function determineDocumentType(filename: string): string {
-  filename = filename.toLowerCase();
-  
-  if (filename.includes("cityledger") || filename.includes("city_ledger")) {
-    return "City Ledger";
-  } else if (filename.includes("expense") || filename.includes("voucher")) {
-    return "Expense Voucher";
-  } else if (filename.includes("noshow") || filename.includes("no_show")) {
-    return "No-Show Report";
-  } else if (filename.includes("occupancy")) {
-    return "Occupancy Report";
-  } else if (filename.includes("audit") || filename.includes("night_audit")) {
-    return "Night Audit";
-  } else {
-    return "Unknown";
-  }
-}
-
-// Create prompt based on document type
-function createPromptForDocumentType(documentType: string, filename: string): string {
-  const basePrompt = `You are a specialized AI for extracting financial data from hotel documents. Please analyze this ${documentType} (filename: ${filename}) and extract all relevant information including dates, amounts, account details, and any other financial or operational data present. Format your response as structured JSON.`;
-  
-  switch (documentType) {
-    case "City Ledger":
-      return `${basePrompt} Include account names, reference numbers, opening balances, charges, payments, and closing balances.`;
-    
-    case "Expense Voucher":
-      return `${basePrompt} Include expense types, amounts, dates, taxes, and any notes or remarks.`;
-    
-    case "No-Show Report":
-      return `${basePrompt} Include dates, number of no-shows, potential revenue loss, and any guest or reservation details.`;
-    
-    case "Occupancy Report":
-      return `${basePrompt} Include date ranges, occupancy rates, ADR (Average Daily Rate), RevPAR, total available rooms, and occupied rooms.`;
-    
-    case "Night Audit":
-      return `${basePrompt} Include audit date, room details, revenue, charges, taxes, and balance information.`;
-    
-    default:
-      return `${basePrompt} Extract all data in a structured format that matches the content type.`;
-  }
-}
-
-// Parse OpenAI response to structured JSON
-function parseOpenAIResponse(openAIResponse: any, documentType: string): any {
+// Function to extract structured data using GPT-4 Vision
+async function extractDataWithGPT4Vision(base64Images: string[], documentType: string): Promise<any> {
   try {
-    // Get the text content from OpenAI response
-    const textContent = openAIResponse.choices[0].message.content;
-    
-    // Try to extract JSON from the text response
-    const jsonMatch = textContent.match(/```json\n([\s\S]*?)\n```/) || 
-                      textContent.match(/```\n([\s\S]*?)\n```/) ||
-                      textContent.match(/\{[\s\S]*\}/);
-    
-    let parsedData;
-    
-    if (jsonMatch) {
-      // Extract the JSON string and parse it
-      const jsonString = jsonMatch[0].startsWith('{') ? jsonMatch[0] : jsonMatch[1];
-      parsedData = JSON.parse(jsonString);
-    } else {
-      // If no JSON format is found, return the text as a data field
-      parsedData = {
-        extracted_text: textContent
-      };
+    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openAIApiKey) {
+      throw new Error('OpenAI API key is not set in environment variables');
     }
     
-    return {
-      ...parsedData,
-      processing_metadata: {
-        document_type: documentType,
-        extraction_time: new Date().toISOString(),
-        confidence_score: 0.8, // This would ideally be derived from the model's confidence
+    const messages = [
+      {
+        role: "system",
+        content: `You are an AI assistant specializing in extracting structured data from hotel financial documents. 
+        Extract all relevant information from the ${documentType} document images provided.
+        Return the data in a well-structured JSON format that includes all financial metrics, dates, room information, 
+        occupancy details, revenue figures, and any other relevant information visible in the document.
+        Use camelCase for property names and organize related data into nested objects where appropriate.
+        Include metadata like processedBy: "GPT-4 Vision" and processedAt (current timestamp).`
+      },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: `Extract all relevant data from this ${documentType} document and format as structured JSON:` },
+          ...base64Images.map(image => ({ type: "image_url", image_url: { url: image } }))
+        ]
       }
-    };
+    ];
+    
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: "gpt-4o",
+        messages: messages,
+        max_tokens: 4000,
+        temperature: 0.2
+      })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('OpenAI API error:', errorData);
+      throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
+    }
+    
+    const data = await response.json();
+    
+    // Parse the JSON response from GPT-4
+    let jsonResponse;
+    try {
+      // Extract JSON from the response text (it might be wrapped in markdown code blocks)
+      const responseText = data.choices[0].message.content;
+      const jsonMatch = responseText.match(/```json\n([\s\S]*?)\n```/) || 
+                        responseText.match(/```\n([\s\S]*?)\n```/) || 
+                        [null, responseText];
+      
+      const jsonString = jsonMatch[1] || responseText;
+      jsonResponse = JSON.parse(jsonString.trim());
+    } catch (parseError) {
+      console.error('Error parsing JSON from GPT-4 response:', parseError);
+      console.log('Raw response:', data.choices[0].message.content);
+      throw new Error('Failed to parse structured data from GPT-4 response');
+    }
+    
+    // Add metadata if not already present
+    if (!jsonResponse.processedBy) {
+      jsonResponse.processedBy = "GPT-4 Vision";
+    }
+    if (!jsonResponse.processedAt) {
+      jsonResponse.processedAt = new Date().toISOString();
+    }
+    if (!jsonResponse.documentType) {
+      jsonResponse.documentType = documentType;
+    }
+    
+    return jsonResponse;
   } catch (error) {
-    console.error("Error parsing OpenAI response:", error);
-    return {
-      raw_text: openAIResponse.choices[0].message.content,
-      error: "Failed to parse structured data"
-    };
+    console.error('Error extracting data with GPT-4 Vision:', error);
+    throw error;
   }
 }
+
+// Function to update file record with extracted data
+async function updateFileWithExtractedData(
+  supabase: any,
+  fileId: string,
+  extractedData: any,
+  requestId: string
+): Promise<void> {
+  try {
+    // Add a processing log entry
+    await supabase.from('processing_logs').insert({
+      file_id: fileId,
+      request_id: requestId,
+      message: 'Processing completed, updating database with extracted data',
+      log_level: 'info'
+    });
+    
+    // Update the file record with extracted data
+    const { error } = await supabase
+      .from('uploaded_files')
+      .update({
+        extracted_data: extractedData,
+        processing: false,
+        processed: true
+      })
+      .eq('id', fileId);
+    
+    if (error) {
+      console.error('Error updating file with extracted data:', error);
+      throw error;
+    }
+  } catch (error) {
+    console.error('Error in updateFileWithExtractedData:', error);
+    throw error;
+  }
+}
+
+serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+  
+  try {
+    const { fileId, filePath, requestId } = await req.json();
+    
+    if (!fileId || !filePath || !requestId) {
+      return new Response(
+        JSON.stringify({ error: 'Missing required parameters: fileId, filePath, or requestId' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+    
+    // Create Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return new Response(
+        JSON.stringify({ error: 'Supabase credentials are not properly configured' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Log processing start
+    await supabase.from('processing_logs').insert({
+      file_id: fileId,
+      request_id: requestId,
+      message: 'Starting PDF processing with GPT-4 Vision',
+      log_level: 'info'
+    });
+    
+    // Get file details
+    const { data: fileData, error: fileError } = await supabase
+      .from('uploaded_files')
+      .select('document_type, filename')
+      .eq('id', fileId)
+      .single();
+    
+    if (fileError) {
+      console.error('Error fetching file details:', fileError);
+      await supabase.from('processing_logs').insert({
+        file_id: fileId,
+        request_id: requestId,
+        message: `Error fetching file details: ${fileError.message}`,
+        log_level: 'error'
+      });
+      
+      return new Response(
+        JSON.stringify({ error: 'Failed to fetch file details', details: fileError }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+    
+    // Download PDF file from storage
+    const { data: fileBuffer, error: downloadError } = await supabase.storage
+      .from('pdf_files')
+      .download(filePath);
+    
+    if (downloadError) {
+      console.error('Error downloading file:', downloadError);
+      await supabase.from('processing_logs').insert({
+        file_id: fileId,
+        request_id: requestId,
+        message: `Error downloading file: ${downloadError.message}`,
+        log_level: 'error'
+      });
+      
+      return new Response(
+        JSON.stringify({ error: 'Failed to download file', details: downloadError }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+    
+    // Log successful file download
+    await supabase.from('processing_logs').insert({
+      file_id: fileId,
+      request_id: requestId,
+      message: 'File downloaded successfully, starting page conversion',
+      log_level: 'info'
+    });
+    
+    // Convert PDF to array of Uint8Array
+    const pdfBytes = new Uint8Array(await fileBuffer.arrayBuffer());
+    
+    // Load PDF document to get number of pages
+    const pdfDoc = await PDFDocument.load(pdfBytes);
+    const pageCount = pdfDoc.getPageCount();
+    
+    // Log page count
+    await supabase.from('processing_logs').insert({
+      file_id: fileId,
+      request_id: requestId,
+      message: `PDF has ${pageCount} pages, converting to base64 images`,
+      log_level: 'info'
+    });
+    
+    // Convert first few pages to base64 strings (limit to maximum 5 pages to prevent token limits)
+    const pagesToProcess = Math.min(pageCount, 5);
+    const base64Images = [];
+    
+    for (let i = 0; i < pagesToProcess; i++) {
+      try {
+        const base64Page = await convertPDFPageToBase64(pdfBytes, i);
+        base64Images.push(base64Page);
+        
+        await supabase.from('processing_logs').insert({
+          file_id: fileId,
+          request_id: requestId,
+          message: `Converted page ${i + 1}/${pagesToProcess} to base64`,
+          log_level: 'info'
+        });
+      } catch (pageError) {
+        console.error(`Error processing page ${i}:`, pageError);
+        await supabase.from('processing_logs').insert({
+          file_id: fileId,
+          request_id: requestId,
+          message: `Error processing page ${i + 1}: ${pageError.message}`,
+          log_level: 'warning'
+        });
+      }
+    }
+    
+    if (base64Images.length === 0) {
+      await supabase.from('processing_logs').insert({
+        file_id: fileId,
+        request_id: requestId,
+        message: 'Failed to convert any pages to base64',
+        log_level: 'error'
+      });
+      
+      return new Response(
+        JSON.stringify({ error: 'Failed to convert any pages to base64' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+    
+    // Log successful conversion
+    await supabase.from('processing_logs').insert({
+      file_id: fileId,
+      request_id: requestId,
+      message: `Successfully converted ${base64Images.length} pages, sending to GPT-4 Vision`,
+      log_level: 'info'
+    });
+    
+    // Extract structured data using GPT-4 Vision
+    const extractedData = await extractDataWithGPT4Vision(base64Images, fileData.document_type || 'unknown');
+    
+    // Log successful extraction
+    await supabase.from('processing_logs').insert({
+      file_id: fileId,
+      request_id: requestId,
+      message: 'Successfully extracted data with GPT-4 Vision',
+      log_level: 'info',
+      details: { dataKeys: Object.keys(extractedData) }
+    });
+    
+    // Update file record with extracted data
+    await updateFileWithExtractedData(supabase, fileId, extractedData, requestId);
+    
+    // Final success log
+    await supabase.from('processing_logs').insert({
+      file_id: fileId,
+      request_id: requestId,
+      message: 'Processing completed successfully',
+      log_level: 'info'
+    });
+    
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        message: 'PDF processed successfully',
+        data: extractedData 
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (error) {
+    console.error('Error in process-pdf-openai function:', error);
+    
+    // Create Supabase client for error logging
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+      
+      if (supabaseUrl && supabaseServiceKey) {
+        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        const errorInfo = await req.json().catch(() => ({}));
+        
+        await supabase.from('processing_logs').insert({
+          file_id: errorInfo.fileId || null,
+          request_id: errorInfo.requestId || null,
+          message: `Error in process-pdf-openai function: ${error.message}`,
+          log_level: 'error',
+          details: { 
+            stack: error.stack,
+            errorObject: JSON.stringify(error, Object.getOwnPropertyNames(error))
+          }
+        }).catch(logError => {
+          console.error('Failed to log error to database:', logError);
+        });
+      }
+    } catch (logError) {
+      console.error('Error logging to database:', logError);
+    }
+    
+    return new Response(
+      JSON.stringify({ error: 'Failed to process PDF', details: error.message }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+    );
+  }
+});
