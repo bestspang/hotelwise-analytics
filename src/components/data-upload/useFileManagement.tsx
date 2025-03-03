@@ -31,6 +31,7 @@ export const useFileManagement = (refreshTrigger = 0) => {
   const [realtimeEnabled, setRealtimeEnabled] = useState(false);
   const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connecting');
   const channelRef = useRef<any>(null);
+  const initialFetchDoneRef = useRef(false);
 
   // Compose the fetchFiles logic
   const { 
@@ -212,12 +213,14 @@ export const useFileManagement = (refreshTrigger = 0) => {
   // Fetch files ONLY on initial load and when refreshTrigger changes explicitly
   // Do not use any interval-based refresh
   useEffect(() => {
-    // Only fetch if it's the initial load or refreshTrigger has changed
-    if (isInitialMount.current || refreshTrigger > 0) {
+    // Only fetch if it's the initial load (first render only) or refreshTrigger has changed
+    if (!initialFetchDoneRef.current || (refreshTrigger > 0 && !fetchInProgress.current)) {
+      console.log(`Fetching files - initial: ${!initialFetchDoneRef.current}, refreshTrigger: ${refreshTrigger}`);
       fetchWithRetry();
       setLastRefresh(new Date());
+      initialFetchDoneRef.current = true;
     }
-  }, [refreshTrigger, fetchWithRetry, setLastRefresh, isInitialMount]);
+  }, [refreshTrigger, fetchWithRetry, setLastRefresh, fetchInProgress]);
 
   // Handle reappeared files automatically if they exist
   useEffect(() => {

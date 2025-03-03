@@ -14,6 +14,7 @@ const DataUpload = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connecting');
   const channelRef = useRef<any>(null);
+  const userInitiatedRefresh = useRef(false);
 
   // Check Supabase real-time connection status only once
   useEffect(() => {
@@ -50,16 +51,19 @@ const DataUpload = () => {
 
   const handleUploadComplete = () => {
     console.log('Upload completed, triggering refresh');
+    userInitiatedRefresh.current = true;
     setRefreshTrigger(prev => prev + 1);
   };
 
   const handleReprocessing = () => {
     console.log('Reprocessing triggered, refreshing file list');
+    userInitiatedRefresh.current = true;
     setRefreshTrigger(prev => prev + 1);
   };
 
   const handleManualRefresh = () => {
     console.log('Manual refresh triggered');
+    userInitiatedRefresh.current = true;
     setRefreshTrigger(prev => prev + 1);
     toast.info('Refreshing data...');
   };
