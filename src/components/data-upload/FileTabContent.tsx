@@ -40,8 +40,8 @@ const FileTabContent: React.FC<FileTabContentProps> = ({
       />
       <FileActions 
         fileId={file.id} 
-        onDelete={() => onDelete(file.id)} 
-        onCheckStuck={file.processing ? () => onCheckStuck(file.id) : undefined} 
+        onDelete={() => onDelete(file.id)}
+        onCheckStuck={file.processing ? () => onCheckStuck(file.id) : undefined}
       />
     </div>
   );

@@ -15,21 +15,15 @@ import {
 
 interface FileActionsProps {
   fileId: string;
-  filePath: string;
-  isProcessing: boolean;
-  isStuck: boolean;
   onDelete: () => void;
-  onStatusCheck: () => void;
+  onCheckStuck?: () => Promise<boolean>;
   className?: string;
 }
 
 export const FileActions: React.FC<FileActionsProps> = ({
   fileId,
-  filePath,
-  isProcessing,
-  isStuck,
   onDelete,
-  onStatusCheck,
+  onCheckStuck,
   className
 }) => {
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -37,11 +31,14 @@ export const FileActions: React.FC<FileActionsProps> = ({
   const { isChecking, checkProcessingStatus } = useProcessingStatus();
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [statusResult, setStatusResult] = useState<any>(null);
-  
+  const isProcessing = !!onCheckStuck;
+  const isStuck = false;
+
   const handleForceDelete = async () => {
     setIsDeleting(true);
     try {
       try {
+        const filePath = '';
         await supabase.storage
           .from('pdf_files')
           .remove([filePath]);
@@ -69,10 +66,13 @@ export const FileActions: React.FC<FileActionsProps> = ({
   };
   
   const handleCheckStatus = async () => {
-    const result = await checkProcessingStatus(fileId);
-    setStatusResult(result);
-    setStatusDialogOpen(true);
-    onStatusCheck();
+    if (!onCheckStuck) return;
+    
+    const result = await onCheckStuck();
+    if (result) {
+      setStatusResult(result);
+      setStatusDialogOpen(true);
+    }
   };
   
   return (
