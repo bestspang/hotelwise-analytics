@@ -114,7 +114,7 @@ serve(async (req) => {
             id: apiLogId,
             request_id: requestId,
             file_name: filePath.split('/').pop(),
-            api_model: 'gpt-4-vision-preview',
+            api_model: 'gpt-4o',
             status: 'pending',
             timestamp_sent: new Date().toISOString()
           });
@@ -127,7 +127,7 @@ serve(async (req) => {
             'Authorization': `Bearer ${openAIKey}`
           },
           body: JSON.stringify({
-            model: "gpt-4-vision-preview",
+            model: "gpt-4o",
             messages: [
               {
                 role: "system",
