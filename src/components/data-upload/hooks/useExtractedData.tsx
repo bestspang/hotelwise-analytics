@@ -15,16 +15,19 @@ export interface ExtractedDataState {
 export const useExtractedData = (file: any) => {
   const [activeTab, setActiveTab] = useState('records');
   
+  // Create a defensive copy to prevent accessing undefined properties
+  const extractedData = file?.extracted_data || {};
+  
   const state: ExtractedDataState = {
-    noExtractedData: !file.extracted_data || Object.keys(file.extracted_data).length === 0,
-    hasExtractionError: file.processing_error || (file.extracted_data?.error === true),
-    isPendingApproval: file.extracted_data && !file.extracted_data.error && 
-                      !file.extracted_data.approved && !file.extracted_data.rejected,
-    isApproved: file.extracted_data?.approved === true,
-    isRejected: file.extracted_data?.rejected === true,
-    isInserted: file.extracted_data?.inserted === true,
-    targetTable: file.extracted_data?.targetTable,
-    errorMessage: file.extracted_data?.message
+    noExtractedData: !extractedData || Object.keys(extractedData).length === 0,
+    hasExtractionError: file.processing_error || (extractedData.error === true),
+    isPendingApproval: extractedData && !extractedData.error && 
+                      !extractedData.approved && !extractedData.rejected,
+    isApproved: extractedData?.approved === true,
+    isRejected: extractedData?.rejected === true,
+    isInserted: extractedData?.inserted === true,
+    targetTable: extractedData?.targetTable,
+    errorMessage: extractedData?.message
   };
 
   return {

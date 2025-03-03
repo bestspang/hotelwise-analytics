@@ -27,8 +27,12 @@ export const useFileManagement = (refreshTrigger = 0) => {
 
   // Function to fetch files from the database
   const fetchFiles = useCallback(async () => {
-    if (fetchInProgress.current) return;
+    if (fetchInProgress.current) {
+      console.log('Fetch already in progress, skipping...');
+      return;
+    }
     
+    console.log('Fetching files from database...');
     fetchInProgress.current = true;
     setIsLoading(true);
     
@@ -42,8 +46,10 @@ export const useFileManagement = (refreshTrigger = 0) => {
         throw error;
       }
       
+      console.log('Files fetched successfully:', data?.length || 0, 'files');
+      
       // Filter out files that have been deleted locally
-      const filteredFiles = data.filter(file => !deletedFileIds.current.has(file.id));
+      const filteredFiles = data?.filter(file => !deletedFileIds.current.has(file.id)) || [];
       
       setFiles(filteredFiles);
       setError(null);
@@ -60,6 +66,8 @@ export const useFileManagement = (refreshTrigger = 0) => {
   // Function to delete a file
   const handleDelete = useCallback(async (fileId: string) => {
     try {
+      console.log('Deleting file with ID:', fileId);
+      
       // First get the file to get the file path
       const { data: fileData, error: fetchError } = await supabase
         .from('uploaded_files')
@@ -83,6 +91,7 @@ export const useFileManagement = (refreshTrigger = 0) => {
       
       // Delete from storage if we have a file path
       if (fileData?.file_path) {
+        console.log('Deleting file from storage:', fileData.file_path);
         const { error: deleteStorageError } = await supabase.storage
           .from('pdf_files')
           .remove([fileData.file_path]);
@@ -110,6 +119,7 @@ export const useFileManagement = (refreshTrigger = 0) => {
 
   // Fetch files when the component mounts or refreshTrigger changes
   useEffect(() => {
+    console.log('refreshTrigger changed, fetching files...', refreshTrigger);
     fetchFiles();
   }, [fetchFiles, refreshTrigger]);
 

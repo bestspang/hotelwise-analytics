@@ -76,17 +76,17 @@ export const useFileUpload = (onUploadComplete?: () => void) => {
         const formData = new FormData();
         formData.append('file', file);
         
-        // Upload file to storage
+        // Upload file to storage - using 'pdf_files' bucket to match the rest of the application
         const { data, error } = await supabase.storage
-          .from('hotel-files')
+          .from('pdf_files')
           .upload(filePath, file, {
             cacheControl: '3600',
             upsert: false,
-            // We can't use signal directly, removed it
           });
         
         // Handle upload errors
         if (error) {
+          console.error('Storage upload error:', error);
           toast.error(`Failed to upload ${file.name}: ${error.message}`);
           continue;
         }
@@ -98,20 +98,22 @@ export const useFileUpload = (onUploadComplete?: () => void) => {
           processingStage: 'processing'
         }));
         
-        // Insert record in the database - fixed the property name from storage_path to file_path
+        // Insert record in the database
         const { error: dbError } = await supabase
           .from('uploaded_files')
           .insert({
             id: fileId,
             filename: file.name,
-            file_path: data.path,
+            file_path: filePath,
             file_type: file.type,
             file_size: file.size,
             processing: true,
-            processed: false
+            processed: false,
+            document_type: determineDocumentType(file.name) // Add document type detection
           });
         
         if (dbError) {
+          console.error('Database insert error:', dbError);
           toast.error(`Database error for ${file.name}: ${dbError.message}`);
         }
         
@@ -153,6 +155,28 @@ export const useFileUpload = (onUploadComplete?: () => void) => {
       });
     }
   }, [selectedFiles, uploadState.isUploading, uploadControllers, onUploadComplete]);
+  
+  // Determine document type based on filename
+  const determineDocumentType = (filename: string): string => {
+    filename = filename.toLowerCase();
+    
+    if (filename.includes('expense') || filename.includes('voucher')) {
+      return 'Expense Voucher';
+    } else if (filename.includes('statistics') || filename.includes('stats')) {
+      return 'Monthly Statistics';
+    } else if (filename.includes('occupancy')) {
+      return 'Occupancy Report';
+    } else if (filename.includes('ledger') || filename.includes('city')) {
+      return 'City Ledger';
+    } else if (filename.includes('audit') || filename.includes('night')) {
+      return 'Night Audit';
+    } else if (filename.includes('no-show') || filename.includes('noshow')) {
+      return 'No-show Report';
+    }
+    
+    // Default document type
+    return 'Expense Voucher';
+  };
   
   // Cancel all ongoing uploads
   const cancelUploads = useCallback(() => {

@@ -13,6 +13,8 @@ const DataUpload = () => {
 
   // Set up real-time subscription to the uploaded_files table
   useEffect(() => {
+    console.log('Setting up real-time subscription to uploaded_files table');
+    
     const channel = supabase
       .channel('public:uploaded_files')
       .on('postgres_changes', { 
@@ -40,21 +42,35 @@ const DataUpload = () => {
               toast.error(`Processing failed for "${newData.filename}": ${newData.extracted_data.message || 'Unknown error'}`);
             }
           }
+        } else if (payload.eventType === 'INSERT') {
+          // New file added
+          toast.info(`New file "${payload.new.filename}" added`);
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('Successfully subscribed to uploaded_files table');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('Failed to subscribe to realtime updates');
+          toast.error('Failed to connect to realtime updates. Some features may not work properly.');
+        }
+      });
 
     // Clean up subscription on unmount
     return () => {
+      console.log('Cleaning up realtime subscription');
       supabase.removeChannel(channel);
     };
   }, []);
 
   const handleUploadComplete = () => {
+    console.log('Upload completed, refreshing file list');
     setRefreshTrigger(prev => prev + 1);
   };
 
   const handleReprocessing = () => {
+    console.log('File reprocessing triggered, refreshing file list');
     setRefreshTrigger(prev => prev + 1);
   };
 
