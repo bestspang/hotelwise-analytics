@@ -13,19 +13,26 @@ interface ExtractedDataCardProps {
   onViewRawData: () => void;
   onDelete?: (fileId: string) => Promise<boolean>;
   onReprocessing?: () => void;
+  isStuckInProcessing?: (file: any) => boolean;
 }
 
 const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({ 
   file, 
   onViewRawData, 
   onDelete,
-  onReprocessing
+  onReprocessing,
+  isStuckInProcessing
 }) => {
   const [isReprocessing, setIsReprocessing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Get the complete status information for the file
   const status = getFileStatus(file);
+
+  // If isStuckInProcessing is provided, use it to override the isStuck property
+  if (isStuckInProcessing) {
+    status.isStuck = isStuckInProcessing(file);
+  }
 
   // Function to handle reprocessing of a file
   const handleReprocess = async () => {
