@@ -37,6 +37,7 @@ export const useFileDelete = (
       
       if (success) {
         console.log(`File ${fileId} deleted successfully from backend`);
+        toast.success('File deleted successfully');
         return true;
       }
       
@@ -44,7 +45,8 @@ export const useFileDelete = (
       const errorMessage = 'Failed to delete file completely';
       setDeleteError(errorMessage);
       
-      // No need to revert UI here - real-time updates or next refresh will handle this
+      // No need to revert UI here - real-time updates will handle this
+      // The file may or may not reappear based on what part of the deletion failed
       return false;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';

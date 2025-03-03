@@ -29,6 +29,7 @@ export const useFileManagement = (refreshTrigger = 0) => {
   } = useFileState();
 
   const [realtimeEnabled, setRealtimeEnabled] = useState(false);
+  const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connecting');
 
   // Compose the fetchFiles logic
   const { 
@@ -83,6 +84,8 @@ export const useFileManagement = (refreshTrigger = 0) => {
   // Set up Supabase real-time subscription for file changes
   useEffect(() => {
     // Subscribe to realtime changes on the uploaded_files table
+    console.log('Setting up realtime subscription for uploaded_files table');
+    
     const channel = supabase
       .channel('public:uploaded_files')
       .on('postgres_changes', { 
@@ -99,13 +102,25 @@ export const useFileManagement = (refreshTrigger = 0) => {
           setFiles(prevFiles => prevFiles.filter(file => file.id !== payload.old.id));
           // Add to deletedFileIds set to ensure it stays deleted
           deletedFileIds.current.add(payload.old.id);
-          toast.success(`File "${payload.old.filename || 'unknown'}" deleted`);
+          toast.success(`File "${payload.old.filename || 'unknown'}" removed from system`);
         } else if (payload.eventType === 'INSERT') {
           console.log('New file added:', payload);
           // Only fetch if not already in our deletedFileIds set
           if (!deletedFileIds.current.has(payload.new.id)) {
-            // Trigger a fetch to get the latest files
-            fetchFiles();
+            // Add the new file directly to our state if we have all needed data
+            if (payload.new && Object.keys(payload.new).length > 3) {
+              setFiles(prevFiles => {
+                // Check if file already exists in our state
+                const exists = prevFiles.some(file => file.id === payload.new.id);
+                if (!exists) {
+                  return [...prevFiles, payload.new];
+                }
+                return prevFiles;
+              });
+            } else {
+              // If we don't have complete file data, trigger a fetch
+              fetchFiles();
+            }
           }
         } else if (payload.eventType === 'UPDATE') {
           console.log('File updated:', payload);
@@ -113,22 +128,33 @@ export const useFileManagement = (refreshTrigger = 0) => {
           setFiles(prevFiles => prevFiles.map(file => 
             file.id === payload.new.id ? { ...file, ...payload.new } : file
           ));
+          
+          // Show toast for status changes
+          if (payload.old.processing !== payload.new.processing || 
+              payload.old.processed !== payload.new.processed) {
+            const status = payload.new.processed ? 'processed' : 
+                          payload.new.processing ? 'processing' : 'uploaded';
+            toast.info(`File "${payload.new.filename}" status changed to ${status}`);
+          }
         }
       })
       .subscribe((status) => {
         console.log('Subscription status:', status);
         setRealtimeEnabled(status === 'SUBSCRIBED');
+        setRealtimeStatus(status === 'SUBSCRIBED' ? 'connected' : 
+                         status === 'CHANNEL_ERROR' ? 'disconnected' : 'connecting');
         
         if (status === 'SUBSCRIBED') {
-          toast.success('Real-time updates enabled');
+          console.log('Real-time updates enabled for uploaded_files');
         } else if (status === 'CHANNEL_ERROR') {
-          toast.error('Failed to enable real-time updates');
+          console.error('Failed to enable real-time updates for uploaded_files');
           setError('sync', 'Real-time subscription failed');
         }
       });
 
     // Clean up subscription on unmount
     return () => {
+      console.log('Cleaning up realtime subscription');
       supabase.removeChannel(channel);
     };
   }, [setFiles, deletedFileIds, fetchFiles, setError]);
@@ -188,6 +214,24 @@ export const useFileManagement = (refreshTrigger = 0) => {
     clearAllErrors();
   }, [clearAllErrors]);
 
+  // Run a sync operation periodically to ensure database and storage are in sync
+  useEffect(() => {
+    // Only run auto-sync if real-time is not enabled
+    if (!realtimeEnabled) {
+      const interval = setInterval(() => {
+        // Only auto-sync if we're not already syncing and not in the middle of a fetch
+        if (!isSyncing && !fetchInProgress.current) {
+          console.log('Running automatic storage sync check');
+          syncWithStorage().catch(err => {
+            console.error('Auto-sync failed:', err);
+          });
+        }
+      }, 300000); // Run every 5 minutes
+
+      return () => clearInterval(interval);
+    }
+  }, [realtimeEnabled, isSyncing, syncWithStorage, fetchInProgress]);
+
   // Enhanced syncWithStorage function that also handles database cleanup
   const enhancedSyncWithStorage = useCallback(async () => {
     const result = await syncWithStorage();
@@ -212,6 +256,7 @@ export const useFileManagement = (refreshTrigger = 0) => {
     isSyncing,
     handleReappearedFiles,
     reappearedFiles,
-    realtimeEnabled
+    realtimeEnabled,
+    realtimeStatus
   };
 };

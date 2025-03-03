@@ -2,6 +2,10 @@
 import { logInfo, logError, supabase } from './baseService';
 import { toast } from 'sonner';
 
+/**
+ * Deletes a file from both storage and database
+ * Ensures synchronized deletion between storage and database
+ */
 export async function deleteUploadedFile(fileId: string) {
   try {
     logInfo(`Starting deletion process for file ID: ${fileId}`);
@@ -53,13 +57,40 @@ export async function deleteUploadedFile(fileId: string) {
       if (dbError) {
         toast.error(`Failed to delete file record: ${dbError.message}`);
         logError('Failed to delete file record:', dbError);
+        
+        // Add entry to processing_logs to track this error case
+        await supabase
+          .from('processing_logs')
+          .insert({
+            message: `Failed to delete database record after storage deletion: ${dbError.message}`,
+            log_level: 'error',
+            file_id: fileId,
+            details: {
+              filename: fileData.filename,
+              file_path: fileData.file_path,
+              error: dbError
+            }
+          });
+        
         // Storage file is already deleted, but we couldn't update the database
         // This is still a failure case that needs to be handled
         return false;
       }
 
+      // Log successful deletion to processing_logs
+      await supabase
+        .from('processing_logs')
+        .insert({
+          message: `File "${fileData.filename}" deleted successfully`,
+          log_level: 'info',
+          file_id: fileId,
+          details: {
+            filename: fileData.filename,
+            file_path: fileData.file_path
+          }
+        });
+
       logInfo(`Database record deleted successfully for file: ${fileData.filename}`);
-      toast.success(`File "${fileData.filename}" deleted successfully`);
       return true;
     } catch (storageError) {
       logError('Error when trying to delete from storage:', storageError);
