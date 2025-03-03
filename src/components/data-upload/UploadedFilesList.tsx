@@ -1,8 +1,6 @@
 
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import DataPreviewDialog from './DataPreviewDialog';
 import { Tabs } from '@/components/ui/tabs';
 import FileFilterTabs from './FileFilterTabs';
@@ -11,7 +9,6 @@ import RefreshButton from './RefreshButton';
 import NoFilesAlert from './NoFilesAlert';
 import { useFileManagement } from './useFileManagement';
 import { useFileFiltering } from './useFileFiltering';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface UploadedFilesListProps {
   onReprocessing?: () => void;
@@ -28,9 +25,7 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({
     files, 
     isLoading, 
     handleDelete, 
-    fetchFiles, 
-    syncWithStorage,
-    realtimeEnabled 
+    fetchFiles
   } = useFileManagement(refreshTrigger);
   
   const { activeTab, setActiveTab, filterFilesByStatus, getFileCount, getDocumentTypeCount, isStuckInProcessing } = useFileFiltering(files);
@@ -78,38 +73,9 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({
             {isLoading && <span className="text-sm text-muted-foreground ml-2">(Loading...)</span>}
             {isSyncing && <span className="text-sm text-muted-foreground ml-2">(Syncing with storage...)</span>}
           </CardTitle>
-          
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="ml-2">
-                  {realtimeEnabled ? (
-                    <Wifi className="h-4 w-4 text-green-500" />
-                  ) : (
-                    <WifiOff className="h-4 w-4 text-red-500" />
-                  )}
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{realtimeEnabled 
-                  ? "Real-time updates enabled - file changes will be reflected instantly" 
-                  : "Real-time updates disabled - manual refresh required"}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
         </div>
         
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={syncWithStorage} 
-            disabled={isSyncing || isLoading}
-            title="Synchronize DB with storage and remove orphaned records"
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-            Sync Files
-          </Button>
           <RefreshButton isLoading={isLoading} onRefresh={fetchFiles} />
         </div>
       </CardHeader>
