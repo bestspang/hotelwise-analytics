@@ -1,78 +1,83 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { RefreshCw } from 'lucide-react';
 
 interface ReprocessButtonProps {
   fileId: string;
   filePath: string;
-  documentType?: string;
+  documentType: string | null;
   onReprocessing?: () => void;
-  className?: string;
+  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link" | null | undefined;
+  size?: "default" | "sm" | "lg" | "icon" | null | undefined;
   children?: React.ReactNode;
-  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
-  size?: "default" | "sm" | "lg" | "icon";
 }
 
 const ReprocessButton: React.FC<ReprocessButtonProps> = ({
   fileId,
   filePath,
-  documentType = 'Unknown',
+  documentType,
   onReprocessing,
-  className,
-  children,
-  variant = "link",
-  size = "sm"
+  variant = "outline",
+  size = "sm",
+  children
 }) => {
+  const [isProcessing, setIsProcessing] = useState(false);
+  
   const handleReprocess = async () => {
-    if (!fileId || !filePath) return;
+    if (isProcessing) return;
+    
+    setIsProcessing(true);
     
     try {
-      toast.info('Reprocessing file...');
-      
-      // Update file status
-      await supabase
+      // Mark the file as being processed again
+      const { error: updateError } = await supabase
         .from('uploaded_files')
-        .update({ 
+        .update({
           processing: true,
           processed: false,
           extracted_data: null
         })
         .eq('id', fileId);
+        
+      if (updateError) throw updateError;
       
-      // Call process-pdf function
+      // Call the process-pdf function to reprocess the file
       const { error } = await supabase.functions.invoke('process-pdf', {
         body: { 
           fileId, 
-          filePath,
-          documentType
+          filePath, 
+          documentType: documentType || 'Expense Voucher' // Default document type 
         }
       });
       
-      if (error) {
-        console.error('Error invoking function:', error);
-        toast.error(`Failed to reprocess: ${error.message || 'Unknown error'}`);
-        return;
+      if (error) throw error;
+      
+      toast.success('File is being reprocessed by AI');
+      
+      if (onReprocessing) {
+        onReprocessing();
       }
-      
-      if (onReprocessing) onReprocessing();
-      
-      toast.success('File queued for reprocessing');
     } catch (error) {
-      console.error('Reprocessing error:', error);
-      toast.error(`Error reprocessing file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Error reprocessing file:', error);
+      toast.error(`Failed to reprocess: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsProcessing(false);
     }
   };
-
+  
   return (
     <Button 
       variant={variant} 
       size={size} 
       onClick={handleReprocess}
-      className={className}
+      disabled={isProcessing}
+      className="flex items-center gap-1"
     >
-      {children || 'Process with AI'}
+      <RefreshCw className={`h-4 w-4 ${isProcessing ? 'animate-spin' : ''}`} />
+      {children || (isProcessing ? 'Processing...' : 'Reprocess')}
     </Button>
   );
 };
