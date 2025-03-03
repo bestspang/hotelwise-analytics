@@ -209,12 +209,15 @@ export const useFileManagement = (refreshTrigger = 0) => {
     };
   }, []);
 
-  // Fetch files on initial load and when refreshTrigger changes
-  // No interval-based refresh here
+  // Fetch files ONLY on initial load and when refreshTrigger changes explicitly
+  // Do not use any interval-based refresh
   useEffect(() => {
-    fetchWithRetry();
-    setLastRefresh(new Date());
-  }, [refreshTrigger, fetchWithRetry, setLastRefresh]);
+    // Only fetch if it's the initial load or refreshTrigger has changed
+    if (isInitialMount.current || refreshTrigger > 0) {
+      fetchWithRetry();
+      setLastRefresh(new Date());
+    }
+  }, [refreshTrigger, fetchWithRetry, setLastRefresh, isInitialMount]);
 
   // Handle reappeared files automatically if they exist
   useEffect(() => {
