@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { FileState, useFileManagement } from './useFileManagement';
+import { FileState, useFileManagement } from './hooks/useFileManagement';
 import FileFilterTabs from './FileFilterTabs';
 import FileTabContent from './FileTabContent';
 import ContentTabs from './ContentTabs';
