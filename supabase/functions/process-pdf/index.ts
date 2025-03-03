@@ -24,12 +24,6 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // Get OpenAI API key
-    const openAIKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openAIKey) {
-      throw new Error('Missing OpenAI API key');
-    }
-    
     // Parse request body
     const { fileId, filePath, documentType } = await req.json();
     
@@ -105,6 +99,12 @@ serve(async (req) => {
             message: 'Sending file to OpenAI for processing',
             log_level: 'info'
           });
+        
+        // Get OpenAI API key
+        const openAIKey = Deno.env.get('OPENAI_API_KEY');
+        if (!openAIKey) {
+          throw new Error('Missing OpenAI API key');
+        }
         
         // Create an API log entry
         const apiLogId = crypto.randomUUID();
