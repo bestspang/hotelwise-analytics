@@ -9,6 +9,9 @@ import RefreshButton from './RefreshButton';
 import NoFilesAlert from './NoFilesAlert';
 import { useFileManagement } from './useFileManagement';
 import { useFileFiltering } from './useFileFiltering';
+import { useStorageSync } from './hooks/useStorageSync';
+import { Button } from '@/components/ui/button';
+import { Database } from 'lucide-react';
 
 interface UploadedFilesListProps {
   onReprocessing?: () => void;
@@ -28,6 +31,7 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({
     fetchFiles
   } = useFileManagement(refreshTrigger);
   
+  const { syncFilesWithStorage, isSyncing: isSyncingInternal } = useStorageSync();
   const { activeTab, setActiveTab, filterFilesByStatus, getFileCount, getDocumentTypeCount, isStuckInProcessing } = useFileFiltering(files);
   const [selectedFile, setSelectedFile] = useState<any>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -64,6 +68,13 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({
     }
     fetchFiles(); // Refresh the files list
   };
+  
+  const handleSyncWithStorage = async () => {
+    await syncFilesWithStorage();
+    fetchFiles(); // Refresh the files list after sync
+  };
+
+  const isAnySyncing = isSyncing || isSyncingInternal;
 
   return (
     <Card className="shadow-md">
@@ -72,11 +83,21 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({
           <CardTitle className="text-xl font-bold">
             Uploaded Files 
             {isLoading && <span className="text-sm text-muted-foreground ml-2">(Loading...)</span>}
-            {isSyncing && <span className="text-sm text-muted-foreground ml-2">(Syncing with storage...)</span>}
+            {isAnySyncing && <span className="text-sm text-muted-foreground ml-2">(Syncing with storage...)</span>}
           </CardTitle>
         </div>
         
         <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center gap-1"
+            onClick={handleSyncWithStorage}
+            disabled={isAnySyncing}
+          >
+            <Database className="h-4 w-4" />
+            Rescan Storage
+          </Button>
           <RefreshButton isLoading={isLoading} onRefresh={fetchFiles} />
         </div>
       </CardHeader>

@@ -6,10 +6,13 @@ import UploadedFilesList from '@/components/data-upload/UploadedFilesList';
 import ProcessingLogs from '@/components/data-upload/ProcessingLogs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useStorageSync } from '@/components/data-upload/hooks/useStorageSync';
+import { Button } from '@/components/ui/button';
+import { Database } from 'lucide-react';
 
 const DataUpload = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [isSyncing, setIsSyncing] = useState(false);
+  const { isSyncing, syncFilesWithStorage } = useStorageSync();
 
   // Set up real-time subscription to the uploaded_files table
   useEffect(() => {
@@ -74,9 +77,28 @@ const DataUpload = () => {
     setRefreshTrigger(prev => prev + 1);
   };
 
+  const handleSyncWithStorage = async () => {
+    const syncedFiles = await syncFilesWithStorage();
+    if (syncedFiles > 0) {
+      setRefreshTrigger(prev => prev + 1);
+    }
+  };
+
   return (
     <MainLayout title="Data Upload">
       <div className="container mx-auto p-4 md:p-6 space-y-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">Data Upload & Management</h1>
+          <Button 
+            onClick={handleSyncWithStorage} 
+            disabled={isSyncing}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <Database className="h-4 w-4" />
+            {isSyncing ? 'Syncing...' : 'Sync with Storage'}
+          </Button>
+        </div>
         <div className="grid gap-6">
           <UploadCard onUploadComplete={handleUploadComplete} />
           
