@@ -20,15 +20,25 @@ export const FileActions: React.FC<FileActionsProps> = ({
 }) => {
   const { isChecking, checkProcessingStatus } = useProcessingStatus();
   const isProcessing = !!onCheckStuck;
-  const isStuck = false;
-
+  
   const handleForceDelete = async () => {
     try {
       try {
-        const filePath = '';
-        await supabase.storage
-          .from('pdf_files')
-          .remove([filePath]);
+        // Get the file path first
+        const { data: fileData } = await supabase
+          .from('uploaded_files')
+          .select('file_path')
+          .eq('id', fileId)
+          .single();
+          
+        const filePath = fileData?.file_path || '';
+        
+        if (filePath) {
+          // Remove from storage if there's a file path
+          await supabase.storage
+            .from('pdf_files')
+            .remove([filePath]);
+        }
       } catch (error) {
         console.warn('Could not delete file from storage, may not exist:', error);
         // Continue anyway since we want to delete the record
@@ -52,15 +62,18 @@ export const FileActions: React.FC<FileActionsProps> = ({
   };
   
   const handleCheckStatus = async () => {
-    if (!isProcessing) {
-      // Even if we're not technically "processing", we can still check the status
-      toast.info("Checking file status...");
-      return await checkProcessingStatus(fileId);
-    }
-    
     try {
-      // Check if the file is stuck in processing first
-      const isStuck = await onCheckStuck();
+      let isStuck = false;
+      
+      // Check if the file is stuck in processing
+      if (isProcessing && onCheckStuck) {
+        try {
+          isStuck = await onCheckStuck();
+        } catch (error) {
+          console.error("Error checking if file is stuck:", error);
+          // Continue anyway - we'll get the status from the edge function
+        }
+      }
       
       // Now check processing status from the edge function
       const status = await checkProcessingStatus(fileId);
@@ -72,9 +85,8 @@ export const FileActions: React.FC<FileActionsProps> = ({
       
       return status;
     } catch (error) {
-      toast.error("Failed to check file status");
       console.error("Error checking file status:", error);
-      return null;
+      throw error; // Rethrow to let StatusButton handle it
     }
   };
   
@@ -83,7 +95,7 @@ export const FileActions: React.FC<FileActionsProps> = ({
       <DeleteButton 
         fileId={fileId} 
         onDelete={handleForceDelete}
-        isStuck={isStuck}
+        isStuck={isProcessing}
       />
       
       <StatusButton

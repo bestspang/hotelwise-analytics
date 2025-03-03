@@ -1,132 +1,187 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7'
+import { ProcessingDetails } from './types.ts'
 
+// CORS headers for browser requests
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+}
 
-serve(async (req) => {
+// Create a Supabase client with the admin key
+const supabaseAdmin = createClient(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+)
+
+Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    const { fileId } = await req.json();
+    // Get request body
+    const { fileId } = await req.json()
     
     if (!fileId) {
       return new Response(
-        JSON.stringify({ error: 'No file ID provided' }),
+        JSON.stringify({ error: 'File ID is required' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      );
+      )
     }
     
-    console.log(`Checking processing status for file: ${fileId}`);
+    console.log(`Checking processing status for file ID: ${fileId}`)
     
-    // Create Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    
-    // Get file details from database
-    const { data: fileData, error: fileError } = await supabase
+    // Get file information
+    const { data: fileData, error: fileError } = await supabaseAdmin
       .from('uploaded_files')
       .select('*')
       .eq('id', fileId)
-      .single();
+      .single()
     
-    if (fileError) {
-      console.error('Error fetching file details:', fileError);
+    if (fileError || !fileData) {
+      console.error('Error fetching file data:', fileError)
       return new Response(
-        JSON.stringify({ error: 'File not found', details: fileError }),
+        JSON.stringify({ error: fileError?.message || 'File not found' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
-      );
+      )
     }
     
-    // Get processing logs for this file
-    const { data: logs, error: logsError } = await supabase
+    // Get processing logs
+    const { data: logs, error: logsError } = await supabaseAdmin
       .from('processing_logs')
       .select('*')
       .eq('file_id', fileId)
-      .order('created_at', { ascending: false })
-      .limit(10);
+      .order('created_at', { ascending: true })
+      .limit(50)
     
     if (logsError) {
-      console.warn('Error fetching processing logs:', logsError);
-      // Continue without logs
+      console.error('Error fetching processing logs:', logsError)
     }
     
-    // Determine processing status
-    let status = 'unknown';
-    let processingTime = null;
-    let confidence = null;
-    let extractedFields = [];
+    // Determine processing status based on file and logs
+    let status = 'unknown'
+    let startTime = null
+    let endTime = null
+    let error = null
+    let confidenceScore = null
+    let extractedFields = []
     
-    if (fileData.processing && !fileData.processed) {
-      status = 'processing';
+    // Extract timestamps from logs
+    if (logs && logs.length > 0) {
+      // Find start time (first log)
+      startTime = logs[0].created_at
       
-      // Check if processing is stuck (more than 3 minutes)
-      const createdAt = new Date(fileData.created_at).getTime();
-      const updatedAt = fileData.updated_at ? 
-        new Date(fileData.updated_at).getTime() : createdAt;
-      const now = new Date().getTime();
+      // Find end time (last log)
+      endTime = logs[logs.length - 1].created_at
       
-      if ((now - updatedAt) > 3 * 60 * 1000) {
-        status = 'timeout';
+      // Check for error logs
+      const errorLogs = logs.filter(log => log.log_level === 'error')
+      if (errorLogs.length > 0) {
+        error = errorLogs[errorLogs.length - 1].message
+        status = 'failed'
       }
-    } else if (fileData.processed && !fileData.processing) {
-      if (fileData.extracted_data && !fileData.extracted_data.error) {
-        status = 'completed';
-        // If we have extracted data, add confidence and fields info
-        confidence = fileData.extracted_data.confidence || null;
-        extractedFields = Object.keys(fileData.extracted_data).filter(k => 
-          k !== 'error' && k !== 'message' && k !== 'confidence'
-        );
+      
+      // Look for completion logs
+      const completionLogs = logs.filter(log => 
+        log.message.includes('completed') || 
+        log.message.includes('extraction successful') ||
+        log.message.includes('processing complete')
+      )
+      
+      if (completionLogs.length > 0) {
+        status = 'completed'
+        
+        // Try to extract confidence score from log details
+        const confidenceLogs = logs.filter(log => 
+          log.details && 
+          (log.details.confidence || log.details.confidenceScore)
+        )
+        
+        if (confidenceLogs.length > 0) {
+          const lastConfidenceLog = confidenceLogs[confidenceLogs.length - 1]
+          confidenceScore = lastConfidenceLog.details.confidence || 
+                          lastConfidenceLog.details.confidenceScore || 
+                          0.75 // Default if not specified
+        }
+        
+        // Try to extract fields list
+        const fieldsLogs = logs.filter(log => 
+          log.details && log.details.extractedFields
+        )
+        
+        if (fieldsLogs.length > 0) {
+          const lastFieldsLog = fieldsLogs[fieldsLogs.length - 1]
+          extractedFields = lastFieldsLog.details.extractedFields || []
+        } else if (fileData.extracted_data) {
+          // If no specific log for fields but we have extracted data,
+          // get the keys from the extracted data
+          extractedFields = Object.keys(fileData.extracted_data)
+            .filter(key => !['error', 'status', 'confidenceScore', 'message'].includes(key))
+        }
+      }
+    }
+    
+    // Determine status from fileData if not already determined
+    if (status === 'unknown') {
+      if (fileData.processing) {
+        status = 'processing'
+        
+        // Check if processing is stuck (more than 5 minutes old)
+        const processingStartTime = new Date(fileData.created_at || fileData.updated_at)
+        const currentTime = new Date()
+        const processingTimeMs = currentTime.getTime() - processingStartTime.getTime()
+        const processingTimeMinutes = processingTimeMs / (1000 * 60)
+        
+        if (processingTimeMinutes > 5) {
+          status = 'timeout'
+        }
+      } else if (fileData.processed) {
+        status = 'completed'
+      } else if (fileData.processing_error) {
+        status = 'failed'
+        error = fileData.processing_error
       } else {
-        status = 'failed';
+        status = 'waiting'
       }
-    } else if (!fileData.processed && !fileData.processing) {
-      status = 'waiting';
     }
     
-    // Calculate processing time if possible
-    if (fileData.updated_at && fileData.created_at) {
-      const startTime = new Date(fileData.created_at).getTime();
-      const endTime = new Date(fileData.updated_at).getTime();
-      processingTime = Math.floor((endTime - startTime) / 1000); // in seconds
+    // Calculate duration in seconds
+    let duration = null
+    if (startTime && endTime) {
+      const start = new Date(startTime)
+      const end = new Date(endTime)
+      duration = Math.round((end.getTime() - start.getTime()) / 1000)
     }
     
     // Prepare response
-    const response = {
+    const processingDetails: ProcessingDetails = {
       fileId,
       status,
-      startTime: fileData.created_at,
-      endTime: fileData.updated_at,
-      duration: processingTime,
-      logs: logs || [],
-      confidence,
-      extractedFields,
-      error: fileData.extracted_data?.error ? fileData.extracted_data.message : null,
+      startTime,
+      endTime,
+      duration,
+      logs,
       lastUpdated: fileData.updated_at || fileData.created_at,
-      details: fileData.extracted_data || null
-    };
+      confidence: confidenceScore,
+      extractedFields,
+    }
     
-    console.log(`Processing status for file ${fileId}: ${status}`);
+    if (error) {
+      processingDetails.error = error
+    }
     
     return new Response(
-      JSON.stringify(response),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+      JSON.stringify(processingDetails),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+    )
   } catch (error) {
-    console.error('Unexpected error in check-processing-status:', error);
+    console.error('Error in check-processing-status function:', error)
+    
     return new Response(
-      JSON.stringify({ 
-        error: 'An unexpected error occurred', 
-        details: error instanceof Error ? error.message : String(error) 
-      }),
+      JSON.stringify({ error: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-    );
+    )
   }
-});
+})

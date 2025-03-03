@@ -19,12 +19,29 @@ export const StatusButton: React.FC<StatusButtonProps> = ({
   const [checkFailed, setCheckFailed] = useState(false);
 
   const handleCheckStatus = async () => {
+    if (isChecking) return;
+    
     setCheckFailed(false);
+    toast.loading('Checking processing status...');
+    
     try {
       const result = await onCheckStatus();
+      toast.dismiss();
+      
       if (result) {
         setStatusResult(result);
         setStatusDialogOpen(true);
+        
+        // Show toast based on status
+        if (result.status === 'completed') {
+          toast.success('File processing completed');
+        } else if (result.status === 'processing') {
+          toast.info('File is still being processed');
+        } else if (result.status === 'timeout') {
+          toast.warning('Processing appears to be stuck');
+        } else if (result.status === 'failed') {
+          toast.error(`Processing failed: ${result.error || 'Unknown error'}`);
+        }
       } else {
         setCheckFailed(true);
         toast.error('Failed to retrieve processing status');
@@ -32,7 +49,8 @@ export const StatusButton: React.FC<StatusButtonProps> = ({
     } catch (error) {
       console.error('Error in handleCheckStatus:', error);
       setCheckFailed(true);
-      toast.error('Error checking status');
+      toast.dismiss();
+      toast.error(`Error checking status: ${error instanceof Error ? error.message : 'Connection failed'}`);
     }
   };
 
