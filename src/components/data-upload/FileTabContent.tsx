@@ -22,7 +22,7 @@ const FileTabContent: React.FC<FileTabContentProps> = ({
   onCheckStuck
 }) => {
   if (!isLoading && files.length === 0) {
-    return <NoFilesAlert />;
+    return <NoFilesAlert isLoading={isLoading} />;
   }
   
   // File actions renderer - we'll inject our RetryButton here

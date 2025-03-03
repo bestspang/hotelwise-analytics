@@ -6,18 +6,29 @@ import { Box, Folder, FileCheck, Hourglass, AlertTriangle } from 'lucide-react';
 interface FileFilterTabsProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  getFileCount: (tab: string) => number;
-  documentTypes: string[];
-  getDocumentTypeCount: (docType: string) => number;
+  filesCount: {
+    all: number;
+    processing: number;
+    processed: number;
+    unprocessed: number;
+    stuck?: number;
+  };
+  documentTypes?: string[];
+  getDocumentTypeCount?: (docType: string) => number;
 }
 
 const FileFilterTabs: React.FC<FileFilterTabsProps> = ({
   activeTab,
   setActiveTab,
-  getFileCount,
-  documentTypes,
-  getDocumentTypeCount
+  filesCount,
+  documentTypes = [],
+  getDocumentTypeCount = () => 0
 }) => {
+  // Helper function to get counts from filesCount object
+  const getFileCount = (tab: string) => {
+    return filesCount[tab as keyof typeof filesCount] || 0;
+  };
+
   return (
     <TabsList className="mb-4 flex flex-wrap h-auto gap-1 bg-transparent p-0">
       <TabsTrigger
@@ -68,7 +79,7 @@ const FileFilterTabs: React.FC<FileFilterTabsProps> = ({
         </span>
       </TabsTrigger>
       
-      {getFileCount('stuck') > 0 && (
+      {filesCount.stuck && filesCount.stuck > 0 && (
         <TabsTrigger
           value="stuck"
           onClick={() => setActiveTab('stuck')}

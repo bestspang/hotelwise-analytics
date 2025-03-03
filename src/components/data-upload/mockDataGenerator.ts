@@ -1,5 +1,4 @@
-
-import { ExtractedData } from './FileList';
+import { ExtractedData } from './types/ExtractedData';
 
 export const generateMockData = (filename: string): ExtractedData => {
   const isOccupancy = filename.toLowerCase().includes('occupancy');

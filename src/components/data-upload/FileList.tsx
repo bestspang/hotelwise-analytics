@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import StatusIndicator from './card-components/StatusIndicator';
 import FileHeader from './card-components/FileHeader';
 import Skeleton from '@/components/ui/skeleton';
-import { formatBytes } from '../data-upload/utils/fileStatusUtils';
+import { formatBytes } from './utils/fileStatusUtils';
 
 interface FileListProps {
   files: FileState[];

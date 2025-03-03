@@ -3,7 +3,7 @@ import React from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle } from 'lucide-react';
 
-interface NoFilesAlertProps {
+export interface NoFilesAlertProps {
   isLoading: boolean;
 }
 

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import UploadCard from '@/components/data-upload/UploadCard';
@@ -18,7 +17,6 @@ const DataUpload = () => {
   const [stuckCount, setStuckCount] = useState(0);
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
 
-  // Set up real-time subscription to the uploaded_files table
   useEffect(() => {
     console.log('Setting up real-time subscription to uploaded_files table');
     
@@ -31,26 +29,21 @@ const DataUpload = () => {
       }, (payload) => {
         console.log('Realtime update received:', payload);
         
-        // Auto-refresh the file list when changes occur
         setRefreshTrigger(prev => prev + 1);
         
-        // Show toast notifications for important events
         if (payload.eventType === 'UPDATE') {
           const newData = payload.new;
           const oldData = payload.old;
           
           if (oldData.processing === true && newData.processing === false && newData.processed === true) {
-            // File finished processing successfully
             if (newData.extracted_data && !newData.extracted_data.error) {
               toast.success(`File "${newData.filename}" processed successfully`);
             } 
-            // File processing failed
             else if (newData.extracted_data && newData.extracted_data.error) {
               toast.error(`Processing failed for "${newData.filename}": ${newData.extracted_data.message || 'Unknown error'}`);
             }
           }
         } else if (payload.eventType === 'INSERT') {
-          // New file added
           toast.info(`New file "${payload.new.filename}" added`);
         }
       })
@@ -64,14 +57,12 @@ const DataUpload = () => {
         }
       });
 
-    // Clean up subscription on unmount
     return () => {
       console.log('Cleaning up realtime subscription');
       supabase.removeChannel(channel);
     };
   }, []);
 
-  // Set up subscription to the processing_logs table
   useEffect(() => {
     console.log('Setting up real-time subscription to processing_logs table');
     
@@ -84,14 +75,11 @@ const DataUpload = () => {
       }, (payload) => {
         console.log('Realtime log update received:', payload);
         
-        // Refresh logs when new entries are added
         if (payload.eventType === 'INSERT') {
-          // If log is an error, show a toast notification
           if (payload.new.log_level === 'error') {
             toast.error(`Processing error: ${payload.new.message}`);
           }
           
-          // If the log is related to the currently selected file, refresh data
           if (selectedFileId && payload.new.file_id === selectedFileId) {
             setRefreshTrigger(prev => prev + 1);
           }
@@ -99,14 +87,12 @@ const DataUpload = () => {
       })
       .subscribe();
 
-    // Clean up subscription on unmount
     return () => {
       console.log('Cleaning up logs subscription');
       supabase.removeChannel(channel);
     };
   }, [selectedFileId]);
 
-  // Periodically check for stuck files
   useEffect(() => {
     const checkProcessingFiles = async () => {
       const { data, error } = await supabase
@@ -122,7 +108,6 @@ const DataUpload = () => {
       if (data) {
         setProcessingCount(data.length);
         
-        // Check for stuck files (processing for more than 5 minutes)
         const stuckFiles = data.filter(file => {
           const processingStartTime = new Date(file.created_at);
           const currentTime = new Date();
@@ -133,21 +118,18 @@ const DataUpload = () => {
         
         setStuckCount(stuckFiles.length);
         
-        // If we have stuck files, show a warning
         if (stuckFiles.length > 0 && stuckFiles.length !== stuckCount) {
           toast.warning(`${stuckFiles.length} files appear to be stuck in processing`, {
             description: "You can use the 'Retry' button to reprocess these files",
             duration: 5000,
-            id: "stuck-files-warning" // Use ID to prevent duplicate toasts
+            id: "stuck-files-warning"
           });
         }
       }
     };
     
-    // Check initially
     checkProcessingFiles();
     
-    // Then set up an interval to check every minute
     const intervalId = setInterval(checkProcessingFiles, 60000);
     
     return () => clearInterval(intervalId);
@@ -155,11 +137,6 @@ const DataUpload = () => {
 
   const handleUploadComplete = () => {
     console.log('Upload completed, refreshing file list');
-    setRefreshTrigger(prev => prev + 1);
-  };
-
-  const handleReprocessing = () => {
-    console.log('File reprocessing triggered, refreshing file list');
     setRefreshTrigger(prev => prev + 1);
   };
 
@@ -227,9 +204,6 @@ const DataUpload = () => {
           
           <UploadedFilesList 
             refreshTrigger={refreshTrigger}
-            onReprocessing={handleReprocessing}
-            isSyncing={isSyncing}
-            onFileSelect={handleFileSelect}
           />
           
           <ProcessingLogs 

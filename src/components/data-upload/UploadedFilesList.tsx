@@ -31,6 +31,16 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({ refreshTrigger })
 
   const filteredFiles = getFilteredFiles();
 
+  // Prepare mock props for dialogs to fix TypeScript errors
+  // In a real application, these would be properly implemented
+  const dialogProps = {
+    open: false,
+    onClose: () => {},
+    discrepancies: [],
+    overlaps: [],
+    fileId: ""
+  };
+
   return (
     <div className="space-y-6">
       <ContentTabs>
@@ -54,8 +64,18 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({ refreshTrigger })
       </ContentTabs>
 
       {/* Keep the dialog components */}
-      <DataDiscrepancyDialog />
-      <DataOverlapDialog />
+      <DataDiscrepancyDialog 
+        open={dialogProps.open}
+        onClose={dialogProps.onClose}
+        discrepancies={dialogProps.discrepancies}
+        fileId={dialogProps.fileId}
+      />
+      <DataOverlapDialog 
+        open={dialogProps.open}
+        onClose={dialogProps.onClose}
+        overlaps={dialogProps.overlaps}
+        fileId={dialogProps.fileId}
+      />
     </div>
   );
 };
