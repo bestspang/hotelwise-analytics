@@ -1,18 +1,19 @@
 
+// Common utility functions and variables for file services
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 
-export const logInfo = (message: string, ...args: any[]) => {
-  console.log(message, ...args);
-};
+// Logging utilities
+export function logInfo(message: string, ...args: any[]) {
+  console.log(`[INFO] ${message}`, ...args);
+}
 
-export const logError = (message: string, error: any) => {
-  console.error(message, error);
-  if (error?.message) {
-    toast.error(`${message}: ${error.message}`);
-  } else {
-    toast.error(message);
-  }
-};
+export function logWarning(message: string, ...args: any[]) {
+  console.warn(`[WARNING] ${message}`, ...args);
+}
 
+export function logError(message: string, ...args: any[]) {
+  console.error(`[ERROR] ${message}`, ...args);
+}
+
+// Export supabase instance for direct use in other services
 export { supabase };

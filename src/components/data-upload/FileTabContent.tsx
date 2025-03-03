@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { TabsContent } from '@/components/ui/tabs';
-import { ExtractedDataCard } from '@/components/data-upload/index';
+import ExtractedDataCard from './ExtractedDataCard';
 
 interface FileTabContentProps {
   tabValue: string;
@@ -22,24 +22,33 @@ const FileTabContent: React.FC<FileTabContentProps> = ({
   isStuckInProcessing,
   onReprocessing
 }) => {
-  if (!isActive) return <TabsContent value={tabValue} />;
+  // Only render content when the tab is active for performance
+  if (!isActive) {
+    return (
+      <TabsContent value={tabValue} className="mt-4">
+        {/* This content will not be rendered until the tab is active */}
+      </TabsContent>
+    );
+  }
 
   return (
-    <TabsContent value={tabValue} className="space-y-4">
-      {files.map((file) => (
-        <ExtractedDataCard
-          key={file.id}
-          file={file}
-          onViewRawData={() => onViewRawData(file)}
-          onDelete={onDelete}
-          isStuckInProcessing={isStuckInProcessing}
-          onReprocessing={onReprocessing}
-        />
-      ))}
-
-      {files.length === 0 && (
-        <div className="p-8 text-center">
-          <p className="text-muted-foreground">No files found in this category</p>
+    <TabsContent value={tabValue} className="mt-4">
+      {files.length === 0 ? (
+        <div className="text-center p-8 bg-gray-50 rounded-md">
+          <p className="text-muted-foreground">No files found in this category.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {files.map((file) => (
+            <ExtractedDataCard
+              key={file.id}
+              file={file}
+              onViewRawData={() => onViewRawData(file)}
+              onDelete={onDelete}
+              isStuckInProcessing={isStuckInProcessing}
+              onReprocessing={onReprocessing}
+            />
+          ))}
         </div>
       )}
     </TabsContent>

@@ -18,7 +18,8 @@ const UploadCard: React.FC<UploadCardProps> = ({ onUploadComplete }) => {
     handleFileDrop,
     removeFile,
     clearAllFiles,
-    uploadFiles
+    uploadFiles,
+    cancelUploads
   } = useFileUpload(onUploadComplete);
 
   return (
@@ -38,10 +39,15 @@ const UploadCard: React.FC<UploadCardProps> = ({ onUploadComplete }) => {
           <AlertTitle>Important</AlertTitle>
           <AlertDescription>
             Upload PDF files containing hotel financial data. Our AI will extract and analyze the information.
+            Supported types: Expense Vouchers, Monthly Statistics, Occupancy Reports, City Ledger, Night Audit, No-show Reports.
           </AlertDescription>
         </Alert>
         
-        <FileDropzone onDrop={handleFileDrop} isUploading={uploadState.isUploading} />
+        <FileDropzone 
+          onDrop={handleFileDrop} 
+          isUploading={uploadState.isUploading} 
+          selectedFiles={selectedFiles}
+        />
         
         {selectedFiles.length > 0 && (
           <FileQueue 
@@ -49,6 +55,7 @@ const UploadCard: React.FC<UploadCardProps> = ({ onUploadComplete }) => {
             removeFile={removeFile}
             clearAllFiles={clearAllFiles}
             uploadFiles={uploadFiles}
+            cancelUploads={cancelUploads}
             isUploading={uploadState.isUploading}
             progress={uploadState.progress}
             currentFileIndex={uploadState.currentFileIndex}

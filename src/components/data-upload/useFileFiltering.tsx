@@ -1,57 +1,58 @@
 
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import { isStuckInProcessing, hasExtractedData } from './utils/fileStatusUtils';
 
+// Hook for filtering the files list
 export const useFileFiltering = (files: any[]) => {
   const [activeTab, setActiveTab] = useState('all');
 
-  // Helper function to detect stuck processing (over 3 minutes)
-  const isStuckInProcessing = (file: any) => {
-    return file.processing && new Date().getTime() - new Date(file.updated_at || file.created_at).getTime() > 3 * 60 * 1000;
-  };
-
-  const filterFilesByStatus = (status: string) => {
-    if (status === 'all') return files;
-    
-    if (status === 'processed') {
-      return files.filter(file => 
-        file.processed && 
-        file.extracted_data && 
-        !file.processing && 
-        !file.extracted_data.error
-      );
+  // Function to filter files based on the selected tab
+  const filterFilesByStatus = useCallback((filterValue: string) => {
+    if (filterValue === 'all') {
+      return files;
     }
     
-    if (status === 'unprocessed') {
-      return files.filter(file => 
-        !file.processed || 
-        file.processing || 
-        !file.extracted_data || 
-        (file.processed && file.extracted_data && file.extracted_data.error) ||
-        (file.processed === false && file.processing === false) ||
-        isStuckInProcessing(file) // Consider stuck processing files as unprocessed
-      );
+    if (filterValue === 'processed') {
+      return files.filter(file => {
+        return file.processed && hasExtractedData(file) && !file.processing;
+      });
     }
     
+    if (filterValue === 'unprocessed') {
+      return files.filter(file => {
+        return !file.processed || file.processing || isStuckInProcessing(file);
+      });
+    }
+    
+    // Filter by document type (case insensitive)
     return files.filter(file => {
-      const docType = file.document_type || 
-        (file.extracted_data && file.extracted_data.documentType);
-      
-      return docType && docType.toLowerCase() === status.toLowerCase();
+      return file.document_type && 
+        file.document_type.toLowerCase() === filterValue.toLowerCase();
     });
-  };
+  }, [files]);
 
-  const getFileCount = (status: string) => {
-    return filterFilesByStatus(status).length;
-  };
+  // Calculate file counts for each category
+  const getFileCount = useCallback((filterValue: string) => {
+    return filterFilesByStatus(filterValue).length;
+  }, [filterFilesByStatus]);
 
-  const getDocumentTypeCount = (type: string) => {
-    return files.filter(file => {
-      const docType = file.document_type || 
-        (file.extracted_data && file.extracted_data.documentType);
-      
-      return docType === type;
-    }).length;
-  };
+  // Calculate file counts for each document type
+  const getDocumentTypeCount = useCallback((documentType: string) => {
+    return files.filter(file => 
+      file.document_type && file.document_type.toLowerCase() === documentType.toLowerCase()
+    ).length;
+  }, [files]);
+
+  // Track document types that are actually present in the files
+  const availableDocumentTypes = useMemo(() => {
+    const types = new Set<string>();
+    files.forEach(file => {
+      if (file.document_type) {
+        types.add(file.document_type.toLowerCase());
+      }
+    });
+    return Array.from(types);
+  }, [files]);
 
   return {
     activeTab,
@@ -59,6 +60,7 @@ export const useFileFiltering = (files: any[]) => {
     filterFilesByStatus,
     getFileCount,
     getDocumentTypeCount,
-    isStuckInProcessing // Export this function for use in other components
+    availableDocumentTypes,
+    isStuckInProcessing
   };
 };

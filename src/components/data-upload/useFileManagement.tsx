@@ -1,166 +1,128 @@
 
 import { useEffect, useCallback, useRef, useState } from 'react';
-import { useFileState } from './hooks/useFileState';
-import { useFileFetch } from './hooks/useFileFetch';
-import { useFileDelete } from './hooks/useFileDelete';
-import { useFileSync } from './hooks/useFileSync';
-import { useRealtimeSubscription } from './hooks/useRealtimeSubscription';
-import { useFetchWithRetry } from './hooks/useFetchWithRetry';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-// Main hook that composes the file management functionality
+export interface FileState {
+  id: string;
+  filename: string;
+  file_path: string;
+  file_type: string;
+  file_size: number;
+  processing: boolean;
+  processed: boolean;
+  document_type: string;
+  created_at: string;
+  updated_at?: string;
+  extracted_data?: any;
+}
+
+// Main hook for file management
 export const useFileManagement = (refreshTrigger = 0) => {
-  const {
-    files,
-    setFiles,
-    isLoading,
-    setIsLoading,
-    lastRefresh,
-    setLastRefresh,
-    errorState,
-    setError,
-    clearAllErrors,
-    deletedFileIds,
-    fetchInProgress,
-    apiCallCounter,
-    lastFileCount,
-    isInitialMount,
-    incrementRetryCount,
-    resetRetryCount
-  } = useFileState();
+  const [files, setFiles] = useState<FileState[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const deletedFileIds = useRef<Set<string>>(new Set());
+  const fetchInProgress = useRef(false);
 
-  const initialFetchDoneRef = useRef(false);
-
-  // Compose the fetchFiles logic
-  const { 
-    fetchFiles, 
-    fetchError, 
-    clearFetchError, 
-    reappearedFiles, 
-    handleReappearedFiles
-  } = useFileFetch(
-    { fetchInProgress, apiCallCounter, deletedFileIds, lastFileCount, isInitialMount },
-    { setIsLoading, setFiles }
-  );
-
-  // Update the error state when fetchError changes
-  useEffect(() => {
-    if (fetchError) {
-      setError('fetch', fetchError);
+  // Function to fetch files from the database
+  const fetchFiles = useCallback(async () => {
+    if (fetchInProgress.current) return;
+    
+    fetchInProgress.current = true;
+    setIsLoading(true);
+    
+    try {
+      const { data, error } = await supabase
+        .from('uploaded_files')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Filter out files that have been deleted locally
+      const filteredFiles = data.filter(file => !deletedFileIds.current.has(file.id));
+      
+      setFiles(filteredFiles);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching files:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch files');
+      toast.error(`Failed to fetch files: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsLoading(false);
+      fetchInProgress.current = false;
     }
-  }, [fetchError, setError]);
+  }, []);
 
-  // Compose the deleteFile logic
-  const { 
-    handleDelete, 
-    isDeleting, 
-    deleteError, 
-    clearDeleteError, 
-    retryDelete
-  } = useFileDelete(deletedFileIds, setFiles);
-
-  // Update the error state when deleteError changes
-  useEffect(() => {
-    if (deleteError) {
-      setError('delete', deleteError);
+  // Function to delete a file
+  const handleDelete = useCallback(async (fileId: string) => {
+    try {
+      // First get the file to get the file path
+      const { data: fileData, error: fetchError } = await supabase
+        .from('uploaded_files')
+        .select('file_path')
+        .eq('id', fileId)
+        .single();
+        
+      if (fetchError) {
+        throw fetchError;
+      }
+      
+      // Delete from the database
+      const { error: deleteDbError } = await supabase
+        .from('uploaded_files')
+        .delete()
+        .eq('id', fileId);
+        
+      if (deleteDbError) {
+        throw deleteDbError;
+      }
+      
+      // Delete from storage if we have a file path
+      if (fileData?.file_path) {
+        const { error: deleteStorageError } = await supabase.storage
+          .from('pdf_files')
+          .remove([fileData.file_path]);
+          
+        if (deleteStorageError) {
+          console.error('Error deleting file from storage:', deleteStorageError);
+          // We'll continue even if storage delete fails
+        }
+      }
+      
+      // Add to locally deleted ids to prevent re-fetching
+      deletedFileIds.current.add(fileId);
+      
+      // Update the local state
+      setFiles(prev => prev.filter(file => file.id !== fileId));
+      
+      toast.success('File deleted successfully');
+      return true;
+    } catch (err) {
+      console.error('Error deleting file:', err);
+      toast.error(`Failed to delete file: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      return false;
     }
-  }, [deleteError, setError]);
+  }, []);
 
-  // Compose the syncWithStorage logic
-  const { 
-    isSyncing, 
-    syncError, 
-    syncWithStorage: originalSyncWithStorage, 
-    clearSyncError 
-  } = useFileSync();
-
-  // Update the error state when syncError changes
+  // Fetch files when the component mounts or refreshTrigger changes
   useEffect(() => {
-    if (syncError) {
-      setError('sync', syncError);
-    }
-  }, [syncError, setError]);
+    fetchFiles();
+  }, [fetchFiles, refreshTrigger]);
 
-  // Set up realtime subscription
-  const { realtimeEnabled, realtimeStatus } = useRealtimeSubscription({
-    setFiles,
-    deletedFileIds,
-    fetchFiles,
-    setError
-  });
-
-  // Set up fetch with retry logic
-  const { fetchWithRetry, clearRetryTimeout } = useFetchWithRetry({
-    fetchFiles,
-    incrementRetryCount,
-    resetRetryCount
-  });
-
-  // Clear retry timeout on component unmount
+  // Clear error when refreshTrigger changes
   useEffect(() => {
-    return clearRetryTimeout;
-  }, [clearRetryTimeout]);
-
-  // Fetch files ONLY on initial load and when refreshTrigger changes explicitly
-  // Do not use any interval-based refresh
-  useEffect(() => {
-    // Only fetch if it's the initial load (first render only) or refreshTrigger has changed
-    if (!initialFetchDoneRef.current || (refreshTrigger > 0 && !fetchInProgress.current)) {
-      console.log(`Fetching files - initial: ${!initialFetchDoneRef.current}, refreshTrigger: ${refreshTrigger}`);
-      fetchWithRetry();
-      setLastRefresh(new Date());
-      initialFetchDoneRef.current = true;
-    }
-  }, [refreshTrigger, fetchWithRetry, setLastRefresh, fetchInProgress]);
-
-  // Handle reappeared files automatically if they exist
-  useEffect(() => {
-    if (reappearedFiles.length > 0) {
-      handleReappearedFiles();
-    }
-  }, [reappearedFiles, handleReappearedFiles]);
-
-  // Clear all errors when component is initialized
-  useEffect(() => {
-    clearAllErrors();
-  }, [clearAllErrors]);
-
-  // Run a sync operation ONLY once on component mount, not periodically
-  useEffect(() => {
-    // Only run if real-time is not enabled and we haven't fetched yet
-    if (!realtimeEnabled && isInitialMount.current) {
-      console.log('Running initial storage sync check');
-      originalSyncWithStorage().catch(err => {
-        console.error('Initial sync failed:', err);
-      });
-    }
-  }, [realtimeEnabled, isInitialMount, originalSyncWithStorage]);
-
-  // Enhanced syncWithStorage function that also handles database cleanup
-  const syncWithStorage = useCallback(async () => {
-    const result = await originalSyncWithStorage();
-    if (result) {
-      // Refresh the files list after sync
-      fetchFiles();
-    }
-    return result;
-  }, [originalSyncWithStorage, fetchFiles]);
+    setError(null);
+  }, [refreshTrigger]);
 
   return {
     files,
     isLoading,
-    lastRefresh,
+    error,
     handleDelete,
-    isDeleting,
-    fetchFiles,
-    errorState,
-    clearAllErrors,
-    retryDelete,
-    syncWithStorage,
-    isSyncing,
-    handleReappearedFiles,
-    reappearedFiles,
-    realtimeEnabled,
-    realtimeStatus
+    fetchFiles
   };
 };
