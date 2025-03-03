@@ -19,6 +19,14 @@ export const useFileFiltering = (files: any[]) => {
         return files.filter(file => !file.processed && !file.processing);
       }
       
+      if (status === 'processing') {
+        return files.filter(file => file.processing);
+      }
+      
+      if (status === 'stuck') {
+        return files.filter(file => isStuckInProcessing(file));
+      }
+      
       // Filter by document type (lowercase matching)
       return files.filter(file => 
         file.document_type && file.document_type.toLowerCase() === status.toLowerCase()
@@ -51,12 +59,30 @@ export const useFileFiltering = (files: any[]) => {
     return processingTimeMinutes > 5;
   };
 
+  // Get the processing time in a human-readable format
+  const getProcessingTime = (file: any) => {
+    if (!file.processing) return null;
+    
+    const processingStartTime = new Date(file.updated_at || file.created_at);
+    const currentTime = new Date();
+    const processingTimeMs = currentTime.getTime() - processingStartTime.getTime();
+    const processingTimeMinutes = Math.floor(processingTimeMs / (1000 * 60));
+    const processingTimeSeconds = Math.floor((processingTimeMs % (1000 * 60)) / 1000);
+    
+    if (processingTimeMinutes > 0) {
+      return `${processingTimeMinutes}m ${processingTimeSeconds}s`;
+    } else {
+      return `${processingTimeSeconds}s`;
+    }
+  };
+
   return {
     activeTab,
     setActiveTab,
     filterFilesByStatus,
     getFileCount,
     getDocumentTypeCount,
-    isStuckInProcessing
+    isStuckInProcessing,
+    getProcessingTime
   };
 };

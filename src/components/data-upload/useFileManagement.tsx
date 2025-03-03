@@ -2,6 +2,7 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useProcessingStatus } from './hooks/useProcessingStatus';
 
 export interface FileState {
   id: string;
@@ -15,6 +16,8 @@ export interface FileState {
   created_at: string;
   updated_at?: string;
   extracted_data?: any;
+  processingTime?: number;
+  processingTimeDisplay?: string;
 }
 
 // Main hook for file management
@@ -24,6 +27,7 @@ export const useFileManagement = (refreshTrigger = 0) => {
   const [error, setError] = useState<string | null>(null);
   const deletedFileIds = useRef<Set<string>>(new Set());
   const fetchInProgress = useRef(false);
+  const { checkProcessingStatus } = useProcessingStatus();
 
   // Function to fetch files from the database
   const fetchFiles = useCallback(async () => {
@@ -51,7 +55,34 @@ export const useFileManagement = (refreshTrigger = 0) => {
       // Filter out files that have been deleted locally
       const filteredFiles = data?.filter(file => !deletedFileIds.current.has(file.id)) || [];
       
-      setFiles(filteredFiles);
+      // Calculate processing time for files that are processing
+      const filesWithProcessingTime = filteredFiles.map(file => {
+        if (file.processing) {
+          const processingStartTime = new Date(file.updated_at || file.created_at);
+          const currentTime = new Date();
+          const processingTimeMs = currentTime.getTime() - processingStartTime.getTime();
+          const processingTimeSec = Math.floor(processingTimeMs / 1000);
+          
+          // Format for display
+          let timeDisplay;
+          if (processingTimeSec < 60) {
+            timeDisplay = `${processingTimeSec}s`;
+          } else {
+            const minutes = Math.floor(processingTimeSec / 60);
+            const seconds = processingTimeSec % 60;
+            timeDisplay = `${minutes}m ${seconds}s`;
+          }
+          
+          return {
+            ...file,
+            processingTime: processingTimeSec,
+            processingTimeDisplay: timeDisplay
+          };
+        }
+        return file;
+      });
+      
+      setFiles(filesWithProcessingTime);
       setError(null);
     } catch (err) {
       console.error('Error fetching files:', err);
@@ -71,12 +102,29 @@ export const useFileManagement = (refreshTrigger = 0) => {
       // First get the file to get the file path
       const { data: fileData, error: fetchError } = await supabase
         .from('uploaded_files')
-        .select('file_path')
+        .select('file_path, processing')
         .eq('id', fileId)
         .single();
         
       if (fetchError) {
         throw fetchError;
+      }
+      
+      // If the file is still processing, we need to check if it's really stuck
+      if (fileData.processing) {
+        const statusResult = await checkProcessingStatus(fileId);
+        const isReallyStuck = statusResult?.status === 'timeout';
+        
+        if (!isReallyStuck) {
+          // Let's add a confirmation here before proceeding
+          const confirmDelete = window.confirm(
+            'This file is still being processed. Are you sure you want to delete it? This could cause issues with the processing pipeline.'
+          );
+          
+          if (!confirmDelete) {
+            return false;
+          }
+        }
       }
       
       // Delete from the database
@@ -115,7 +163,13 @@ export const useFileManagement = (refreshTrigger = 0) => {
       toast.error(`Failed to delete file: ${err instanceof Error ? err.message : 'Unknown error'}`);
       return false;
     }
-  }, []);
+  }, [checkProcessingStatus]);
+
+  // Function to check if a file is stuck in processing
+  const checkStuckProcessing = useCallback(async (fileId: string) => {
+    const result = await checkProcessingStatus(fileId);
+    return result?.status === 'timeout';
+  }, [checkProcessingStatus]);
 
   // Fetch files when the component mounts or refreshTrigger changes
   useEffect(() => {
@@ -128,11 +182,47 @@ export const useFileManagement = (refreshTrigger = 0) => {
     setError(null);
   }, [refreshTrigger]);
 
+  // Start a timer to update processing time displays
+  useEffect(() => {
+    // Only set up the timer if we have processing files
+    if (files.some(file => file.processing)) {
+      const timerId = setInterval(() => {
+        setFiles(prevFiles => 
+          prevFiles.map(file => {
+            if (file.processing && file.processingTime) {
+              const newTime = file.processingTime + 1;
+              
+              // Format for display
+              let timeDisplay;
+              if (newTime < 60) {
+                timeDisplay = `${newTime}s`;
+              } else {
+                const minutes = Math.floor(newTime / 60);
+                const seconds = newTime % 60;
+                timeDisplay = `${minutes}m ${seconds}s`;
+              }
+              
+              return {
+                ...file,
+                processingTime: newTime,
+                processingTimeDisplay: timeDisplay
+              };
+            }
+            return file;
+          })
+        );
+      }, 1000);
+      
+      return () => clearInterval(timerId);
+    }
+  }, [files]);
+
   return {
     files,
     isLoading,
     error,
     handleDelete,
-    fetchFiles
+    fetchFiles,
+    checkStuckProcessing
   };
 };
