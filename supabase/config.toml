@@ -73,5 +73,6 @@ redirect_uri = ""
 url = ""
 
 [functions]
-# The functions configuration should be a map, not an integer
-port = { port = 54321 }
+# The functions port configuration
+port = 54321
+
