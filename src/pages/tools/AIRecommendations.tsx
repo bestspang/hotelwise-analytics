@@ -7,9 +7,14 @@ import AIResponseDisplay from '@/components/ai-recommendations/AIResponseDisplay
 
 const AIRecommendations: React.FC = () => {
   const [aiResponse, setAiResponse] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleResponse = (response: string) => {
     setAiResponse(response);
+  };
+
+  const handleLoadingChange = (loading: boolean) => {
+    setIsLoading(loading);
   };
 
   return (
@@ -27,8 +32,14 @@ const AIRecommendations: React.FC = () => {
           </div>
           
           <div className="grid gap-6 md:grid-cols-1">
-            <AIQueryForm onResponse={handleResponse} />
-            <AIResponseDisplay response={aiResponse} />
+            <AIQueryForm 
+              onResponse={handleResponse} 
+              onLoading={handleLoadingChange} 
+            />
+            <AIResponseDisplay 
+              response={aiResponse} 
+              isLoading={isLoading} 
+            />
           </div>
         </div>
       </div>

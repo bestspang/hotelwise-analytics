@@ -9,9 +9,10 @@ import { getOpenAIResponse } from '@/services/api/openaiService';
 
 interface AIQueryFormProps {
   onResponse: (response: string) => void;
+  onLoading: (isLoading: boolean) => void;
 }
 
-const AIQueryForm: React.FC<AIQueryFormProps> = ({ onResponse }) => {
+const AIQueryForm: React.FC<AIQueryFormProps> = ({ onResponse, onLoading }) => {
   const [prompt, setPrompt] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +24,7 @@ const AIQueryForm: React.FC<AIQueryFormProps> = ({ onResponse }) => {
     
     setIsLoading(true);
     setError(null);
+    onLoading(true);
     
     try {
       const result = await getOpenAIResponse(prompt);
@@ -37,8 +39,16 @@ const AIQueryForm: React.FC<AIQueryFormProps> = ({ onResponse }) => {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
+      onLoading(false);
     }
   };
+
+  const examplePrompts = [
+    "Analyze recent RevPAR trends and suggest ways to improve it",
+    "What strategies can I use to increase our hotel's ADR?",
+    "Explain how seasonality affects our occupancy rates and how to optimize for it",
+    "Generate a plan to improve our GOPPAR by 15% this quarter"
+  ];
 
   return (
     <Card className="w-full">
@@ -66,8 +76,21 @@ const AIQueryForm: React.FC<AIQueryFormProps> = ({ onResponse }) => {
             disabled={isLoading}
           />
           
-          <div className="text-xs text-muted-foreground mt-2">
-            Examples: "Analyze my revenue trends for the past quarter", "What strategies can I use to improve my RevPAR?", "How does my occupancy rate compare to industry standards?"
+          <div className="mt-3 space-y-2">
+            <p className="text-xs text-muted-foreground">Example questions:</p>
+            <div className="flex flex-wrap gap-2">
+              {examplePrompts.map((examplePrompt, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  className="px-3 py-1 text-xs rounded-full bg-muted hover:bg-muted/80 transition-colors"
+                  onClick={() => setPrompt(examplePrompt)}
+                  disabled={isLoading}
+                >
+                  {examplePrompt}
+                </button>
+              ))}
+            </div>
           </div>
         </CardContent>
         

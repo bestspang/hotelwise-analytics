@@ -25,6 +25,12 @@ export async function getOpenAIResponse(prompt: string): Promise<OpenAIResponse 
       return null;
     }
     
+    if (data?.error) {
+      console.error('Error from OpenAI service:', data.error);
+      toast.error(`OpenAI error: ${data.error}`);
+      return null;
+    }
+    
     console.log('OpenAI response received:', data);
     return data as OpenAIResponse;
   } catch (err) {

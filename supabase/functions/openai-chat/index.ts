@@ -1,6 +1,5 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 
 const corsHeaders = {
@@ -33,6 +32,8 @@ serve(async (req) => {
       );
     }
 
+    console.log('Sending request to OpenAI with prompt:', prompt.substring(0, 100) + '...');
+
     // Get response from OpenAI
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -43,7 +44,10 @@ serve(async (req) => {
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: 'You are a helpful assistant that analyzes hotel financial data.' },
+          { 
+            role: 'system', 
+            content: 'You are a hotel financial analysis expert. Provide detailed insights and actionable recommendations based on hotel financial data. Focus on metrics like RevPAR, ADR, occupancy rates, GOPPAR, and other relevant KPIs for the hospitality industry.' 
+          },
           { role: 'user', content: prompt }
         ],
         max_tokens: 1000,
@@ -60,6 +64,7 @@ serve(async (req) => {
     }
 
     const data = await response.json();
+    console.log('Received OpenAI response. Token usage:', data.usage);
     
     return new Response(
       JSON.stringify({ 
