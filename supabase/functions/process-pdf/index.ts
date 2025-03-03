@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
@@ -74,7 +75,7 @@ serve(async (req) => {
       .eq('id', fileId);
     
     // Background task to process the file
-    EdgeRuntime.waitUntil((async () => {
+    (async () => {
       try {
         // Log processing steps
         await supabase
@@ -282,7 +283,7 @@ serve(async (req) => {
           })
           .eq('id', fileId);
       }
-    })());
+    })();
     
     // Return immediate success
     return new Response(
