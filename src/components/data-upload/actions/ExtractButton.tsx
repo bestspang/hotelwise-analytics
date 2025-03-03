@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Brain } from 'lucide-react';
 import { toast } from 'sonner';
-import { processPdfWithOpenAI } from '@/services/api/openaiService';
+import { processPdfWithOpenAI } from '@/services/api/pdf';
 import { FileState } from '../types/fileTypes';
 
 interface ExtractButtonProps {
