@@ -30,6 +30,7 @@ export const useFileManagement = (refreshTrigger = 0) => {
 
   const [realtimeEnabled, setRealtimeEnabled] = useState(false);
   const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connecting');
+  const channelRef = useRef<any>(null);
 
   // Compose the fetchFiles logic
   const { 
@@ -81,8 +82,13 @@ export const useFileManagement = (refreshTrigger = 0) => {
     }
   }, [syncError, setError]);
 
-  // Set up Supabase real-time subscription for file changes
+  // Set up Supabase real-time subscription for file changes - only once
   useEffect(() => {
+    // Skip setting up multiple subscriptions
+    if (channelRef.current) {
+      return;
+    }
+
     // Subscribe to realtime changes on the uploaded_files table
     console.log('Setting up realtime subscription for uploaded_files table');
     
@@ -143,7 +149,7 @@ export const useFileManagement = (refreshTrigger = 0) => {
         console.log('Subscription status:', status);
         setRealtimeEnabled(status === 'SUBSCRIBED');
         setRealtimeStatus(status === 'SUBSCRIBED' ? 'connected' : 
-                         status === 'CHANNEL_ERROR' ? 'disconnected' : 'connecting');
+                        status === 'CHANNEL_ERROR' ? 'disconnected' : 'connecting');
         
         if (status === 'SUBSCRIBED') {
           console.log('Real-time updates enabled for uploaded_files');
@@ -153,10 +159,16 @@ export const useFileManagement = (refreshTrigger = 0) => {
         }
       });
 
+    // Store channel reference to prevent multiple subscriptions
+    channelRef.current = channel;
+
     // Clean up subscription on unmount
     return () => {
       console.log('Cleaning up realtime subscription');
-      supabase.removeChannel(channel);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
   }, [setFiles, deletedFileIds, fetchFiles, setError]);
 
@@ -198,6 +210,7 @@ export const useFileManagement = (refreshTrigger = 0) => {
   }, []);
 
   // Fetch files on initial load and when refreshTrigger changes
+  // No interval-based refresh here
   useEffect(() => {
     fetchWithRetry();
     setLastRefresh(new Date());
@@ -215,23 +228,16 @@ export const useFileManagement = (refreshTrigger = 0) => {
     clearAllErrors();
   }, [clearAllErrors]);
 
-  // Run a sync operation periodically to ensure database and storage are in sync
+  // Run a sync operation ONLY once on component mount, not periodically
   useEffect(() => {
-    // Only run auto-sync if real-time is not enabled
-    if (!realtimeEnabled) {
-      const interval = setInterval(() => {
-        // Only auto-sync if we're not already syncing and not in the middle of a fetch
-        if (!isSyncing && !fetchInProgress.current) {
-          console.log('Running automatic storage sync check');
-          syncWithStorage().catch(err => {
-            console.error('Auto-sync failed:', err);
-          });
-        }
-      }, 300000); // Run every 5 minutes
-
-      return () => clearInterval(interval);
+    // Only run if real-time is not enabled and we haven't fetched yet
+    if (!realtimeEnabled && isInitialMount.current) {
+      console.log('Running initial storage sync check');
+      syncWithStorage().catch(err => {
+        console.error('Initial sync failed:', err);
+      });
     }
-  }, [realtimeEnabled, isSyncing, syncWithStorage, fetchInProgress]);
+  }, [realtimeEnabled, isInitialMount, syncWithStorage]);
 
   // Enhanced syncWithStorage function that also handles database cleanup
   const enhancedSyncWithStorage = useCallback(async () => {

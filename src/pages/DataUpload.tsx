@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import UploadCard from '@/components/data-upload/UploadCard';
 import UploadedFilesList from '@/components/data-upload/UploadedFilesList';
@@ -13,11 +13,17 @@ import { Button } from '@/components/ui/button';
 const DataUpload = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connecting');
+  const channelRef = useRef<any>(null);
 
-  // Check Supabase real-time connection status
+  // Check Supabase real-time connection status only once
   useEffect(() => {
+    // Skip if we already have a channel
+    if (channelRef.current) {
+      return;
+    }
+
     // Subscribe to connection state changes
-    const subscription = supabase.channel('system')
+    const channel = supabase.channel('system')
       .subscribe((status) => {
         console.log('Supabase realtime status:', status);
         if (status === 'SUBSCRIBED') {
@@ -31,8 +37,14 @@ const DataUpload = () => {
         }
       });
 
+    // Store channel reference
+    channelRef.current = channel;
+
     return () => {
-      supabase.removeChannel(subscription);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
   }, []);
 
