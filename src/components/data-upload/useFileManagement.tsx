@@ -166,6 +166,58 @@ export const useFileManagement = (refreshTrigger = 0) => {
     }
   }, [checkProcessingStatus]);
 
+  // Function to reprocess a file
+  const handleReprocess = useCallback(async (fileId: string, filePath: string, documentType: string | null) => {
+    try {
+      console.log('Reprocessing file with ID:', fileId);
+      
+      // Update file status to processing
+      const { error: updateError } = await supabase
+        .from('uploaded_files')
+        .update({
+          processing: true,
+          processed: false,
+          extracted_data: null
+        })
+        .eq('id', fileId);
+        
+      if (updateError) throw updateError;
+      
+      // Call the process-pdf function to reprocess the file
+      const { error } = await supabase.functions.invoke('process-pdf', {
+        body: { 
+          fileId, 
+          filePath, 
+          documentType: documentType || 'Expense Voucher' // Default document type 
+        }
+      });
+      
+      if (error) throw error;
+      
+      // Update the local state to reflect the processing status
+      setFiles(prev => prev.map(file => {
+        if (file.id === fileId) {
+          return {
+            ...file,
+            processing: true,
+            processed: false,
+            extracted_data: null,
+            processingTime: 0,
+            processingTimeDisplay: '0s'
+          };
+        }
+        return file;
+      }));
+      
+      toast.success('File is being reprocessed by AI');
+      return true;
+    } catch (err) {
+      console.error('Error reprocessing file:', err);
+      toast.error(`Failed to reprocess file: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      return false;
+    }
+  }, []);
+
   // Function to check if a file is stuck in processing
   const checkStuckProcessing = useCallback(async (fileId: string) => {
     const result = await checkProcessingStatus(fileId);
@@ -223,6 +275,7 @@ export const useFileManagement = (refreshTrigger = 0) => {
     isLoading,
     error,
     handleDelete,
+    handleReprocess,
     fetchFiles,
     checkStuckProcessing
   };

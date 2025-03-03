@@ -136,7 +136,7 @@ const DataUpload = () => {
         // If we have stuck files, show a warning
         if (stuckFiles.length > 0 && stuckFiles.length !== stuckCount) {
           toast.warning(`${stuckFiles.length} files appear to be stuck in processing`, {
-            description: "You may need to force delete these files",
+            description: "You can use the 'Retry' button to reprocess these files",
             duration: 5000,
             id: "stuck-files-warning" // Use ID to prevent duplicate toasts
           });
