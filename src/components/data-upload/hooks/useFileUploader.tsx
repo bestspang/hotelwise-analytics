@@ -43,6 +43,10 @@ export const useFileUploader = () => {
 
   const createDatabaseRecord = useCallback(async (file: File, filePath: string, fileId: string) => {
     try {
+      // Determine document type from filename
+      const documentType = determineDocumentType(file.name);
+      console.log(`Detected document type: ${documentType} for file: ${file.name}`);
+      
       // Insert record in the database
       const { error: dbError } = await supabase
         .from('uploaded_files')
@@ -52,23 +56,43 @@ export const useFileUploader = () => {
           file_path: filePath,
           file_type: file.type,
           file_size: file.size,
-          processing: true,
+          processing: false, // Initially not processing
           processed: false,
-          document_type: determineDocumentType(file.name)
+          document_type: documentType
         });
       
       if (dbError) {
         console.error('Database insert error:', dbError);
         throw new Error(`Database error: ${dbError.message}`);
       }
+      
+      console.log(`Database record created for file: ${file.name} with ID: ${fileId}`);
+      return { fileId, documentType };
     } catch (error) {
       console.error('Error creating database record:', error);
       throw error;
     }
   }, []);
 
+  // New function to validate file before upload
+  const validateFile = useCallback((file: File) => {
+    // Check file type
+    if (file.type !== 'application/pdf') {
+      throw new Error('Only PDF files are supported');
+    }
+    
+    // Check file size (max 50MB)
+    const maxSize = 50 * 1024 * 1024; // 50MB in bytes
+    if (file.size > maxSize) {
+      throw new Error(`File size exceeds the maximum limit of 50MB`);
+    }
+    
+    return true;
+  }, []);
+
   return {
     uploadFileToStorage,
-    createDatabaseRecord
+    createDatabaseRecord,
+    validateFile
   };
 };
