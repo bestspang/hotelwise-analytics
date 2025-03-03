@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -18,6 +18,28 @@ const RevenueProfitTrends: React.FC<RevenueProfitTrendsProps> = ({
   isLoading
 }) => {
   const tooltipInfo = "Line charts showing the changes in RevPAR and GOPPAR over time, helping identify patterns and correlations between revenue and profit metrics.";
+  const chartRef = useRef<HTMLDivElement>(null);
+  
+  // Clean up resize observers to prevent loops
+  useEffect(() => {
+    const currentRef = chartRef.current;
+    
+    return () => {
+      if (currentRef) {
+        // Force any resize observers to disconnect
+        const resizeObservers = (window as any).__resizeObservers__ || [];
+        if (resizeObservers.length) {
+          resizeObservers.forEach((ro: any) => {
+            try {
+              ro.disconnect();
+            } catch (e) {
+              console.log('Error disconnecting observer:', e);
+            }
+          });
+        }
+      }
+    };
+  }, []);
 
   return (
     <Card className="mb-6">
@@ -38,7 +60,7 @@ const RevenueProfitTrends: React.FC<RevenueProfitTrendsProps> = ({
           </TooltipProvider>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent ref={chartRef}>
         <NoDataDisplay />
       </CardContent>
     </Card>

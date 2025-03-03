@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -13,6 +13,28 @@ const RealTimePerformance: React.FC<RealTimePerformanceProps> = ({
   isLoading
 }) => {
   const tooltipInfo = "Current key metrics compared against targets, showing how the hotel is performing right now against established goals.";
+  const chartRef = useRef<HTMLDivElement>(null);
+  
+  // Clean up resize observers to prevent loops
+  useEffect(() => {
+    const currentRef = chartRef.current;
+    
+    return () => {
+      if (currentRef) {
+        // Force any resize observers to disconnect
+        const resizeObservers = (window as any).__resizeObservers__ || [];
+        if (resizeObservers.length) {
+          resizeObservers.forEach((ro: any) => {
+            try {
+              ro.disconnect();
+            } catch (e) {
+              console.log('Error disconnecting observer:', e);
+            }
+          });
+        }
+      }
+    };
+  }, []);
 
   return (
     <Card>
@@ -33,7 +55,7 @@ const RealTimePerformance: React.FC<RealTimePerformanceProps> = ({
           </TooltipProvider>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent ref={chartRef}>
         <NoDataDisplay />
       </CardContent>
     </Card>

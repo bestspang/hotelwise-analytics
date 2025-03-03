@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -16,6 +16,30 @@ const MetricChart: React.FC<MetricChartProps> = ({
   tooltipInfo,
   isLoading
 }) => {
+  const chartRef = useRef<HTMLDivElement>(null);
+  
+  // Add resize observer cleanup to prevent loops
+  useEffect(() => {
+    const currentRef = chartRef.current;
+    
+    return () => {
+      if (currentRef) {
+        // Force any resize observers to disconnect
+        // This helps prevent ResizeObserver loop errors
+        const resizeObservers = (window as any).__resizeObservers__ || [];
+        if (resizeObservers.length) {
+          resizeObservers.forEach((ro: any) => {
+            try {
+              ro.disconnect();
+            } catch (e) {
+              console.log('Error disconnecting observer:', e);
+            }
+          });
+        }
+      }
+    };
+  }, []);
+
   return (
     <Card className="h-full">
       <CardHeader className="pb-2">
@@ -35,7 +59,7 @@ const MetricChart: React.FC<MetricChartProps> = ({
           </TooltipProvider>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent ref={chartRef}>
         <NoDataDisplay />
       </CardContent>
     </Card>

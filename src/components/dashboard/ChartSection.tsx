@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { TrendDataPoint, RevenueSegment } from '@/services/api/dashboardService';
 import { Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -30,6 +30,27 @@ const ChartSection: React.FC<ChartSectionProps> = ({
     revenueByChannel: "Distribution of revenue across different booking channels like direct bookings, OTAs, corporate contracts, etc.",
     adrByMarket: "Breakdown of Average Daily Rate across different market segments, helping to identify high-value customer groups."
   };
+  
+  // Add a cleanup effect for any global resize observers
+  useEffect(() => {
+    // Handle window resize events more efficiently
+    let resizeTimer: NodeJS.Timeout;
+    
+    const handleResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        // Force recalculation after resize stabilizes
+        window.dispatchEvent(new Event('resize'));
+      }, 100);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(resizeTimer);
+    };
+  }, []);
 
   return (
     <div className="space-y-6">
