@@ -49,6 +49,12 @@ const Auth: React.FC = () => {
     return <Navigate to="/dashboard" replace />;
   }
 
+  // Handle the bypass authentication click
+  const handleBypassAuth = () => {
+    console.log('Bypassing authentication and redirecting to dashboard');
+    navigate('/dashboard', { replace: true });
+  };
+
   // Always show bypass button for development ease, regardless of mode
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800 p-4">
@@ -60,7 +66,7 @@ const Auth: React.FC = () => {
           {/* Always visible bypass button */}
           <div className="mt-4">
             <Button 
-              onClick={() => navigate('/dashboard')}
+              onClick={handleBypassAuth}
               variant="outline"
               className="bg-amber-100 text-amber-800 hover:bg-amber-200 border-amber-300"
             >

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/auth';
@@ -45,14 +44,6 @@ export const useAuthPage = () => {
       setActiveTab(requestedTab);
     }
   }, [location, navigate, isDevelopment]);
-
-  // Check authentication and redirect
-  useEffect(() => {
-    if (isDevelopment || (!loading && user)) {
-      console.log('User authenticated or dev mode, redirecting to dashboard');
-      navigate('/dashboard', { replace: true });
-    }
-  }, [user, loading, navigate, isDevelopment]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -25,6 +25,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <>{children}</>;
   }
   
+  // Check if this is a bypass request from the auth page
+  const bypassRequested = location.state?.bypass === true;
+  if (bypassRequested) {
+    console.log('Authentication bypass requested');
+    return <>{children}</>;
+  }
+  
   // If session is still being checked, show loading state
   if (loading || !sessionChecked) {
     return <div className="flex h-screen items-center justify-center">Loading...</div>;
