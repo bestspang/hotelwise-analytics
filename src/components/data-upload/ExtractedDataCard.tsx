@@ -79,8 +79,8 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
   };
 
   return (
-    <Card className="overflow-hidden">
-      <CardContent className="p-4">
+    <Card className="overflow-hidden h-full flex flex-col shadow-sm hover:shadow-md transition-shadow border-gray-200 dark:border-gray-700">
+      <CardContent className="p-4 flex-grow">
         <div className="flex justify-between items-start">
           <FileHeader file={file} />
           
@@ -93,7 +93,7 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
           />
         </div>
       </CardContent>
-      <CardFooter>
+      <CardFooter className="bg-gray-50 dark:bg-gray-800/50 px-4 py-3 border-t">
         <CardActions
           onViewRawData={onViewRawData}
           handleReprocess={handleReprocess}

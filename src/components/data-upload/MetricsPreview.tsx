@@ -11,7 +11,7 @@ interface MetricsPreviewProps {
 const MetricsPreview: React.FC<MetricsPreviewProps> = ({ data }) => {
   if (!data || !data.metrics || Object.keys(data.metrics).length === 0) {
     return (
-      <div className="col-span-2 text-center py-8 text-muted-foreground">
+      <div className="col-span-2 text-center py-8 text-muted-foreground bg-gray-50 dark:bg-gray-800/30 rounded-lg border border-dashed">
         No metrics found in this document
       </div>
     );
@@ -25,7 +25,7 @@ const MetricsPreview: React.FC<MetricsPreviewProps> = ({ data }) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800/30 rounded-md mb-4">
         <h3 className="font-medium">Extracted Metrics</h3>
         <p className="text-sm text-muted-foreground">
           Select metrics to import
@@ -38,7 +38,7 @@ const MetricsPreview: React.FC<MetricsPreviewProps> = ({ data }) => {
             key={key} 
             className={cn(
               "p-4 border rounded-md flex items-center justify-between transition-colors", 
-              value.selected ? "border-primary/50 bg-primary/5" : "border-gray-200"
+              value.selected ? "border-primary/50 bg-primary/5 dark:border-primary/30 dark:bg-primary/10" : "border-gray-200 dark:border-gray-700"
             )}
           >
             <div>

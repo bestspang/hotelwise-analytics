@@ -65,10 +65,10 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({
   };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <div className="flex items-center">
-          <CardTitle className="text-xl">
+    <Card className="shadow-md">
+      <CardHeader className="flex flex-row items-center justify-between pb-2 border-b">
+        <div className="flex items-center space-x-2">
+          <CardTitle className="text-xl font-bold">
             Uploaded Files 
             {isLoading && <span className="text-sm text-muted-foreground ml-2">(Loading...)</span>}
             {isSyncing && <span className="text-sm text-muted-foreground ml-2">(Syncing with storage...)</span>}
@@ -79,9 +79,9 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({
           <RefreshButton isLoading={isLoading} onRefresh={fetchFiles} />
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-4">
         {files.length > 0 ? (
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <FileFilterTabs
               activeTab={activeTab}
               setActiveTab={setActiveTab}

@@ -32,9 +32,9 @@ const FileTabContent: React.FC<FileTabContentProps> = ({
   }
 
   return (
-    <TabsContent value={tabValue} className="mt-4">
+    <TabsContent value={tabValue} className="mt-4 animation-fade-in">
       {files.length === 0 ? (
-        <div className="text-center p-8 bg-gray-50 rounded-md">
+        <div className="text-center p-8 bg-gray-50 dark:bg-gray-800/30 rounded-md border border-dashed border-gray-200 dark:border-gray-700">
           <p className="text-muted-foreground">No files found in this category.</p>
         </div>
       ) : (

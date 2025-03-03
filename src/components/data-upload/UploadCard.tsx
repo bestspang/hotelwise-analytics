@@ -23,21 +23,21 @@ const UploadCard: React.FC<UploadCardProps> = ({ onUploadComplete }) => {
   } = useFileUpload(onUploadComplete);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center">
-          <Upload className="mr-2 h-5 w-5" />
+    <Card className="shadow-md">
+      <CardHeader className="border-b">
+        <CardTitle className="flex items-center text-xl font-bold">
+          <Upload className="mr-2 h-5 w-5 text-primary" />
           Upload Financial Reports
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-sm">
           Drag and drop PDF files for AI-powered analysis
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <Alert className="mb-6">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Important</AlertTitle>
-          <AlertDescription>
+      <CardContent className="pt-4">
+        <Alert className="mb-6 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+          <AlertTriangle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          <AlertTitle className="text-blue-700 dark:text-blue-300 font-medium">Important</AlertTitle>
+          <AlertDescription className="text-blue-700 dark:text-blue-300">
             Upload PDF files containing hotel financial data. Our AI will extract and analyze the information.
             Supported types: Expense Vouchers, Monthly Statistics, Occupancy Reports, City Ledger, Night Audit, No-show Reports.
           </AlertDescription>

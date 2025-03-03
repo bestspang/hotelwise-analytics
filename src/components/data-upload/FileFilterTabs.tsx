@@ -20,21 +20,21 @@ const FileFilterTabs: React.FC<FileFilterTabsProps> = ({
 }) => {
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-      <div className="flex items-center justify-between mb-4">
-        <TabsList className="grid grid-cols-3">
-          <TabsTrigger value="all">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+        <TabsList className="grid grid-cols-3 w-full sm:w-auto">
+          <TabsTrigger value="all" className="px-4">
             All Files
             <Badge variant="secondary" className="ml-2">
               {getFileCount('all')}
             </Badge>
           </TabsTrigger>
-          <TabsTrigger value="processed">
+          <TabsTrigger value="processed" className="px-4">
             Processed
             <Badge variant="secondary" className="ml-2">
               {getFileCount('processed')}
             </Badge>
           </TabsTrigger>
-          <TabsTrigger value="unprocessed">
+          <TabsTrigger value="unprocessed" className="px-4">
             Unprocessed
             <Badge variant="secondary" className="ml-2">
               {getFileCount('unprocessed')}
@@ -44,7 +44,7 @@ const FileFilterTabs: React.FC<FileFilterTabsProps> = ({
       </div>
 
       {activeTab === 'all' || activeTab === 'processed' ? (
-        <div className="flex flex-wrap gap-2 mb-4 overflow-x-auto pb-2">
+        <div className="flex flex-wrap gap-2 mb-4 overflow-x-auto pb-2 border-b border-gray-100 dark:border-gray-800">
           {documentTypes.map((type) => {
             const count = getDocumentTypeCount(type);
             if (count === 0) return null;
@@ -53,7 +53,7 @@ const FileFilterTabs: React.FC<FileFilterTabsProps> = ({
               <Badge 
                 key={type} 
                 variant={activeTab === type.toLowerCase() ? "default" : "outline"}
-                className="cursor-pointer"
+                className="cursor-pointer transition-colors"
                 onClick={() => setActiveTab(type.toLowerCase())}
               >
                 {type} ({count})
