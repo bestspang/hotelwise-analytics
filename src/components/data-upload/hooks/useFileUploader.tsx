@@ -12,17 +12,8 @@ export const useFileUploader = () => {
       const filePath = `uploads/${fileId}-${file.name}`;
       console.log(`Uploading file to: pdf_files/${filePath}`);
       
-      // Create storage bucket if it doesn't exist
-      const { data: buckets } = await supabase.storage.listBuckets();
-      if (!buckets?.find(bucket => bucket.name === 'pdf_files')) {
-        console.log('Creating pdf_files bucket...');
-        await supabase.storage.createBucket('pdf_files', {
-          public: false,
-          fileSizeLimit: 52428800, // 50MB
-        });
-      }
-      
       // Upload file to storage - using 'pdf_files' bucket and placing in 'uploads' folder
+      // We don't try to create the bucket client-side as this requires admin privileges
       const { data, error } = await supabase.storage
         .from('pdf_files')
         .upload(filePath, file, {
@@ -32,6 +23,12 @@ export const useFileUploader = () => {
       
       // Handle upload errors
       if (error) {
+        // If the bucket doesn't exist, provide a more helpful error message
+        if (error.message?.includes('bucket') || error.statusCode === 400) {
+          console.error('Storage bucket error:', error);
+          throw new Error('The storage bucket "pdf_files" does not exist or is not accessible. Please ensure the bucket is created in Supabase.');
+        }
+        
         console.error('Storage upload error:', error);
         throw new Error(`Failed to upload file: ${error.message}`);
       }

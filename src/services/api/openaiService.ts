@@ -44,6 +44,7 @@ export async function getOpenAIResponse(prompt: string): Promise<OpenAIResponse 
 export async function processPdfWithOpenAI(fileId: string, filePath: string): Promise<any> {
   try {
     console.log('Processing PDF with OpenAI, file ID:', fileId);
+    console.log('File path:', filePath);
     
     const { data, error } = await supabase.functions.invoke('process-pdf-openai', {
       body: { 
@@ -55,9 +56,13 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string): Pr
     if (error) {
       console.error('Error invoking process-pdf-openai function:', error);
       
-      // Check if this might be due to missing OpenAI API key
-      if (error.message?.includes('API key') || error.message?.includes('authentication')) {
+      // More detailed error handling
+      if (error.message?.includes('bucket') || error.status === 400) {
+        toast.error('Storage bucket "pdf_files" does not exist or is not accessible. Please create it in the Supabase dashboard.');
+      } else if (error.message?.includes('API key') || error.message?.includes('authentication')) {
         toast.error('OpenAI API key may be missing or invalid. Please check your Supabase Edge Function secrets.');
+      } else if (error.message?.includes('CORS') || error.status === 0) {
+        toast.error('CORS error. The Edge Function is not properly configured to accept requests from this origin.');
       } else {
         toast.error(`PDF processing failed: ${error.message || 'Connection error'}`);
       }
