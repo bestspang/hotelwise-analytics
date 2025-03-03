@@ -74,4 +74,5 @@ url = ""
 
 [functions]
 # Port to use for the Functions API URL.
+[functions.serve]
 port = 54321
