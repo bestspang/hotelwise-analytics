@@ -1,39 +1,24 @@
 
 import { useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { reprocessFile } from '@/services/api/dataExtractionService';
 import { toast } from 'sonner';
 
 export const useFileReprocess = () => {
-  // Function to reprocess a file
+  // Function to reprocess a file using the OpenAI processing pipeline
   const handleReprocess = useCallback(async (fileId: string, filePath: string, documentType: string | null) => {
     try {
       console.log('Reprocessing file with ID:', fileId);
       
-      // Update file status to processing
-      const { error: updateError } = await supabase
-        .from('uploaded_files')
-        .update({
-          processing: true,
-          processed: false,
-          extracted_data: null
-        })
-        .eq('id', fileId);
-        
-      if (updateError) throw updateError;
+      // Use the dataExtractionService which handles all the necessary steps
+      const result = await reprocessFile(fileId);
       
-      // Call the process-pdf function to reprocess the file
-      const { error } = await supabase.functions.invoke('process-pdf', {
-        body: { 
-          fileId, 
-          filePath, 
-          documentType: documentType || 'Expense Voucher' // Default document type 
-        }
-      });
-      
-      if (error) throw error;
-      
-      toast.success('File is being reprocessed by AI');
-      return true;
+      if (result) {
+        toast.success('File reprocessing started successfully');
+        return true;
+      } else {
+        toast.error('Failed to start reprocessing');
+        return false;
+      }
     } catch (err) {
       console.error('Error reprocessing file:', err);
       toast.error(`Failed to reprocess file: ${err instanceof Error ? err.message : 'Unknown error'}`);

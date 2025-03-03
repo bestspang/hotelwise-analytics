@@ -45,10 +45,10 @@ const RetryButton: React.FC<RetryButtonProps> = ({
         }
       }
       
-      const success = await onRetry(fileId, filePath, documentType);
-      if (!success) {
-        toast.error("Failed to retry processing");
-      }
+      await onRetry(fileId, filePath, documentType);
+      
+      // We don't check for success here as that's already handled in the onRetry function
+      // which displays appropriate toasts
     } catch (error) {
       console.error("Error retrying processing:", error);
       toast.error("An unexpected error occurred");

@@ -91,7 +91,7 @@ export async function reprocessFile(fileId: string) {
     } catch (functionError) {
       console.error('Error during re-processing:', functionError);
 
-      // Update file status to error but still mark as uploaded
+      // Update file status to error but still mark as processed
       await supabase
         .from('uploaded_files')
         .update({ 
