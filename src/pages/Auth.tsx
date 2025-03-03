@@ -49,28 +49,24 @@ const Auth: React.FC = () => {
     return <Navigate to="/dashboard" replace />;
   }
 
-  // If in development mode and still rendering, show minimal UI with redirect button
-  if (isDevelopment) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800 p-4">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Development Mode</h1>
-          <p className="mb-6">Authentication is bypassed in development mode.</p>
-          <Button onClick={() => navigate('/dashboard')}>
-            Go to Dashboard
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  // Regular auth UI for production mode
+  // Always show bypass button for development ease, regardless of mode
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800 p-4">
       <div className="flex flex-col md:flex-row gap-8 items-center">
         <div className="w-full max-w-md text-center mb-4">
           <h1 className="text-2xl font-bold mb-2">Hotel Financial Analysis</h1>
           <p className="text-muted-foreground">Advanced analytics for hotel management</p>
+          
+          {/* Always visible bypass button */}
+          <div className="mt-4">
+            <Button 
+              onClick={() => navigate('/dashboard')}
+              variant="outline"
+              className="bg-amber-100 text-amber-800 hover:bg-amber-200 border-amber-300"
+            >
+              <Wand2 className="mr-2 h-4 w-4" /> Bypass Authentication
+            </Button>
+          </div>
         </div>
         
         <AuthContainer
