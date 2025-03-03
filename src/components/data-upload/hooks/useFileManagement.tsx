@@ -6,6 +6,8 @@ import { useProcessingStatus } from './useProcessingStatus';
 
 // Main hook for file management that combines other hooks
 export const useFileManagement = (refreshTrigger = 0) => {
+  // No changes needed here - this hook is already properly structured to 
+  // use the refactored useFileList hook
   const { files, isLoading, error, fetchFiles, markFileAsDeleted } = useFileList(refreshTrigger);
   const { handleDelete: deleteFile } = useFileDelete();
   const { handleReprocess } = useFileReprocess();
