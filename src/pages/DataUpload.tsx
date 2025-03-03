@@ -1,72 +1,23 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import UploadCard from '@/components/data-upload/UploadCard';
 import UploadedFilesList from '@/components/data-upload/UploadedFilesList';
 import ProcessingLogs from '@/components/data-upload/ProcessingLogs';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'; 
 import { Wifi, WifiOff, RefreshCw } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { useRealtimeConnection } from '@/components/data-upload/hooks/useRealtimeConnection';
+import { useRefreshTrigger } from '@/components/data-upload/hooks/useRefreshTrigger';
 
 const DataUpload = () => {
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connecting');
-  const channelRef = useRef<any>(null);
-  const userInitiatedRefresh = useRef(false);
-
-  // Check Supabase real-time connection status only once
-  useEffect(() => {
-    // Skip if we already have a channel
-    if (channelRef.current) {
-      return;
-    }
-
-    // Subscribe to connection state changes
-    const channel = supabase.channel('system')
-      .subscribe((status) => {
-        console.log('Supabase realtime status:', status);
-        if (status === 'SUBSCRIBED') {
-          setRealtimeStatus('connected');
-          toast.success('Real-time updates enabled');
-        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-          setRealtimeStatus('disconnected');
-          toast.error('Real-time connection lost. File changes may not update automatically.');
-        } else {
-          setRealtimeStatus('connecting');
-        }
-      });
-
-    // Store channel reference
-    channelRef.current = channel;
-
-    return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
-    };
-  }, []);
-
-  const handleUploadComplete = () => {
-    console.log('Upload completed, triggering refresh');
-    userInitiatedRefresh.current = true;
-    setRefreshTrigger(prev => prev + 1);
-  };
-
-  const handleReprocessing = () => {
-    console.log('Reprocessing triggered, refreshing file list');
-    userInitiatedRefresh.current = true;
-    setRefreshTrigger(prev => prev + 1);
-  };
-
-  const handleManualRefresh = () => {
-    console.log('Manual refresh triggered');
-    userInitiatedRefresh.current = true;
-    setRefreshTrigger(prev => prev + 1);
-    toast.info('Refreshing data...');
-  };
+  const { realtimeStatus } = useRealtimeConnection();
+  const { 
+    refreshTrigger, 
+    handleUploadComplete, 
+    handleReprocessing, 
+    handleManualRefresh 
+  } = useRefreshTrigger();
 
   return (
     <MainLayout title="Data Upload">

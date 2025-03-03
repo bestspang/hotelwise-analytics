@@ -6,19 +6,12 @@ import { toast } from 'sonner';
 import FileHeader from './card-components/FileHeader';
 import StatusIndicator from './card-components/StatusIndicator';
 import CardActions from './card-components/CardActions';
-import { 
-  isStuckInProcessing as checkStuckInProcessing,
-  hasExtractedData as checkHasExtractedData,
-  hasExtractionError as checkHasExtractionError,
-  isUnprocessable as checkIsUnprocessable,
-  getErrorMessage as getFileErrorMessage
-} from './utils/StatusHelpers';
+import { getFileStatus } from './utils/fileStatusUtils';
 
 interface ExtractedDataCardProps {
   file: any; // Ideally this would be a proper type definition
   onViewRawData: () => void;
   onDelete?: (fileId: string) => Promise<boolean>;
-  isStuckInProcessing?: (file: any) => boolean;
   onReprocessing?: () => void;
 }
 
@@ -26,24 +19,13 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
   file, 
   onViewRawData, 
   onDelete,
-  isStuckInProcessing: externalIsStuckCheck,
   onReprocessing
 }) => {
   const [isReprocessing, setIsReprocessing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Use the external check if provided, otherwise use the local implementation
-  const isStuckCheck = externalIsStuckCheck || checkStuckInProcessing;
-
-  // Status helper functions - improves code readability
-  const hasExtractedData = checkHasExtractedData(file);
-  const hasExtractionError = checkHasExtractionError(file);
-  const isUnprocessable = checkIsUnprocessable(file);
-  const isStuck = isStuckCheck(file);
-  const isProcessing = file.processing && !isStuck;
-
-  // Error message helper - improves code readability
-  const errorMessage = getFileErrorMessage(file, isStuck);
+  // Get the complete status information for the file
+  const status = getFileStatus(file);
 
   // Function to handle reprocessing of a file
   const handleReprocess = async () => {
@@ -96,11 +78,11 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
           <FileHeader file={file} />
           
           <StatusIndicator
-            isProcessing={isProcessing}
-            isStuck={isStuck}
-            hasExtractionError={hasExtractionError}
-            hasExtractedData={hasExtractedData}
-            errorMessage={errorMessage}
+            isProcessing={status.isProcessing}
+            isStuck={status.isStuck}
+            hasExtractionError={status.hasExtractionError}
+            hasExtractedData={status.hasExtractedData}
+            errorMessage={status.errorMessage}
           />
         </div>
       </CardContent>
@@ -110,7 +92,7 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
           handleReprocess={handleReprocess}
           handleDelete={handleDelete}
           isReprocessing={isReprocessing}
-          isProcessing={isProcessing}
+          isProcessing={status.isProcessing}
           isDeleting={isDeleting}
           canDelete={!!onDelete}
         />

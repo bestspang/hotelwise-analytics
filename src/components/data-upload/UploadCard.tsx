@@ -1,119 +1,25 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { AlertTriangle, Upload } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import FileDropzone from '@/components/data-upload/FileDropzone';
 import FileQueue from '@/components/data-upload/FileQueue';
-import { uploadPdfFile } from '@/services/uploadService';
-import { toast } from 'sonner';
+import { useFileUpload } from '@/components/data-upload/hooks/useFileUpload';
 
 interface UploadCardProps {
   onUploadComplete: () => void;
 }
 
 const UploadCard: React.FC<UploadCardProps> = ({ onUploadComplete }) => {
-  const [isUploading, setIsUploading] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [progress, setProgress] = useState(0);
-  const [currentFileIndex, setCurrentFileIndex] = useState(0);
-  const [processingStage, setProcessingStage] = useState<'uploading' | 'processing' | 'idle'>('idle');
-
-  const handleFileDrop = (acceptedFiles: File[]) => {
-    if (acceptedFiles.length === 0) return;
-    
-    // Filter for PDF files only
-    const pdfFiles = acceptedFiles.filter(file => 
-      file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
-    );
-    
-    if (pdfFiles.length !== acceptedFiles.length) {
-      toast.warning(`${acceptedFiles.length - pdfFiles.length} non-PDF files were ignored`);
-    }
-    
-    if (pdfFiles.length === 0) {
-      toast.error("Only PDF files are supported");
-      return;
-    }
-    
-    setSelectedFiles(prevFiles => [...prevFiles, ...pdfFiles]);
-    toast.success(`${pdfFiles.length} PDF file(s) added to queue`);
-  };
-
-  const removeFile = (index: number) => {
-    setSelectedFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
-  };
-
-  const clearAllFiles = () => {
-    setSelectedFiles([]);
-  };
-
-  const uploadFiles = async () => {
-    if (selectedFiles.length === 0) {
-      toast.error("Please add PDF files first");
-      return;
-    }
-    
-    setIsUploading(true);
-    setProgress(0);
-    setCurrentFileIndex(0);
-    
-    try {
-      let successCount = 0;
-      let errorCount = 0;
-      
-      // Process files one by one
-      for (let i = 0; i < selectedFiles.length; i++) {
-        setCurrentFileIndex(i);
-        const file = selectedFiles[i];
-        
-        // Update progress for current file
-        setProgress(Math.round((i / selectedFiles.length) * 100));
-        
-        // Set upload stage
-        setProcessingStage('uploading');
-        
-        try {
-          console.log(`Processing file ${i+1}/${selectedFiles.length}: ${file.name}`);
-          
-          // Set processing stage
-          setProcessingStage('processing');
-          
-          const result = await uploadPdfFile(file);
-          if (result) {
-            console.log(`File ${file.name} uploaded successfully`);
-            successCount++;
-          } else {
-            console.error(`File ${file.name} upload failed`);
-            errorCount++;
-          }
-        } catch (error) {
-          console.error(`Error uploading file ${file.name}:`, error);
-          errorCount++;
-          toast.error(`Failed to upload ${file.name}`);
-        }
-      }
-      
-      setProgress(100);
-      setProcessingStage('idle');
-      
-      // Show summary notification
-      if (successCount > 0) {
-        toast.success(`Successfully uploaded ${successCount} file(s)`);
-      }
-      
-      // Clear the queue after upload
-      setSelectedFiles([]);
-      
-      // Trigger refresh of uploaded files list
-      onUploadComplete();
-    } catch (error) {
-      console.error('Error in file upload process:', error);
-      toast.error(`Upload error: ${error instanceof Error ? error.message : "Unknown error"}`);
-    } finally {
-      setIsUploading(false);
-    }
-  };
+  const {
+    selectedFiles,
+    uploadState,
+    handleFileDrop,
+    removeFile,
+    clearAllFiles,
+    uploadFiles
+  } = useFileUpload(onUploadComplete);
 
   return (
     <Card>
@@ -135,7 +41,7 @@ const UploadCard: React.FC<UploadCardProps> = ({ onUploadComplete }) => {
           </AlertDescription>
         </Alert>
         
-        <FileDropzone onDrop={handleFileDrop} isUploading={isUploading} />
+        <FileDropzone onDrop={handleFileDrop} isUploading={uploadState.isUploading} />
         
         {selectedFiles.length > 0 && (
           <FileQueue 
@@ -143,10 +49,10 @@ const UploadCard: React.FC<UploadCardProps> = ({ onUploadComplete }) => {
             removeFile={removeFile}
             clearAllFiles={clearAllFiles}
             uploadFiles={uploadFiles}
-            isUploading={isUploading}
-            progress={progress}
-            currentFileIndex={currentFileIndex}
-            processingStage={processingStage}
+            isUploading={uploadState.isUploading}
+            progress={uploadState.progress}
+            currentFileIndex={uploadState.currentFileIndex}
+            processingStage={uploadState.processingStage}
             totalFiles={selectedFiles.length}
           />
         )}
