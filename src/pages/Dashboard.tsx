@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import Skeleton from '@/components/ui/skeleton';
+import { toast } from 'sonner';
 import {
   fetchKpiData,
   fetchTrendData,
@@ -18,7 +19,7 @@ import {
 } from '@/services/api/dashboardService';
 
 const Dashboard: React.FC = () => {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<HotelKpiData | null>(null);
   const [revParTrend, setRevParTrend] = useState<TrendDataPoint[]>([]);
   const [gopparTrend, setGopparTrend] = useState<TrendDataPoint[]>([]);
@@ -44,28 +45,43 @@ const Dashboard: React.FC = () => {
     });
   };
 
-  // For the specific request to show NO DATA for all elements,
-  // we'll skip actual data fetching and just show the "no data" state
+  // Fetch dashboard data
   useEffect(() => {
-    // Initialize with empty data - just enough to render the UI
-    setDashboardData({
-      revPAR: null,
-      adr: null,
-      occupancyRate: null,
-      gopPAR: null,
-      tRevPAR: null,
-      cpor: null,
-      alos: null,
-      previousRevPAR: null,
-      previousADR: null,
-      previousOccupancyRate: null,
-      previousGopPAR: null,
-      previousTRevPAR: null,
-      previousCPOR: null,
-      previousALOS: null
-    });
+    const fetchData = async () => {
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        // Fetch KPI data
+        const kpiData = await fetchKpiData();
+        setDashboardData(kpiData);
+        
+        // Fetch trends data
+        const revParData = await fetchTrendData('revpar');
+        setRevParTrend(revParData || []);
+        
+        const gopparData = await fetchTrendData('goppar');
+        setGopparTrend(gopparData || []);
+        
+        const occupancyData = await fetchTrendData('occupancy');
+        setOccupancyTrend(occupancyData || []);
+        
+        // Fetch segment data
+        const revSegments = await fetchRevenueSegments();
+        setRevenueSegments(revSegments || []);
+        
+        const adrSegments = await fetchAdrBySegment();
+        setAdrBySegment(adrSegments || []);
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err);
+        setError('Failed to load dashboard data. Please try again later.');
+        toast.error('Failed to load dashboard data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
     
-    setIsLoading(false);
+    fetchData();
   }, []);
   
   return (
@@ -74,36 +90,52 @@ const Dashboard: React.FC = () => {
       subtitle="Financial KPIs and operational metrics for strategic decision-making"
     >
       <div className="space-y-8 animate-fade-in">
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        
         {/* KPI Cards */}
-        <KPISection 
-          dashboardData={dashboardData || {
-            revPAR: null,
-            adr: null,
-            occupancyRate: null,
-            gopPAR: null,
-            tRevPAR: null,
-            cpor: null,
-            alos: null,
-            previousRevPAR: null,
-            previousADR: null,
-            previousOccupancyRate: null,
-            previousGopPAR: null,
-            previousTRevPAR: null,
-            previousCPOR: null,
-            previousALOS: null
-          }} 
-          formatCurrency={formatCurrency} 
-          formatPercentage={formatPercentage} 
-          isLoading={isLoading}
-        />
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
+            {[...Array(5)].map((_, index) => (
+              <Skeleton key={index} className="h-[150px] w-full" />
+            ))}
+          </div>
+        ) : (
+          <KPISection 
+            dashboardData={dashboardData || {
+              revPAR: null,
+              adr: null,
+              occupancyRate: null,
+              gopPAR: null,
+              tRevPAR: null,
+              cpor: null,
+              alos: null,
+              previousRevPAR: null,
+              previousADR: null,
+              previousOccupancyRate: null,
+              previousGopPAR: null,
+              previousTRevPAR: null,
+              previousCPOR: null,
+              previousALOS: null
+            }} 
+            formatCurrency={formatCurrency} 
+            formatPercentage={formatPercentage} 
+            isLoading={isLoading}
+          />
+        )}
         
         {/* Charts */}
         <ChartSection 
-          revParTrend={[]}
-          gopparTrend={[]}
-          occupancyTrend={[]}
-          revenueSegments={[]}
-          adrBySegment={[]}
+          revParTrend={revParTrend}
+          gopparTrend={gopparTrend}
+          occupancyTrend={occupancyTrend}
+          revenueSegments={revenueSegments}
+          adrBySegment={adrBySegment}
           isLoading={isLoading}
         />
       </div>
