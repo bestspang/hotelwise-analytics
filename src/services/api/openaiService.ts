@@ -1,0 +1,35 @@
+
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+export interface OpenAIResponse {
+  response: string;
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+}
+
+export async function getOpenAIResponse(prompt: string): Promise<OpenAIResponse | null> {
+  try {
+    console.log('Sending prompt to OpenAI:', prompt);
+    
+    const { data, error } = await supabase.functions.invoke('openai-chat', {
+      body: { prompt }
+    });
+    
+    if (error) {
+      console.error('Error invoking openai-chat function:', error);
+      toast.error(`OpenAI request failed: ${error.message || 'Connection error'}`);
+      return null;
+    }
+    
+    console.log('OpenAI response received:', data);
+    return data as OpenAIResponse;
+  } catch (err) {
+    console.error('Error calling OpenAI service:', err);
+    toast.error(`OpenAI service error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    return null;
+  }
+}

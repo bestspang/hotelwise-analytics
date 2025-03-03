@@ -7,3 +7,4 @@ export { downloadExtractedData, reprocessFile } from './api/dataExtractionServic
 export { resolveDataDiscrepancies, resolveDataOverlaps } from './api/dataResolutionService';
 export { getExistingMappings, saveDataMappings } from './api/dataMappingService';
 export { resetStuckProcessingFiles, syncFilesWithStorage } from './api/fileServices/maintenanceService';
+export { getOpenAIResponse } from './api/openaiService';
