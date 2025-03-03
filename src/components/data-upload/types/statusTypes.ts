@@ -17,3 +17,11 @@ export interface UploadState {
   currentFileIndex: number;
   processingStage: 'uploading' | 'processing' | 'complete' | 'idle';
 }
+
+export interface ProcessingStatus {
+  isProcessing: boolean;
+  progress: number;
+  stage: 'preparing' | 'extracting' | 'analyzing' | 'storing' | 'complete' | 'error';
+  message: string;
+  error?: string;
+}

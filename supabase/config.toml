@@ -8,7 +8,6 @@ schemas = ["public", "storage", "graphql_public"]
 
 [db]
 port = 54322
-shadow_port = 54320
 
 [realtime]
 enabled = true
@@ -16,19 +15,13 @@ enabled = true
 [studio]
 enabled = true
 port = 54323
-api_url = "http://127.0.0.1"
 
-[inbucket]
-enabled = true
-port = 54324
+[[seed.tables]]
+name = "profiles"
 
-[auth]
-enabled = true
+# Edge Functions
+[functions.process-pdf]
+verify_jwt = false
 
-[storage]
-enabled = true
-
-# Define functions that should be deployed
-[functions]
-# Previously there was a "serve" function that does not exist
-# We're now defining the specific functions that do exist
+[functions.insert-extracted-data]
+verify_jwt = false

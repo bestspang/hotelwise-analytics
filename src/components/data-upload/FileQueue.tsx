@@ -90,7 +90,7 @@ const FileQueue: React.FC<FileQueueProps> = ({
             {isUploading && currentFileIndex === index ? (
               <div className="text-xs font-medium">
                 {processingStage === 'uploading' 
-                  ? `Uploading ${progress}%` 
+                  ? `Uploading ${Math.round(progress)}%` 
                   : 'Processing...'}
               </div>
             ) : (
@@ -125,13 +125,13 @@ const FileQueue: React.FC<FileQueueProps> = ({
                     ? (
                       <span className="flex items-center">
                         <Brain className="h-4 w-4 mr-2 text-purple-500 animate-pulse" />
-                        AI processing {currentFileIndex + 1} of {totalFiles}
+                        AI processing {currentFileIndex + 1} of ${totalFiles}
                       </span>
                     )
                     : `Processing ${currentFileIndex + 1} of ${totalFiles}`}
               </span>
             </div>
-            <span>{progress}%</span>
+            <span>{Math.round(progress)}%</span>
           </div>
           <Progress value={progress} 
             className={processingStage === 'processing' ? "bg-purple-100" : ""}

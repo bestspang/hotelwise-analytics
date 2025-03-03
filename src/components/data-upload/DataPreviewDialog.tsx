@@ -1,114 +1,151 @@
 
-import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import React from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { toast } from 'sonner';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { FileText, Trash, Check, X } from 'lucide-react';
 import PreviewContent from './PreviewContent';
-import ProcessingLogs from './ProcessingLogs';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface DataPreviewDialogProps {
   file: any;
   open: boolean;
   onClose: () => void;
-  onDelete?: () => Promise<boolean>; // Updated to accept Promise<boolean>
+  onDelete?: () => void;
+  onReprocessing?: () => void;
 }
 
-const DataPreviewDialog: React.FC<DataPreviewDialogProps> = ({ file, open, onClose, onDelete }) => {
-  const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] = useState(false);
-
-  const handleDeleteClick = () => {
-    setIsDeleteConfirmationOpen(true);
-  };
-
-  const confirmDelete = async () => {
-    if (onDelete) {
-      toast.promise(
-        onDelete().then(success => {
-          if (success) {
-            onClose();
+const DataPreviewDialog: React.FC<DataPreviewDialogProps> = ({
+  file,
+  open,
+  onClose,
+  onDelete,
+  onReprocessing
+}) => {
+  const handleApproveData = async () => {
+    try {
+      // Update the file's extracted_data to mark it as approved
+      const { error } = await supabase
+        .from('uploaded_files')
+        .update({
+          extracted_data: {
+            ...file.extracted_data,
+            approved: true,
+            approved_at: new Date().toISOString()
           }
-          return success;
-        }),
-        {
-          loading: 'Deleting file...',
-          success: () => 'File deleted successfully',
-          error: 'Failed to delete file',
-        }
-      );
+        })
+        .eq('id', file.id);
+        
+      if (error) {
+        throw error;
+      }
+      
+      // Call the edge function to insert data into appropriate tables
+      const { error: fnError } = await supabase.functions
+        .invoke('insert-extracted-data', {
+          body: { 
+            fileId: file.id,
+            documentType: file.document_type,
+            extractedData: file.extracted_data
+          }
+        });
+        
+      if (fnError) {
+        throw fnError;
+      }
+      
+      toast.success('Data approved and inserted successfully');
+      
+      // Refresh the file list if callback provided
+      if (onReprocessing) {
+        onReprocessing();
+      }
+      
+      // Close the dialog
+      onClose();
+    } catch (error) {
+      console.error('Error approving data:', error);
+      toast.error(`Failed to approve data: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-    setIsDeleteConfirmationOpen(false);
+  };
+  
+  const handleRejectData = async () => {
+    try {
+      // Update the file's extracted_data to mark it as rejected
+      const { error } = await supabase
+        .from('uploaded_files')
+        .update({
+          extracted_data: {
+            ...file.extracted_data,
+            rejected: true,
+            rejected_at: new Date().toISOString()
+          }
+        })
+        .eq('id', file.id);
+        
+      if (error) {
+        throw error;
+      }
+      
+      toast.info('Data rejected - no database changes were made');
+      
+      // Refresh the file list if callback provided
+      if (onReprocessing) {
+        onReprocessing();
+      }
+      
+      // Close the dialog
+      onClose();
+    } catch (error) {
+      console.error('Error rejecting data:', error);
+      toast.error(`Failed to reject data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
-  const cancelDelete = () => {
-    setIsDeleteConfirmationOpen(false);
-  };
+  if (!file) return null;
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => {
-      if (!isOpen) onClose();
-    }}>
-      <DialogContent className="max-w-4xl">
+    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>{file.filename}</DialogTitle>
-          <DialogDescription>
-            Preview of the extracted data and processing logs for this file.
-          </DialogDescription>
+          <DialogTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5 text-primary" />
+            <span className="font-medium truncate">
+              {file.filename}
+            </span>
+          </DialogTitle>
         </DialogHeader>
-
-        <Tabs defaultValue="content" className="mt-6">
-          <TabsList>
-            <TabsTrigger value="content">File Data</TabsTrigger>
-            <TabsTrigger value="logs">Processing Logs</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="content">
-            <PreviewContent file={file} />
-          </TabsContent>
-
-          <TabsContent value="logs">
-            <ProcessingLogs fileId={file.id} />
-          </TabsContent>
-        </Tabs>
-
-        <div className="mt-4 flex justify-end">
-          <Button type="button" variant="ghost" onClick={onClose}>
+        
+        <div className="overflow-y-auto flex-grow p-1">
+          <PreviewContent 
+            file={file} 
+            onApproveData={handleApproveData}
+            onRejectData={handleRejectData}
+          />
+        </div>
+        
+        <DialogFooter className="flex justify-between border-t pt-3 mt-4">
+          <div className="flex gap-2">
+            {onDelete && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-red-500 hover:text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+                onClick={onDelete}
+              >
+                <Trash className="h-4 w-4 mr-2" />
+                Delete File
+              </Button>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onClose}
+          >
             Close
           </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="ml-2">
-                <MoreHorizontal className="h-4 w-4 mr-2" /> Actions
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>File Actions</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleDeleteClick}>
-                Delete File
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        {isDeleteConfirmationOpen && (
-          <Dialog open={true} onOpenChange={setIsDeleteConfirmationOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Confirm Deletion</DialogTitle>
-                <DialogDescription>
-                  Are you sure you want to delete this file? This action cannot be undone.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={cancelDelete}>Cancel</Button>
-                <Button variant="destructive" onClick={confirmDelete}>Delete</Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

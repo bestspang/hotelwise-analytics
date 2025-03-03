@@ -62,6 +62,7 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({
     if (onReprocessing) {
       onReprocessing();
     }
+    fetchFiles(); // Refresh the files list
   };
 
   return (
@@ -144,6 +145,7 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({
           open={previewOpen} 
           onClose={handleClosePreview}
           onDelete={() => handleFileDelete(selectedFile.id)}
+          onReprocessing={handleReprocessFile}
         />
       )}
     </Card>
