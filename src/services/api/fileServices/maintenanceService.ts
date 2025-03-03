@@ -1,12 +1,15 @@
 
 import { supabase } from './baseService';
 import { toast } from 'sonner';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Resets files that have been stuck in "processing" state for too long
  */
 export async function resetStuckProcessingFiles() {
   try {
+    const requestId = uuidv4(); // Generate a unique request ID for tracking
+    
     // Calculate timestamp for files stuck more than 30 minutes
     const thirtyMinutesAgo = new Date();
     thirtyMinutesAgo.setMinutes(thirtyMinutesAgo.getMinutes() - 30);
@@ -32,7 +35,10 @@ export async function resetStuckProcessingFiles() {
         .insert({
           message: `Reset ${data.length} stuck processing files`,
           log_level: 'info',
-          details: { reset_files: data.map(f => ({ id: f.id, filename: f.filename })) }
+          request_id: requestId,
+          details: { 
+            reset_files: data.map(f => ({ id: f.id, filename: f.filename })) 
+          }
         });
     }
     
@@ -50,6 +56,8 @@ export async function resetStuckProcessingFiles() {
  */
 export async function syncFilesWithStorage() {
   try {
+    const requestId = uuidv4(); // Generate a unique request ID for tracking
+    
     console.log('Starting database-storage synchronization');
     toast.loading('Synchronizing database with storage...');
     
@@ -108,6 +116,7 @@ export async function syncFilesWithStorage() {
         .insert({
           message: `Removing ${orphanedDbRecords.length} orphaned database records during sync`,
           log_level: 'info',
+          request_id: requestId,
           details: { 
             orphaned_files: orphanedDbRecords.map(f => ({ id: f.id, filename: f.filename, file_path: f.file_path }))
           }

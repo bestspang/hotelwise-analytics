@@ -1,6 +1,7 @@
 
 import { logInfo, logError, supabase } from './baseService';
 import { toast } from 'sonner';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Deletes a file from both storage and database
@@ -8,6 +9,7 @@ import { toast } from 'sonner';
  */
 export async function deleteUploadedFile(fileId: string) {
   try {
+    const requestId = uuidv4(); // Generate a unique request ID for tracking
     logInfo(`Starting deletion process for file ID: ${fileId}`);
     
     // Get the file info first to get the file path
@@ -65,10 +67,11 @@ export async function deleteUploadedFile(fileId: string) {
             message: `Failed to delete database record after storage deletion: ${dbError.message}`,
             log_level: 'error',
             file_id: fileId,
+            request_id: requestId,
             details: {
               filename: fileData.filename,
               file_path: fileData.file_path,
-              error: dbError
+              error: dbError.message // Convert error to string to avoid type issues
             }
           });
         
@@ -84,6 +87,7 @@ export async function deleteUploadedFile(fileId: string) {
           message: `File "${fileData.filename}" deleted successfully`,
           log_level: 'info',
           file_id: fileId,
+          request_id: requestId,
           details: {
             filename: fileData.filename,
             file_path: fileData.file_path

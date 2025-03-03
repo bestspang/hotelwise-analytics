@@ -1,6 +1,6 @@
 
 import { useEffect, useCallback, useRef, useState } from 'react';
-import { useFileState } from './hooks/useFileState';
+import { useFileState, FileState } from './hooks/useFileState';
 import { useFileFetch } from './hooks/useFileFetch';
 import { useFileDelete } from './hooks/useFileDelete';
 import { useFileSync } from './hooks/useFileSync';
@@ -113,7 +113,8 @@ export const useFileManagement = (refreshTrigger = 0) => {
                 // Check if file already exists in our state
                 const exists = prevFiles.some(file => file.id === payload.new.id);
                 if (!exists) {
-                  return [...prevFiles, payload.new];
+                  // Type cast payload.new to FileState to ensure type safety
+                  return [...prevFiles, payload.new as FileState];
                 }
                 return prevFiles;
               });
@@ -126,7 +127,7 @@ export const useFileManagement = (refreshTrigger = 0) => {
           console.log('File updated:', payload);
           // Update the file in our state
           setFiles(prevFiles => prevFiles.map(file => 
-            file.id === payload.new.id ? { ...file, ...payload.new } : file
+            file.id === payload.new.id ? { ...file, ...payload.new } as FileState : file
           ));
           
           // Show toast for status changes
