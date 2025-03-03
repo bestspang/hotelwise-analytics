@@ -52,10 +52,30 @@ export const FileActions: React.FC<FileActionsProps> = ({
   };
   
   const handleCheckStatus = async () => {
-    if (!onCheckStuck) return null;
+    if (!isProcessing) {
+      // Even if we're not technically "processing", we can still check the status
+      toast.info("Checking file status...");
+      return await checkProcessingStatus(fileId);
+    }
     
-    const result = await onCheckStuck();
-    return result ? await checkProcessingStatus(fileId) : null;
+    try {
+      // Check if the file is stuck in processing first
+      const isStuck = await onCheckStuck();
+      
+      // Now check processing status from the edge function
+      const status = await checkProcessingStatus(fileId);
+      
+      if (isStuck && status) {
+        // If we determined the file is stuck, make sure the status reflects that
+        status.status = 'timeout';
+      }
+      
+      return status;
+    } catch (error) {
+      toast.error("Failed to check file status");
+      console.error("Error checking file status:", error);
+      return null;
+    }
   };
   
   return (
@@ -66,12 +86,10 @@ export const FileActions: React.FC<FileActionsProps> = ({
         isStuck={isStuck}
       />
       
-      {isProcessing && (
-        <StatusButton
-          onCheckStatus={handleCheckStatus}
-          isChecking={isChecking}
-        />
-      )}
+      <StatusButton
+        onCheckStatus={handleCheckStatus}
+        isChecking={isChecking}
+      />
     </div>
   );
 };

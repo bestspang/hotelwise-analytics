@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { FileSearch, RefreshCw } from 'lucide-react';
+import { FileSearch, RefreshCw, AlertCircle } from 'lucide-react';
 import { StatusDialog } from './StatusDialog';
+import { toast } from 'sonner';
 
 interface StatusButtonProps {
   onCheckStatus: () => Promise<any>;
@@ -15,12 +16,23 @@ export const StatusButton: React.FC<StatusButtonProps> = ({
 }) => {
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [statusResult, setStatusResult] = useState<any>(null);
+  const [checkFailed, setCheckFailed] = useState(false);
 
   const handleCheckStatus = async () => {
-    const result = await onCheckStatus();
-    if (result) {
-      setStatusResult(result);
-      setStatusDialogOpen(true);
+    setCheckFailed(false);
+    try {
+      const result = await onCheckStatus();
+      if (result) {
+        setStatusResult(result);
+        setStatusDialogOpen(true);
+      } else {
+        setCheckFailed(true);
+        toast.error('Failed to retrieve processing status');
+      }
+    } catch (error) {
+      console.error('Error in handleCheckStatus:', error);
+      setCheckFailed(true);
+      toast.error('Error checking status');
     }
   };
 
@@ -29,16 +41,18 @@ export const StatusButton: React.FC<StatusButtonProps> = ({
       <Button
         variant="ghost"
         size="sm"
-        className="text-blue-500 hover:bg-blue-50 hover:text-blue-600"
+        className={`${checkFailed ? 'text-red-500 hover:bg-red-50 hover:text-red-600' : 'text-blue-500 hover:bg-blue-50 hover:text-blue-600'}`}
         onClick={handleCheckStatus}
         disabled={isChecking}
       >
         {isChecking ? (
           <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+        ) : checkFailed ? (
+          <AlertCircle className="h-4 w-4 mr-1" />
         ) : (
           <FileSearch className="h-4 w-4 mr-1" />
         )}
-        Check Status
+        {isChecking ? "Checking..." : (checkFailed ? "Retry Check" : "Check Status")}
       </Button>
       
       <StatusDialog

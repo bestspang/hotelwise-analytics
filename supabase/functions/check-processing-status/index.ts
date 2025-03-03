@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,27 +14,23 @@ serve(async (req) => {
   }
 
   try {
-    // Create Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Missing environment variables for Supabase');
-    }
-    
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    
-    // Parse request body
     const { fileId } = await req.json();
     
     if (!fileId) {
       return new Response(
-        JSON.stringify({ error: 'File ID is required' }),
+        JSON.stringify({ error: 'No file ID provided' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
     
-    // Get file information
+    console.log(`Checking processing status for file: ${fileId}`);
+    
+    // Create Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // Get file details from database
     const { data: fileData, error: fileError } = await supabase
       .from('uploaded_files')
       .select('*')
@@ -42,12 +38,9 @@ serve(async (req) => {
       .single();
     
     if (fileError) {
-      throw new Error(`Failed to get file data: ${fileError.message}`);
-    }
-    
-    if (!fileData) {
+      console.error('Error fetching file details:', fileError);
       return new Response(
-        JSON.stringify({ error: 'File not found' }),
+        JSON.stringify({ error: 'File not found', details: fileError }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
       );
     }
@@ -58,46 +51,81 @@ serve(async (req) => {
       .select('*')
       .eq('file_id', fileId)
       .order('created_at', { ascending: false })
-      .limit(100);
+      .limit(10);
     
     if (logsError) {
-      throw new Error(`Failed to get processing logs: ${logsError.message}`);
+      console.warn('Error fetching processing logs:', logsError);
+      // Continue without logs
     }
     
-    // If the file is currently processing, check how long it's been processing
-    let status = "completed";
+    // Determine processing status
+    let status = 'unknown';
     let processingTime = null;
+    let confidence = null;
+    let extractedFields = [];
     
-    if (fileData.processing) {
-      // Calculate processing time
-      const startTime = new Date(fileData.updated_at).getTime();
-      const currentTime = new Date().getTime();
-      processingTime = Math.floor((currentTime - startTime) / 1000); // in seconds
+    if (fileData.processing && !fileData.processed) {
+      status = 'processing';
       
-      // If it's been processing for more than 5 minutes, consider it stuck
-      if (processingTime > 300) {
-        status = "timeout";
-      } else {
-        status = "processing";
+      // Check if processing is stuck (more than 3 minutes)
+      const createdAt = new Date(fileData.created_at).getTime();
+      const updatedAt = fileData.updated_at ? 
+        new Date(fileData.updated_at).getTime() : createdAt;
+      const now = new Date().getTime();
+      
+      if ((now - updatedAt) > 3 * 60 * 1000) {
+        status = 'timeout';
       }
+    } else if (fileData.processed && !fileData.processing) {
+      if (fileData.extracted_data && !fileData.extracted_data.error) {
+        status = 'completed';
+        // If we have extracted data, add confidence and fields info
+        confidence = fileData.extracted_data.confidence || null;
+        extractedFields = Object.keys(fileData.extracted_data).filter(k => 
+          k !== 'error' && k !== 'message' && k !== 'confidence'
+        );
+      } else {
+        status = 'failed';
+      }
+    } else if (!fileData.processed && !fileData.processing) {
+      status = 'waiting';
     }
     
+    // Calculate processing time if possible
+    if (fileData.updated_at && fileData.created_at) {
+      const startTime = new Date(fileData.created_at).getTime();
+      const endTime = new Date(fileData.updated_at).getTime();
+      processingTime = Math.floor((endTime - startTime) / 1000); // in seconds
+    }
+    
+    // Prepare response
+    const response = {
+      fileId,
+      status,
+      startTime: fileData.created_at,
+      endTime: fileData.updated_at,
+      duration: processingTime,
+      logs: logs || [],
+      confidence,
+      extractedFields,
+      error: fileData.extracted_data?.error ? fileData.extracted_data.message : null,
+      lastUpdated: fileData.updated_at || fileData.created_at,
+      details: fileData.extracted_data || null
+    };
+    
+    console.log(`Processing status for file ${fileId}: ${status}`);
+    
     return new Response(
-      JSON.stringify({
-        fileId,
-        status,
-        processingTime,
-        lastUpdated: fileData.updated_at,
-        logs: logs || []
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      JSON.stringify(response),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-    
   } catch (error) {
-    console.error('Error checking processing status:', error);
-    
+    console.error('Unexpected error in check-processing-status:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: 'An unexpected error occurred', 
+        details: error instanceof Error ? error.message : String(error) 
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
