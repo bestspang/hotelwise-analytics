@@ -73,5 +73,5 @@ redirect_uri = ""
 url = ""
 
 [functions]
-# Port to serve Edge Functions on.
+# Port to serve Edge Functions on. This should be a map/object, not just a simple integer.
 port = 54321
