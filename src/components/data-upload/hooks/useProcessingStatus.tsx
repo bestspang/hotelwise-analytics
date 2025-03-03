@@ -59,7 +59,8 @@ export const useProcessingStatus = () => {
       // Calculate processing time if applicable
       let processingTime = null;
       if (fileData.processing) {
-        const startTime = new Date(fileData.updated_at || fileData.created_at);
+        // Use created_at as fallback if updated_at doesn't exist yet
+        const startTime = new Date(fileData.created_at);
         const currentTime = new Date();
         processingTime = Math.round((currentTime.getTime() - startTime.getTime()) / 1000);
       }
@@ -81,7 +82,7 @@ export const useProcessingStatus = () => {
         status,
         details: data?.details || null,
         logs: logs || [],
-        lastUpdated: fileData.updated_at,
+        lastUpdated: fileData.created_at,
         processingTime
       });
       
@@ -89,7 +90,7 @@ export const useProcessingStatus = () => {
         status,
         details: data?.details || null,
         logs: logs || [],
-        lastUpdated: fileData.updated_at,
+        lastUpdated: fileData.created_at,
         processingTime
       };
     } catch (error) {

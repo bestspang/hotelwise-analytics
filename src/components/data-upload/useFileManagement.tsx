@@ -58,7 +58,8 @@ export const useFileManagement = (refreshTrigger = 0) => {
       // Calculate processing time for files that are processing
       const filesWithProcessingTime = filteredFiles.map(file => {
         if (file.processing) {
-          const processingStartTime = new Date(file.updated_at || file.created_at);
+          // Use created_at as the fallback if updated_at doesn't exist yet
+          const processingStartTime = new Date(file.created_at);
           const currentTime = new Date();
           const processingTimeMs = currentTime.getTime() - processingStartTime.getTime();
           const processingTimeSec = Math.floor(processingTimeMs / 1000);

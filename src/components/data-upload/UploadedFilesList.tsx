@@ -17,12 +17,14 @@ interface UploadedFilesListProps {
   onReprocessing?: () => void;
   refreshTrigger?: number;
   isSyncing?: boolean;
+  onFileSelect?: (fileId: string | null) => void;
 }
 
 const UploadedFilesList: React.FC<UploadedFilesListProps> = ({ 
   onReprocessing, 
   refreshTrigger = 0,
-  isSyncing = false 
+  isSyncing = false,
+  onFileSelect
 }) => {
   const { 
     files, 
@@ -48,16 +50,25 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({
   const handleViewData = (file: any) => {
     setSelectedFile(file);
     setPreviewOpen(true);
+    if (onFileSelect) {
+      onFileSelect(file.id);
+    }
   };
 
   const handleClosePreview = () => {
     setPreviewOpen(false);
+    if (onFileSelect) {
+      onFileSelect(null);
+    }
   };
 
   const handleFileDelete = async (fileId: string) => {
     const success = await handleDelete(fileId);
     if (success && previewOpen && selectedFile && selectedFile.id === fileId) {
       setPreviewOpen(false);
+      if (onFileSelect) {
+        onFileSelect(null);
+      }
     }
     return success;
   };

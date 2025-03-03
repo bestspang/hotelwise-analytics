@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { useStorageSync } from '@/components/data-upload/hooks/useStorageSync';
 import { Button } from '@/components/ui/button';
 import { Database, RefreshCw, AlertOctagon, Activity } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 
 const DataUpload = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -111,7 +111,7 @@ const DataUpload = () => {
     const checkProcessingFiles = async () => {
       const { data, error } = await supabase
         .from('uploaded_files')
-        .select('id, filename, processing, created_at, updated_at')
+        .select('id, filename, processing, created_at')
         .eq('processing', true);
         
       if (error) {
@@ -124,7 +124,7 @@ const DataUpload = () => {
         
         // Check for stuck files (processing for more than 5 minutes)
         const stuckFiles = data.filter(file => {
-          const processingStartTime = new Date(file.updated_at || file.created_at);
+          const processingStartTime = new Date(file.created_at);
           const currentTime = new Date();
           const processingTimeMs = currentTime.getTime() - processingStartTime.getTime();
           const processingTimeMinutes = processingTimeMs / (1000 * 60);
