@@ -69,6 +69,11 @@ enable_signup = true
 # If enabled, users need to confirm their phone number before signing in.
 enable_confirmations = false
 
+[functions]
+# Port to serve Edge Functions on.
+port = { serve = 54321 }
+
+# Add external authentication providers/services
 [auth.external.apple]
 enabled = false
 client_id = ""
@@ -210,7 +215,3 @@ client_id = ""
 secret = ""
 # Overrides the default auth redirectUrl.
 redirect_uri = ""
-
-[functions]
-# Port to serve Edge Functions on.
-port = 54321

@@ -24,7 +24,7 @@ export const useFileUploader = () => {
       // Handle upload errors
       if (error) {
         // If the bucket doesn't exist, provide a more helpful error message
-        if (error.message?.includes('bucket') || error.statusCode === 400) {
+        if (error.message?.includes('bucket') || error.status === 400) {
           console.error('Storage bucket error:', error);
           throw new Error('The storage bucket "pdf_files" does not exist or is not accessible. Please ensure the bucket is created in Supabase.');
         }
