@@ -24,36 +24,32 @@ export const useFileDelete = (
       toast.loading('Deleting file...');
       console.log(`Attempting to delete file with ID: ${fileId}`);
       
-      // First, update the UI immediately to remove the file
+      // Optimistic UI update - immediately remove from the UI to give feedback
       setFiles(prevFiles => prevFiles.filter(file => file.id !== fileId));
       
-      // Add to our permanent set of deleted file IDs to ensure it doesn't come back
+      // Track this ID as deleted to prevent reappearance
       deletedFileIds.current.add(fileId);
       setLastDeletedFileId(fileId);
       console.log(`Added ID ${fileId} to deleted files tracking set. Current deleted IDs:`, [...deletedFileIds.current]);
       
+      // Perform the actual deletion (storage + database)
       const success = await deleteUploadedFile(fileId);
       
       if (success) {
-        console.log(`File ${fileId} confirmed deleted from backend`);
-        toast.success('File deleted successfully');
-        // Forcefully ensure our files state doesn't contain the deleted file
-        setFiles(prevFiles => prevFiles.filter(file => file.id !== fileId));
+        console.log(`File ${fileId} deleted successfully from backend`);
         return true;
       }
       
-      // If we reach here, the deletion wasn't successful
+      // If the deletion failed, we need to potentially revert the UI
       const errorMessage = 'Failed to delete file completely';
       setDeleteError(errorMessage);
-      toast.error(errorMessage);
       
-      // Attempt to recover by refetching files in the next render cycle
+      // No need to revert UI here - real-time updates or next refresh will handle this
       return false;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error(`Error deleting file: ${errorMessage}`, error);
       setDeleteError(errorMessage);
-      toast.error(`Failed to delete file: ${errorMessage}`);
       return false;
     } finally {
       setIsDeleting(false);

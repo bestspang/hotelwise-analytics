@@ -27,22 +27,7 @@ export async function deleteUploadedFile(fileId: string) {
 
     logInfo(`Found file to delete: ${JSON.stringify(fileData)}`);
     
-    // Delete from database FIRST to ensure the record is gone
-    // even if storage deletion fails
-    const { error: dbError } = await supabase
-      .from('uploaded_files')
-      .delete()
-      .eq('id', fileId);
-      
-    if (dbError) {
-      toast.error(`Failed to delete file record: ${dbError.message}`);
-      logError('Failed to delete file record:', dbError);
-      return false;
-    }
-
-    logInfo('Database record deleted successfully');
-    
-    // Then try to delete from storage
+    // Try to delete from storage FIRST
     const bucketName = 'pdf_files';
     logInfo(`Attempting to delete file from storage bucket '${bucketName}' at path: ${fileData.file_path}`);
     
@@ -53,19 +38,34 @@ export async function deleteUploadedFile(fileId: string) {
         
       if (storageError) {
         logError('Failed to delete file from storage:', storageError);
-        // Don't fail the whole operation due to storage issues
-        logInfo('Continuing despite storage deletion error');
-      } else {
-        logInfo(`Storage file deleted successfully: ${JSON.stringify(storageData)}`);
+        toast.error(`Failed to delete file from storage: ${storageError.message}`);
+        return false;
+      } 
+
+      logInfo(`Storage file deleted successfully: ${JSON.stringify(storageData)}`);
+      
+      // Now delete from database after successful storage deletion
+      const { error: dbError } = await supabase
+        .from('uploaded_files')
+        .delete()
+        .eq('id', fileId);
+        
+      if (dbError) {
+        toast.error(`Failed to delete file record: ${dbError.message}`);
+        logError('Failed to delete file record:', dbError);
+        // Storage file is already deleted, but we couldn't update the database
+        // This is still a failure case that needs to be handled
+        return false;
       }
+
+      logInfo(`Database record deleted successfully for file: ${fileData.filename}`);
+      toast.success(`File "${fileData.filename}" deleted successfully`);
+      return true;
     } catch (storageError) {
       logError('Error when trying to delete from storage:', storageError);
-      // Continue since the database record is already deleted
+      toast.error(`Failed to delete file: ${storageError instanceof Error ? storageError.message : 'Unknown error'}`);
+      return false;
     }
-    
-    logInfo(`File deletion process completed successfully for: ${fileData.filename}`);
-    toast.success(`File "${fileData.filename}" deleted successfully`);
-    return true;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     toast.error(`An unexpected error occurred while deleting the file: ${message}`);

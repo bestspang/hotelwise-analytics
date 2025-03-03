@@ -1,9 +1,10 @@
 
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import { useFileState } from './hooks/useFileState';
 import { useFileFetch } from './hooks/useFileFetch';
 import { useFileDelete } from './hooks/useFileDelete';
 import { useFileSync } from './hooks/useFileSync';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 // Main hook that composes the file management functionality
@@ -26,6 +27,8 @@ export const useFileManagement = (refreshTrigger = 0) => {
     incrementRetryCount,
     resetRetryCount
   } = useFileState();
+
+  const [realtimeEnabled, setRealtimeEnabled] = useState(false);
 
   // Compose the fetchFiles logic
   const { 
@@ -76,6 +79,59 @@ export const useFileManagement = (refreshTrigger = 0) => {
       setError('sync', syncError);
     }
   }, [syncError, setError]);
+
+  // Set up Supabase real-time subscription for file changes
+  useEffect(() => {
+    // Subscribe to realtime changes on the uploaded_files table
+    const channel = supabase
+      .channel('public:uploaded_files')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public',
+        table: 'uploaded_files'
+      }, (payload) => {
+        console.log('Realtime update received:', payload);
+        
+        // Handle different types of changes
+        if (payload.eventType === 'DELETE') {
+          console.log('File deleted from database:', payload);
+          // Filter out the deleted file from the state
+          setFiles(prevFiles => prevFiles.filter(file => file.id !== payload.old.id));
+          // Add to deletedFileIds set to ensure it stays deleted
+          deletedFileIds.current.add(payload.old.id);
+          toast.success(`File "${payload.old.filename || 'unknown'}" deleted`);
+        } else if (payload.eventType === 'INSERT') {
+          console.log('New file added:', payload);
+          // Only fetch if not already in our deletedFileIds set
+          if (!deletedFileIds.current.has(payload.new.id)) {
+            // Trigger a fetch to get the latest files
+            fetchFiles();
+          }
+        } else if (payload.eventType === 'UPDATE') {
+          console.log('File updated:', payload);
+          // Update the file in our state
+          setFiles(prevFiles => prevFiles.map(file => 
+            file.id === payload.new.id ? { ...file, ...payload.new } : file
+          ));
+        }
+      })
+      .subscribe((status) => {
+        console.log('Subscription status:', status);
+        setRealtimeEnabled(status === 'SUBSCRIBED');
+        
+        if (status === 'SUBSCRIBED') {
+          toast.success('Real-time updates enabled');
+        } else if (status === 'CHANNEL_ERROR') {
+          toast.error('Failed to enable real-time updates');
+          setError('sync', 'Real-time subscription failed');
+        }
+      });
+
+    // Clean up subscription on unmount
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [setFiles, deletedFileIds, fetchFiles, setError]);
 
   // Set up automatic retry for fetching with exponential backoff
   const maxRetries = useRef(3);
@@ -132,6 +188,16 @@ export const useFileManagement = (refreshTrigger = 0) => {
     clearAllErrors();
   }, [clearAllErrors]);
 
+  // Enhanced syncWithStorage function that also handles database cleanup
+  const enhancedSyncWithStorage = useCallback(async () => {
+    const result = await syncWithStorage();
+    if (result) {
+      // Refresh the files list after sync
+      fetchFiles();
+    }
+    return result;
+  }, [syncWithStorage, fetchFiles]);
+
   return {
     files,
     isLoading,
@@ -142,9 +208,10 @@ export const useFileManagement = (refreshTrigger = 0) => {
     errorState,
     clearAllErrors,
     retryDelete,
-    syncWithStorage,
+    syncWithStorage: enhancedSyncWithStorage,
     isSyncing,
     handleReappearedFiles,
-    reappearedFiles
+    reappearedFiles,
+    realtimeEnabled
   };
 };

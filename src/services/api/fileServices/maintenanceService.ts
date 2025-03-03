@@ -36,6 +36,7 @@ export async function resetStuckProcessingFiles() {
 export async function syncFilesWithStorage() {
   try {
     logInfo('Starting synchronization of files with storage');
+    toast.loading('Synchronizing database with storage...');
     
     // Get all files from database
     const { data: dbFiles, error: dbError } = await supabase
@@ -50,13 +51,14 @@ export async function syncFilesWithStorage() {
     
     if (!dbFiles || dbFiles.length === 0) {
       logInfo('No files in database to sync');
+      toast.success('No files to synchronize');
       return true;
     }
     
     logInfo(`Found ${dbFiles.length} files in database to check`);
     
     // Get list of files in storage
-    const { data: storageFiles, error: storageError } = await supabase.storage
+    const { data: storageData, error: storageError } = await supabase.storage
       .from('pdf_files')
       .list();
       
@@ -66,13 +68,17 @@ export async function syncFilesWithStorage() {
       return false;
     }
     
-    const storageFilePaths = new Set(storageFiles?.map(file => file.name) || []);
+    const storageFiles = storageData || [];
+    const storageFilePaths = new Set(storageFiles.map(file => file.name));
     const idsToRemove = [];
     
     // Check each database file against storage
     for (const file of dbFiles) {
-      // Check if the file exists in storage
-      if (!file.file_path || !storageFilePaths.has(file.file_path)) {
+      const filePathSegments = file.file_path.split('/');
+      const fileName = filePathSegments[filePathSegments.length - 1];
+      
+      // Check if the file exists in storage (either by full path or just filename)
+      if (!storageFilePaths.has(fileName) && !storageFilePaths.has(file.file_path)) {
         logInfo(`File ${file.filename} (${file.id}) exists in DB but not in storage. Will remove record.`);
         idsToRemove.push(file.id);
       }
@@ -99,7 +105,33 @@ export async function syncFilesWithStorage() {
       return true;
     }
     
-    logInfo('All database records have corresponding storage files');
+    // Now check for storage files that don't have DB records
+    const dbFilePaths = new Set(dbFiles.map(file => {
+      const filePathSegments = file.file_path.split('/');
+      return filePathSegments[filePathSegments.length - 1];
+    }));
+    
+    const orphanedStorageFiles = storageFiles.filter(file => !dbFilePaths.has(file.name));
+    
+    if (orphanedStorageFiles.length > 0) {
+      logInfo(`Found ${orphanedStorageFiles.length} files in storage with no DB record`);
+      
+      // Remove orphaned storage files
+      const filesToRemove = orphanedStorageFiles.map(file => file.name);
+      const { error: removeError } = await supabase.storage
+        .from('pdf_files')
+        .remove(filesToRemove);
+        
+      if (removeError) {
+        logError('Failed to remove orphaned storage files:', removeError);
+        toast.error('Failed to clean up storage');
+      } else {
+        toast.success(`Removed ${orphanedStorageFiles.length} orphaned files from storage`);
+      }
+    }
+    
+    logInfo('Synchronization complete');
+    toast.success('Files synchronized successfully');
     return true;
   } catch (error) {
     logError('Error synchronizing files with storage:', error);
