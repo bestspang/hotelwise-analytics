@@ -24,7 +24,7 @@ export { default as StatusIndicator } from './card-components/StatusIndicator';
 export { default as CardActions } from './card-components/CardActions';
 
 // Hooks
-export { useFileManagement } from './useFileManagement';
+export { useFileManagement } from './hooks/useFileManagement';
 export { useFileFiltering } from './useFileFiltering';
 export { useFileSync } from './hooks/useFileSync';
 export { useFileState } from './hooks/useFileState';
