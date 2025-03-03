@@ -11,9 +11,15 @@ interface FileListProps {
   files: FileState[];
   isLoading: boolean;
   renderFileActions?: (file: FileState) => React.ReactNode;
+  onFileClick?: (fileId: string) => void;
 }
 
-const FileList: React.FC<FileListProps> = ({ files, isLoading, renderFileActions }) => {
+const FileList: React.FC<FileListProps> = ({ 
+  files, 
+  isLoading, 
+  renderFileActions,
+  onFileClick
+}) => {
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -35,7 +41,11 @@ const FileList: React.FC<FileListProps> = ({ files, isLoading, renderFileActions
   return (
     <div className="space-y-4">
       {files.map((file) => (
-        <Card key={file.id} className="p-4 transition-all hover:shadow-md">
+        <Card 
+          key={file.id} 
+          className="p-4 transition-all hover:shadow-md cursor-pointer"
+          onClick={() => onFileClick && onFileClick(file.id)}
+        >
           <div className="flex justify-between items-start">
             <div className="space-y-1">
               <FileHeader
@@ -46,7 +56,7 @@ const FileList: React.FC<FileListProps> = ({ files, isLoading, renderFileActions
                 {formatBytes(file.file_size)} • {new Date(file.created_at).toLocaleString()}
               </p>
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
               <StatusIndicator
                 processing={file.processing}
                 processed={file.processed}

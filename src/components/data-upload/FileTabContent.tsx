@@ -12,6 +12,7 @@ interface FileTabContentProps {
   onDelete: (fileId: string) => Promise<boolean>;
   onReprocess: (fileId: string, filePath: string, documentType: string | null) => Promise<boolean>;
   onCheckStuck: (fileId: string) => Promise<boolean>;
+  onSelectFile?: (fileId: string) => void;
 }
 
 const FileTabContent: React.FC<FileTabContentProps> = ({
@@ -19,7 +20,8 @@ const FileTabContent: React.FC<FileTabContentProps> = ({
   isLoading,
   onDelete,
   onReprocess,
-  onCheckStuck
+  onCheckStuck,
+  onSelectFile
 }) => {
   if (!isLoading && files.length === 0) {
     return <NoFilesAlert isLoading={isLoading} />;
@@ -46,11 +48,19 @@ const FileTabContent: React.FC<FileTabContentProps> = ({
     </div>
   );
   
+  // Handle file click to view logs
+  const handleFileClick = (fileId: string) => {
+    if (onSelectFile) {
+      onSelectFile(fileId);
+    }
+  };
+  
   return (
     <FileList 
       files={files} 
       isLoading={isLoading} 
       renderFileActions={renderFileActions}
+      onFileClick={handleFileClick}
     />
   );
 };

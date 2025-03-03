@@ -10,9 +10,13 @@ import { TabsContent } from '@/components/ui/tabs';
 
 interface UploadedFilesListProps {
   refreshTrigger: number;
+  onSelectFile?: (fileId: string | null) => void;
 }
 
-const UploadedFilesList: React.FC<UploadedFilesListProps> = ({ refreshTrigger }) => {
+const UploadedFilesList: React.FC<UploadedFilesListProps> = ({ 
+  refreshTrigger,
+  onSelectFile
+}) => {
   const [activeTab, setActiveTab] = useState('all');
   const { 
     files, 
@@ -32,6 +36,13 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({ refreshTrigger })
   };
 
   const filteredFiles = getFilteredFiles();
+
+  // Handle file selection
+  const handleFileSelect = (fileId: string) => {
+    if (onSelectFile) {
+      onSelectFile(fileId);
+    }
+  };
 
   // Prepare mock props for dialogs to fix TypeScript errors
   // In a real application, these would be properly implemented
@@ -63,6 +74,7 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({ refreshTrigger })
             onDelete={handleDelete}
             onReprocess={handleReprocess}
             onCheckStuck={checkStuckProcessing}
+            onSelectFile={handleFileSelect}
           />
         </TabsContent>
       </ContentTabs>
