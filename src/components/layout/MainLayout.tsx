@@ -40,18 +40,18 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   };
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
       {/* Mobile sidebar backdrop */}
       {isMobile && sidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-20 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         ></div>
       )}
       
       {/* Sidebar - different behavior on mobile */}
-      <div 
-        className={`fixed lg:relative z-30 h-screen transition-all duration-300 ${
+      <aside 
+        className={`fixed lg:sticky top-0 h-screen z-30 transition-all duration-300 ${
           isMobile 
             ? sidebarOpen 
               ? 'left-0' 
@@ -63,7 +63,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           collapsed={collapsed} 
           setCollapsed={setCollapsed}
         />
-      </div>
+      </aside>
 
       {/* Main content - Adjusted for sidebar width */}
       <div 
