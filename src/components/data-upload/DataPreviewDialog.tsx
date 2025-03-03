@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -24,7 +23,7 @@ const DataPreviewDialog: React.FC<DataPreviewDialogProps> = ({
   onReprocessing
 }) => {
   const [activeTab, setActiveTab] = useState('data');
-  const { checking, checkProcessingStatus } = useProcessingStatus();
+  const { isChecking, checkProcessingStatus } = useProcessingStatus();
   const [processingStatus, setProcessingStatus] = useState<any>(null);
   
   const handleForceDelete = async () => {
@@ -81,11 +80,11 @@ const DataPreviewDialog: React.FC<DataPreviewDialogProps> = ({
             variant="outline" 
             size="sm" 
             onClick={checkStatus} 
-            disabled={checking}
+            disabled={isChecking}
             className="flex items-center gap-1"
           >
-            <RefreshCw className={`h-4 w-4 ${checking ? 'animate-spin' : ''}`} />
-            {checking ? 'Checking...' : 'Check Status'}
+            <RefreshCw className={`h-4 w-4 ${isChecking ? 'animate-spin' : ''}`} />
+            {isChecking ? 'Checking...' : 'Check Status'}
           </Button>
           
           <Button
@@ -217,14 +216,11 @@ const DataPreviewDialog: React.FC<DataPreviewDialogProps> = ({
   );
 };
 
-// Helper function to render extracted data in a readable format
 function renderExtractedData(data: any) {
   if (!data) return 'No data';
   
-  // Filter out non-relevant fields
   const { error, message, ...relevantData } = data;
   
-  // Converting to JSON with indentation
   return JSON.stringify(relevantData, null, 2);
 }
 

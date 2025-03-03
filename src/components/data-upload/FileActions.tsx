@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, Trash2, RefreshCw, FileSearch } from 'lucide-react';
@@ -35,14 +34,13 @@ export const FileActions: React.FC<FileActionsProps> = ({
 }) => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const { checking, checkProcessingStatus } = useProcessingStatus();
+  const { isChecking, checkProcessingStatus } = useProcessingStatus();
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [statusResult, setStatusResult] = useState<any>(null);
   
   const handleForceDelete = async () => {
     setIsDeleting(true);
     try {
-      // First, try to delete the file from storage
       try {
         await supabase.storage
           .from('pdf_files')
@@ -52,7 +50,6 @@ export const FileActions: React.FC<FileActionsProps> = ({
         // Continue anyway since we want to delete the record
       }
       
-      // Then, delete from the database
       const { error } = await supabase
         .from('uploaded_files')
         .delete()
@@ -97,9 +94,9 @@ export const FileActions: React.FC<FileActionsProps> = ({
             size="sm"
             className="text-blue-500 hover:bg-blue-50 hover:text-blue-600"
             onClick={handleCheckStatus}
-            disabled={checking}
+            disabled={isChecking}
           >
-            {checking ? (
+            {isChecking ? (
               <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
             ) : (
               <FileSearch className="h-4 w-4 mr-1" />
@@ -109,7 +106,6 @@ export const FileActions: React.FC<FileActionsProps> = ({
         )}
       </div>
       
-      {/* Confirmation Dialog */}
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
           <DialogHeader>
@@ -146,7 +142,6 @@ export const FileActions: React.FC<FileActionsProps> = ({
         </DialogContent>
       </Dialog>
       
-      {/* Status Dialog */}
       <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -258,9 +253,9 @@ export const FileActions: React.FC<FileActionsProps> = ({
             <Button 
               variant="default" 
               onClick={handleCheckStatus}
-              disabled={checking}
+              disabled={isChecking}
             >
-              {checking ? "Checking..." : "Refresh Status"}
+              {isChecking ? "Checking..." : "Refresh Status"}
             </Button>
           </DialogFooter>
         </DialogContent>
