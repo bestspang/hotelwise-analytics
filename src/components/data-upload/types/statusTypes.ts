@@ -15,5 +15,5 @@ export interface UploadState {
   isUploading: boolean;
   progress: number;
   currentFileIndex: number;
-  processingStage: 'uploading' | 'processing' | 'idle';
+  processingStage: 'uploading' | 'processing' | 'complete' | 'idle';
 }

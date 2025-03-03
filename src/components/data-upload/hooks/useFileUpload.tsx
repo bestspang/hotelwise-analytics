@@ -3,14 +3,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
-
-// Define upload state interface for better type safety
-interface UploadState {
-  isUploading: boolean;
-  progress: number;
-  currentFileIndex: number;
-  processingStage: 'uploading' | 'processing' | 'complete' | 'idle';
-}
+import { UploadState } from '../types/statusTypes';
 
 export const useFileUpload = (onUploadComplete?: () => void) => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -89,8 +82,7 @@ export const useFileUpload = (onUploadComplete?: () => void) => {
           .upload(filePath, file, {
             cacheControl: '3600',
             upsert: false,
-            // Add signal for cancellation
-            signal: controller.signal
+            // We can't use signal directly, removed it
           });
         
         // Handle upload errors
@@ -106,13 +98,15 @@ export const useFileUpload = (onUploadComplete?: () => void) => {
           processingStage: 'processing'
         }));
         
-        // Insert record in the database
+        // Insert record in the database - fixed the property name from storage_path to file_path
         const { error: dbError } = await supabase
           .from('uploaded_files')
           .insert({
             id: fileId,
             filename: file.name,
-            storage_path: data.path,
+            file_path: data.path,
+            file_type: file.type,
+            file_size: file.size,
             processing: true,
             processed: false
           });

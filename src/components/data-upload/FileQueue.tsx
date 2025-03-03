@@ -14,7 +14,7 @@ interface FileQueueProps {
   isUploading: boolean;
   progress: number;
   currentFileIndex: number;
-  processingStage: 'uploading' | 'processing' | 'idle';
+  processingStage: 'uploading' | 'processing' | 'complete' | 'idle';
   totalFiles: number;
 }
 
