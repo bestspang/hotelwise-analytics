@@ -18,37 +18,39 @@ export const ExtractButton: React.FC<ExtractButtonProps> = ({ file, onComplete }
     if (isExtracting || file.processed || file.processing) return;
 
     setIsExtracting(true);
+    const toastId = `extract-${file.id}`;
+    
     toast.info(`Starting AI extraction for ${file.filename}`, { 
-      id: `extract-${file.id}`,
+      id: toastId,
       duration: 8000 
     });
 
     try {
       // Update the processing status optimistically
       toast.loading(`Processing ${file.filename} with GPT-4o Vision...`, {
-        id: `extract-${file.id}`,
-        duration: 30000
+        id: toastId,
+        duration: 60000 // Longer duration since processing might take time
       });
       
       const result = await processPdfWithOpenAI(file.id, file.file_path);
       
       if (result) {
         toast.success(`Data extracted successfully from ${file.filename}`, {
-          id: `extract-${file.id}`,
+          id: toastId,
           duration: 5000
         });
         
         if (onComplete) onComplete();
       } else {
         toast.error(`Failed to extract data from ${file.filename}`, {
-          id: `extract-${file.id}`,
+          id: toastId,
           duration: 5000
         });
       }
     } catch (error) {
       console.error('Error extracting data:', error);
       toast.error(`Extraction error: ${error instanceof Error ? error.message : 'Unknown error'}`, {
-        id: `extract-${file.id}`,
+        id: toastId,
         duration: 5000
       });
     } finally {

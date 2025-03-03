@@ -1,17 +1,11 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
-// CORS headers for browser requests
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-const supabaseAdmin = createClient(
-  Deno.env.get('SUPABASE_URL') ?? '',
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-);
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -19,111 +13,133 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Get environment variables
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+  // Create Supabase client
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
   try {
+    // Parse request
     const { fileId } = await req.json();
-    
+
     if (!fileId) {
       return new Response(
-        JSON.stringify({ error: 'File ID is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Missing required parameter: fileId' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
 
-    // Get the file record from the database
-    const { data: file, error: fileError } = await supabaseAdmin
+    console.log(`Checking status for file ID: ${fileId}`);
+
+    // Get file from database
+    const { data: fileData, error: fileError } = await supabase
       .from('uploaded_files')
       .select('*')
       .eq('id', fileId)
       .single();
-      
+
     if (fileError) {
-      console.error('Error fetching file:', fileError);
+      console.error('Error fetching file data:', fileError);
       return new Response(
-        JSON.stringify({ error: fileError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: `Database error: ${fileError.message}` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
-    
-    if (!file) {
+
+    if (!fileData) {
       return new Response(
         JSON.stringify({ error: 'File not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
       );
     }
-    
-    // Check for stuck processing
-    let status = 'unknown';
-    let error = null;
-    
-    if (file.processed) {
-      status = 'completed';
-    } else if (file.processing) {
-      // Check if the file has been in processing state for too long
-      const updatedAt = new Date(file.updated_at);
-      const now = new Date();
-      const processingTime = (now.getTime() - updatedAt.getTime()) / 1000; // in seconds
-      
-      if (processingTime > 180) { // 3 minutes threshold
-        status = 'timeout';
-        error = 'Processing has been running for too long without completion';
-      } else {
-        status = 'processing';
-      }
-    } else if (file.extracted_data?.error) {
-      status = 'failed';
-      error = file.extracted_data.message || 'Processing failed with an unknown error';
-    } else {
-      status = 'waiting';
-    }
-    
-    // Calculate processing time if available
-    let duration = null;
-    if (file.processed && file.updated_at && file.created_at) {
-      const startTime = new Date(file.created_at);
-      const endTime = new Date(file.updated_at);
-      duration = (endTime.getTime() - startTime.getTime()) / 1000; // in seconds
-    }
-    
-    // Extract fields if data is available
-    const extractedFields = file.processed && file.extracted_data && !file.extracted_data.error
-      ? Object.keys(file.extracted_data).filter(k => !['processedBy', 'processedAt', 'documentType'].includes(k))
-      : [];
-    
-    // Get processing logs if available
-    const { data: logs, error: logsError } = await supabaseAdmin
+
+    // Get recent logs
+    const { data: logs, error: logsError } = await supabase
       .from('processing_logs')
       .select('*')
       .eq('file_id', fileId)
       .order('created_at', { ascending: false })
       .limit(10);
-      
+
     if (logsError) {
-      console.warn('Error fetching processing logs:', logsError);
+      console.error('Error fetching processing logs:', logsError);
     }
-    
-    const result = {
-      fileId,
-      status,
-      startTime: file.created_at,
-      endTime: file.processed ? file.updated_at : null,
-      duration,
-      error,
-      confidence: file.extracted_data?.confidence || null,
-      extractedFields,
-      logs: logs || [],
-      lastUpdated: file.updated_at
-    };
-    
+
+    // Check for "stuck" processing
+    let isStuck = false;
+    let stuckMessage = null;
+
+    if (fileData.processing) {
+      // Check when the file was last updated
+      const lastUpdateTime = new Date(fileData.updated_at).getTime();
+      const currentTime = new Date().getTime();
+      const timeDiffMinutes = (currentTime - lastUpdateTime) / (1000 * 60);
+
+      // If processing for more than 10 minutes, consider it stuck
+      if (timeDiffMinutes > 10) {
+        isStuck = true;
+        stuckMessage = `Processing appears stuck (${Math.round(timeDiffMinutes)} minutes since last update)`;
+        
+        // Log the stuck status
+        await supabase
+          .from('processing_logs')
+          .insert({
+            file_id: fileId,
+            message: stuckMessage,
+            log_level: 'warning',
+            details: { 
+              minutesSinceUpdate: Math.round(timeDiffMinutes),
+              lastUpdateAt: fileData.updated_at
+            }
+          });
+      }
+    }
+
+    // Reset stuck file if needed
+    if (isStuck) {
+      const { error: resetError } = await supabase
+        .from('uploaded_files')
+        .update({
+          processing: false,
+          processed: false,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', fileId);
+
+      if (resetError) {
+        console.error('Error resetting stuck file:', resetError);
+      } else {
+        console.log('Reset stuck file:', fileId);
+        
+        // Log the reset
+        await supabase
+          .from('processing_logs')
+          .insert({
+            file_id: fileId,
+            message: 'Reset stuck processing state',
+            log_level: 'info'
+          });
+      }
+    }
+
     return new Response(
-      JSON.stringify(result),
+      JSON.stringify({
+        success: true,
+        file: fileData,
+        logs: logs || [],
+        isStuck,
+        stuckMessage
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
+
   } catch (error) {
-    console.error('Error checking processing status:', error);
-    
+    console.error('Unexpected error:', error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}` }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });

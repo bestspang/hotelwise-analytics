@@ -86,17 +86,17 @@ const ExtractedDataViewer: React.FC<ExtractedDataViewerProps> = ({
       <Card className="shadow-md">
         <CardHeader>
           <CardTitle>
-            <Skeleton className="h-8 w-3/4" />
+            <div className="h-8 w-3/4 bg-gray-200 animate-pulse rounded"></div>
           </CardTitle>
           <CardDescription>
-            <Skeleton className="h-4 w-1/2" />
+            <div className="h-4 w-1/2 bg-gray-200 animate-pulse rounded"></div>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-3/4" />
-          <Skeleton className="h-4 w-5/6" />
+          <div className="h-4 w-full bg-gray-200 animate-pulse rounded"></div>
+          <div className="h-4 w-full bg-gray-200 animate-pulse rounded"></div>
+          <div className="h-4 w-3/4 bg-gray-200 animate-pulse rounded"></div>
+          <div className="h-4 w-5/6 bg-gray-200 animate-pulse rounded"></div>
         </CardContent>
       </Card>
     );

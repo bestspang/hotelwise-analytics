@@ -46,6 +46,13 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string): Pr
     console.log('Processing PDF with OpenAI, file ID:', fileId);
     console.log('File path:', filePath);
     
+    // Add a processing log entry
+    await supabase.from('processing_logs').insert({
+      file_id: fileId,
+      message: 'Starting PDF processing with OpenAI',
+      log_level: 'info'
+    });
+    
     // Update UI to show processing status immediately
     const { error: updateError } = await supabase
       .from('uploaded_files')
@@ -59,6 +66,13 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string): Pr
     if (updateError) {
       console.error('Error updating file status to processing:', updateError);
       toast.error(`Failed to update file status: ${updateError.message}`);
+      
+      await supabase.from('processing_logs').insert({
+        file_id: fileId,
+        message: `Failed to update processing status: ${updateError.message}`,
+        log_level: 'error'
+      });
+      
       return null;
     }
     
@@ -72,6 +86,14 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string): Pr
     
     if (error) {
       console.error('Error invoking process-pdf-openai function:', error);
+      
+      // Log the error
+      await supabase.from('processing_logs').insert({
+        file_id: fileId,
+        message: `Edge function error: ${error.message || 'Connection error'}`,
+        log_level: 'error',
+        details: { error: error }
+      });
       
       // More detailed error handling
       if (error.message?.includes('bucket') || error.message?.includes('storage')) {
@@ -102,6 +124,14 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string): Pr
       console.error('Error from PDF processing service:', data.error);
       toast.error(`PDF processing error: ${data.error}`);
       
+      // Log the error
+      await supabase.from('processing_logs').insert({
+        file_id: fileId,
+        message: `Processing error: ${data.error}`,
+        log_level: 'error',
+        details: { error: data.error }
+      });
+      
       // Reset the processing status on error
       await supabase
         .from('uploaded_files')
@@ -116,12 +146,27 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string): Pr
       return null;
     }
     
+    // Log success
+    await supabase.from('processing_logs').insert({
+      file_id: fileId,
+      message: 'PDF processing completed successfully',
+      log_level: 'info'
+    });
+    
     console.log('OpenAI PDF processing result received:', data);
     toast.success(`Successfully extracted data from ${filePath.split('/').pop()}`);
     return data;
   } catch (err) {
     console.error('Error processing PDF with OpenAI:', err);
     toast.error(`PDF processing error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    
+    // Log the error
+    await supabase.from('processing_logs').insert({
+      file_id: fileId,
+      message: `Unexpected error: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      log_level: 'error',
+      details: { error: err instanceof Error ? err.stack : 'Unknown error' }
+    });
     
     try {
       // Reset the processing status on error
