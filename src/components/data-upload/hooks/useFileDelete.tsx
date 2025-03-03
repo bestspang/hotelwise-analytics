@@ -1,67 +1,43 @@
 
-import { useState, useCallback } from 'react';
-import { deleteUploadedFile } from '@/services/api/fileServices/deleteService';
+import { useCallback } from 'react';
+import { useDeleteOperation } from './useDeleteOperation';
+import { useDeleteTracking } from './useDeleteTracking';
 import { toast } from 'sonner';
 
-// Hook for file deletion logic
+// Refactored hook that composes the file deletion functionality
 export const useFileDelete = (
   deletedFileIds: React.MutableRefObject<Set<string>>,
   setFiles: (files: any[] | ((prev: any[]) => any[])) => void
 ) => {
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [lastDeletedFileId, setLastDeletedFileId] = useState<string | null>(null);
+  // Use the delete operation hook
+  const { executeDelete, isDeleting, deleteError, clearDeleteError } = useDeleteOperation();
+  
+  // Use the delete tracking hook
+  const { trackDeletedFile, lastDeletedFileId } = useDeleteTracking(deletedFileIds, setFiles);
 
+  // Compose the complete file deletion
   const handleDelete = useCallback(async (fileId: string) => {
     if (isDeleting) {
       toast.warning('Delete operation already in progress, please wait');
       return false;
     }
 
-    try {
-      setIsDeleting(true);
-      setDeleteError(null);
-      toast.loading('Deleting file...');
-      console.log(`Attempting to delete file with ID: ${fileId}`);
-      
-      // Optimistic UI update - immediately remove from the UI to give feedback
-      setFiles(prevFiles => prevFiles.filter(file => file.id !== fileId));
-      
-      // Track this ID as deleted to prevent reappearance
-      deletedFileIds.current.add(fileId);
-      setLastDeletedFileId(fileId);
-      console.log(`Added ID ${fileId} to deleted files tracking set. Current deleted IDs:`, [...deletedFileIds.current]);
-      
-      // Perform the actual deletion (storage + database)
-      const success = await deleteUploadedFile(fileId);
-      
-      if (success) {
-        console.log(`File ${fileId} deleted successfully from backend`);
-        toast.success('File deleted successfully');
-        return true;
-      }
-      
-      // If the deletion failed, we need to potentially revert the UI
-      const errorMessage = 'Failed to delete file completely';
-      setDeleteError(errorMessage);
-      
+    // Optimistically update UI and track the file as deleted
+    trackDeletedFile(fileId);
+    toast.loading('Deleting file...');
+    
+    // Execute the actual deletion
+    const result = await executeDelete(fileId);
+    if (result.success) {
+      toast.success('File deleted successfully');
+      return true;
+    } else {
+      toast.error(result.message);
       // No need to revert UI here - real-time updates will handle this
       // The file may or may not reappear based on what part of the deletion failed
       return false;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`Error deleting file: ${errorMessage}`, error);
-      setDeleteError(errorMessage);
-      return false;
-    } finally {
-      setIsDeleting(false);
     }
-  }, [deletedFileIds, setFiles, isDeleting]);
-
-  // Function to clear delete error state
-  const clearDeleteError = useCallback(() => {
-    setDeleteError(null);
-  }, []);
+  }, [isDeleting, trackDeletedFile, executeDelete]);
 
   // Function to retry last failed delete
   const retryDelete = useCallback(async () => {
