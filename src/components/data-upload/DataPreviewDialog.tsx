@@ -1,12 +1,12 @@
 
-import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { AlertTriangle, CheckCircle, Clock, File, FileText, Loader, Trash2 } from 'lucide-react';
-import PreviewContent from './PreviewContent';
+import React, { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { useProcessingStatus } from './hooks/useProcessingStatus';
+import { AlertTriangle, FileText, Check, X, AlertCircle, RefreshCw, Trash2 } from 'lucide-react';
+import ReprocessButton from './preview/ReprocessButton';
 
 interface DataPreviewDialogProps {
   file: any;
@@ -23,101 +23,209 @@ const DataPreviewDialog: React.FC<DataPreviewDialogProps> = ({
   onDelete,
   onReprocessing
 }) => {
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  const handleDelete = async () => {
-    if (!file.id || !onDelete) return;
+  const [activeTab, setActiveTab] = useState('data');
+  const { checking, checkProcessingStatus } = useProcessingStatus();
+  const [processingStatus, setProcessingStatus] = useState<any>(null);
+  
+  const handleForceDelete = async () => {
+    if (!onDelete) return;
     
-    setIsDeleting(true);
-    try {
-      const success = await onDelete(file.id);
-      if (success) {
-        onClose();
-      }
-    } finally {
-      setIsDeleting(false);
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this file? This action cannot be undone and will remove both the file and database record.'
+    );
+    
+    if (confirmed) {
+      await onDelete(file.id);
+      onClose();
     }
   };
 
-  const handleApproveData = async () => {
-    onReprocessing && onReprocessing();
+  const checkStatus = async () => {
+    if (!file.id) return;
+    const status = await checkProcessingStatus(file.id);
+    setProcessingStatus(status);
   };
-
-  const handleRejectData = async () => {
-    onReprocessing && onReprocessing();
-  };
-
-  const handleReprocessFile = async () => {
-    onReprocessing && onReprocessing();
-  };
-
-  const getStatusBadge = () => {
-    if (file.processing) {
-      return <Badge variant="secondary" className="flex items-center gap-1"><Loader className="h-3 w-3 animate-spin" /> Processing</Badge>;
-    } else if (file.processed && file.extracted_data && !file.extracted_data.error) {
-      if (file.extracted_data.approved) {
-        return <Badge variant="outline" className="flex items-center gap-1 bg-green-100 text-green-800"><CheckCircle className="h-3 w-3" /> Approved</Badge>;
-      } else if (file.extracted_data.rejected) {
-        return <Badge variant="destructive" className="flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Rejected</Badge>;
-      } else {
-        return <Badge variant="outline" className="flex items-center gap-1"><Clock className="h-3 w-3" /> Pending Approval</Badge>;
-      }
-    } else if (file.processed && file.extracted_data?.error) {
-      return <Badge variant="destructive" className="flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Error</Badge>;
-    } else {
-      return <Badge variant="outline" className="flex items-center gap-1"><File className="h-3 w-3" /> Unprocessed</Badge>;
+  
+  useEffect(() => {
+    if (open && file && file.processing) {
+      checkStatus();
     }
-  };
+  }, [open, file]);
+
+  if (!file) return null;
+
+  let statusElement = null;
+  if (file.processing) {
+    statusElement = (
+      <div className="mb-4 flex flex-col gap-2">
+        <div className="flex items-center gap-2 text-amber-500">
+          <AlertCircle className="h-5 w-5" />
+          <span className="font-medium">This file is still being processed</span>
+        </div>
+        
+        {processingStatus && (
+          <div className="bg-amber-50 p-3 rounded-md border border-amber-200 text-sm">
+            <p className="font-medium mb-2">Processing Status: {processingStatus.status}</p>
+            <div className="space-y-1 mt-2">
+              {processingStatus.logs && processingStatus.logs.map((log: any, index: number) => (
+                <div key={index} className="text-xs text-gray-600">
+                  {new Date(log.created_at).toLocaleString()}: {log.message}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        <div className="flex gap-2 mt-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={checkStatus} 
+            disabled={checking}
+            className="flex items-center gap-1"
+          >
+            <RefreshCw className={`h-4 w-4 ${checking ? 'animate-spin' : ''}`} />
+            {checking ? 'Checking...' : 'Check Status'}
+          </Button>
+          
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleForceDelete}
+            className="flex items-center gap-1"
+          >
+            <Trash2 className="h-4 w-4" />
+            Force Delete
+          </Button>
+        </div>
+      </div>
+    );
+  } else if (file.processed && file.extracted_data?.error) {
+    statusElement = (
+      <div className="mb-4 flex items-center gap-2 text-red-500">
+        <AlertTriangle className="h-5 w-5" />
+        <span>Error processing file: {file.extracted_data.message || 'Unknown error'}</span>
+      </div>
+    );
+  } else if (file.processed) {
+    statusElement = (
+      <div className="mb-4 flex items-center gap-2 text-green-600">
+        <Check className="h-5 w-5" />
+        <span>File processed successfully</span>
+      </div>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-primary" />
-              <DialogTitle className="text-xl">
-                {file.filename}
-              </DialogTitle>
-              {getStatusBadge()}
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-xl">{file.filename}</DialogTitle>
+            <Badge variant="outline">{file.document_type || 'Unknown type'}</Badge>
+          </div>
+          <DialogDescription>
+            Uploaded on {new Date(file.created_at).toLocaleString()}
+          </DialogDescription>
+        </DialogHeader>
+
+        {statusElement}
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="mb-4">
+            <TabsTrigger value="data">Extracted Data</TabsTrigger>
+            <TabsTrigger value="raw">Raw JSON</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="data" className="space-y-4">
+            {file.processed && file.extracted_data && !file.extracted_data.error ? (
+              <div>
+                <h3 className="font-medium mb-2">Extracted Fields:</h3>
+                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-md overflow-x-auto">
+                  <pre className="text-sm whitespace-pre-wrap">
+                    {renderExtractedData(file.extracted_data)}
+                  </pre>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <FileText className="w-12 h-12 mx-auto mb-2 opacity-20" />
+                <p>No data available</p>
+                {!file.processed && !file.processing && (
+                  <div className="mt-4">
+                    <ReprocessButton
+                      fileId={file.id}
+                      filePath={file.file_path}
+                      documentType={file.document_type}
+                      onReprocessing={onReprocessing}
+                      variant="default"
+                      size="default"
+                    >
+                      Process this file
+                    </ReprocessButton>
+                  </div>
+                )}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="raw">
+            <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-md overflow-x-auto">
+              <pre className="text-sm whitespace-pre-wrap">
+                {JSON.stringify(file.extracted_data || {}, null, 2)}
+              </pre>
             </div>
-            <div className="flex gap-2">
-              <Button
+          </TabsContent>
+        </Tabs>
+
+        <DialogFooter className="flex justify-between items-center gap-2 sm:gap-0">
+          <div>
+            {onDelete && (
+              <Button 
+                variant="destructive" 
+                size="sm" 
+                onClick={handleForceDelete}
+                className="flex items-center gap-1"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete File
+              </Button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            {file.processed && (
+              <ReprocessButton
+                fileId={file.id}
+                filePath={file.file_path}
+                documentType={file.document_type}
+                onReprocessing={onReprocessing}
                 variant="outline"
                 size="sm"
-                className="text-red-500 border-red-200 hover:bg-red-50"
-                onClick={handleDelete}
-                disabled={isDeleting}
-              >
-                <Trash2 className="h-3.5 w-3.5 mr-1" />
-                {isDeleting ? 'Deleting...' : 'Delete'}
-              </Button>
-            </div>
-          </div>
-          <div className="text-sm text-muted-foreground mt-1">
-            {file.document_type && (
-              <span className="inline-block mr-3">
-                <strong>Type:</strong> {file.document_type}
-              </span>
+              />
             )}
-            <span className="inline-block mr-3">
-              <strong>Size:</strong> {(file.file_size / 1024).toFixed(1)} KB
-            </span>
-            <span className="inline-block">
-              <strong>Uploaded:</strong> {new Date(file.created_at).toLocaleString()}
-            </span>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={onClose}
+            >
+              Close
+            </Button>
           </div>
-        </DialogHeader>
-        
-        <PreviewContent 
-          file={file} 
-          onApproveData={handleApproveData}
-          onRejectData={handleRejectData}
-          onReprocessing={handleReprocessFile}
-        />
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 };
+
+// Helper function to render extracted data in a readable format
+function renderExtractedData(data: any) {
+  if (!data) return 'No data';
+  
+  // Filter out non-relevant fields
+  const { error, message, ...relevantData } = data;
+  
+  // Converting to JSON with indentation
+  return JSON.stringify(relevantData, null, 2);
+}
 
 export default DataPreviewDialog;

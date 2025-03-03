@@ -1,16 +1,10 @@
-
-// deno-lint-ignore-file no-explicit-any
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') || '';
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -19,399 +13,292 @@ serve(async (req) => {
   }
 
   try {
+    // Create Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing environment variables for Supabase');
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // Get OpenAI API key
+    const openAIKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openAIKey) {
+      throw new Error('Missing OpenAI API key');
+    }
+    
+    // Parse request body
     const { fileId, filePath, documentType } = await req.json();
     
     if (!fileId || !filePath) {
-      throw new Error('Missing required parameters: fileId and filePath are required');
+      return new Response(
+        JSON.stringify({ error: 'File ID and path are required' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
     }
-
-    // Create Supabase client
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     
-    // Generate a request ID for logging and tracking
+    // Create a unique request ID for tracking this processing job
     const requestId = crypto.randomUUID();
     
-    // Log the start of processing
-    await logProcessingStep(supabase, requestId, fileId, 'info', 'Starting PDF processing', {
-      documentType,
-      filePath
-    });
-    
-    console.log(`Processing file ${filePath} of type ${documentType || 'unknown'}`);
-    
-    // Get download URL for the file
-    const { data: { publicUrl } } = supabase.storage
-      .from('hotel-files')
-      .getPublicUrl(filePath);
-    
-    if (!publicUrl) {
-      throw new Error('Failed to get public URL for the file');
-    }
-    
-    await logProcessingStep(supabase, requestId, fileId, 'info', 'Fetching PDF content');
-    
-    // Fetch the PDF content
-    const pdfResponse = await fetch(publicUrl);
-    if (!pdfResponse.ok) {
-      throw new Error('Failed to fetch PDF file: ' + pdfResponse.statusText);
-    }
-    
-    // Convert to base64
-    const pdfBuffer = await pdfResponse.arrayBuffer();
-    const pdfBase64 = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)));
-    
-    await logProcessingStep(supabase, requestId, fileId, 'info', 'PDF fetched successfully', {
-      fileSize: pdfBuffer.byteLength
-    });
-    
-    // Determine document type if not provided
-    let detectedDocType = documentType;
-    if (!detectedDocType || detectedDocType === 'Unknown') {
-      detectedDocType = await detectDocumentType(supabase, pdfBase64);
-      await logProcessingStep(supabase, requestId, fileId, 'info', `Detected document type: ${detectedDocType}`);
-      console.log(`Detected document type: ${detectedDocType}`);
-    }
-    
-    // Update file record with document type
-    await supabase
-      .from('uploaded_files')
-      .update({ document_type: detectedDocType })
-      .eq('id', fileId);
-    
-    // Get data mappings for this document type
-    const mappings = await getDataMappingsForDocType(supabase, detectedDocType);
-    
-    await logProcessingStep(supabase, requestId, fileId, 'info', 'Extracting data from PDF with AI', {
-      documentType: detectedDocType,
-      hasMappings: !!mappings
-    });
-    
-    // Extract data using OpenAI
-    const extractedData = await extractDataFromPDF(pdfBase64, detectedDocType, mappings);
-    
-    await logProcessingStep(supabase, requestId, fileId, 'info', 'AI data extraction completed', {
-      status: 'success'
-    });
-    
-    // Update the file record with the extracted data
-    await supabase
-      .from('uploaded_files')
-      .update({ 
-        extracted_data: extractedData,
-        processed: true,
-        processing: false
-      })
-      .eq('id', fileId);
-    
-    await logProcessingStep(supabase, requestId, fileId, 'info', 'Processing completed successfully');
-    
-    return new Response(
-      JSON.stringify({ 
-        status: 'success', 
-        fileId, 
-        message: 'PDF processed successfully',
-        documentType: detectedDocType
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  } catch (error) {
-    console.error('Error processing PDF:', error);
-    
-    // If we have fileId, update the file record with the error
-    const { fileId } = await req.json().catch(() => ({}));
-    
-    if (fileId) {
-      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-      
-      // Log the error
-      const requestId = crypto.randomUUID();
-      await logProcessingStep(supabase, requestId, fileId, 'error', `Processing failed: ${error.message}`);
-      
-      // Update the file record with the error
-      await supabase
-        .from('uploaded_files')
-        .update({ 
-          extracted_data: { 
-            error: true, 
-            message: error.message 
-          },
-          processed: true,
-          processing: false
-        })
-        .eq('id', fileId);
-    }
-    
-    return new Response(
-      JSON.stringify({ 
-        status: 'error', 
-        message: `Error processing PDF: ${error.message}` 
-      }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    );
-  }
-});
-
-// Detect document type using AI
-async function detectDocumentType(supabase: any, pdfBase64: string): Promise<string> {
-  try {
-    // Get list of supported document types from data_mappings table
-    const { data: mappings } = await supabase
-      .from('data_mappings')
-      .select('document_type')
-      .order('document_type');
-    
-    const documentTypes = mappings ? mappings.map((m: any) => m.document_type) : [];
-    
-    // If no mappings available, use default types
-    const supportedTypes = documentTypes.length > 0 ? documentTypes : [
-      'expense_voucher',
-      'monthly_statistics',
-      'occupancy_report',
-      'city_ledger',
-      'night_audit',
-      'no_show_report'
-    ];
-    
-    // Ask OpenAI to identify the document type
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a hotel document classifier. Classify PDF documents into one of the following types: ${supportedTypes.join(', ')}. Return ONLY the document type as a string, no other text.`
-          },
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: 'Identify the type of this hotel document. Respond with just the document type.'
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:application/pdf;base64,${pdfBase64}`
-                }
-              }
-            ]
-          }
-        ],
-        max_tokens: 50
-      })
-    });
-    
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.statusText}`);
-    }
-    
-    const result = await response.json();
-    let docType = result.choices[0].message.content.trim().toLowerCase();
-    
-    // Clean up and normalize the document type
-    docType = docType.replace(/['".,\/#!$%\^&\*;:{}=\-_`~()]/g, '');
-    docType = docType.replace(/\s+/g, '_');
-    
-    // Check if the document type is in the supported list
-    if (!supportedTypes.map(t => t.toLowerCase()).includes(docType)) {
-      // If not a direct match, find the closest match
-      const normalizedTypes = supportedTypes.map(t => t.toLowerCase());
-      for (const type of normalizedTypes) {
-        if (docType.includes(type) || type.includes(docType)) {
-          return type;
-        }
-      }
-      return 'unknown';
-    }
-    
-    return docType;
-  } catch (error) {
-    console.error('Error detecting document type:', error);
-    return 'unknown';
-  }
-}
-
-// Get data mappings for a specific document type
-async function getDataMappingsForDocType(supabase: any, documentType: string): Promise<any> {
-  try {
-    const { data, error } = await supabase
-      .from('data_mappings')
-      .select('mappings')
-      .eq('document_type', documentType)
-      .maybeSingle();
-    
-    if (error) {
-      console.error('Error fetching data mappings:', error);
-      return null;
-    }
-    
-    return data?.mappings || null;
-  } catch (error) {
-    console.error('Error in getDataMappingsForDocType:', error);
-    return null;
-  }
-}
-
-// Extract data from PDF using OpenAI
-async function extractDataFromPDF(pdfBase64: string, documentType: string, mappings: any): Promise<any> {
-  try {
-    let systemPrompt = `You are a hotel financial data extraction assistant. Extract structured data from the provided PDF document which is a ${documentType.replace(/_/g, ' ')}. `;
-    
-    // Determine target table based on document type
-    let targetTable = documentType;
-    
-    // If mappings are available, use them to guide extraction
-    if (mappings) {
-      systemPrompt += `Extract the following fields according to the provided mapping:\n`;
-      
-      for (const [field, mapping] of Object.entries(mappings)) {
-        systemPrompt += `- ${field}: ${mapping}\n`;
-      }
-    } else {
-      // Default extraction guidance based on document type
-      systemPrompt += 'Extract all relevant financial and operational data in a structured JSON format. ';
-      
-      switch (documentType) {
-        case 'expense_voucher':
-          systemPrompt += 'Include fields like expense_type, expense_amount, expense_date, taxes_included, and remarks.';
-          targetTable = 'expense_vouchers';
-          break;
-        case 'monthly_statistics':
-          systemPrompt += 'Include metrics like total_revenue, room_revenue, fnb_revenue, operational_expenses, net_profit, and report_date.';
-          targetTable = 'financial_reports';
-          break;
-        case 'occupancy_report':
-          systemPrompt += 'Include metrics like occupancy_rate, average_daily_rate, revenue_per_available_room, total_rooms_occupied, total_rooms_available, and report_date.';
-          targetTable = 'occupancy_reports';
-          break;
-        case 'city_ledger':
-          systemPrompt += 'Include account_name, reference_number, opening_balance, closing_balance, charges, payments, and ledger_date.';
-          targetTable = 'city_ledger';
-          break;
-        case 'night_audit':
-          systemPrompt += 'Include room_id, audit_date, revenue, taxes, charges, balance, and notes.';
-          targetTable = 'night_audit_details';
-          break;
-        case 'no_show_report':
-          systemPrompt += 'Include report_date, number_of_no_shows, potential_revenue_loss.';
-          targetTable = 'no_show_reports';
-          break;
-        default:
-          systemPrompt += 'Extract any relevant financial or operational data you can find.';
-          targetTable = 'unknown';
-      }
-    }
-    
-    systemPrompt += '\nReturn ONLY a JSON object with the extracted data, no other text.';
-    
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt
-          },
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: `Extract structured data from this ${documentType.replace(/_/g, ' ')}. Return as JSON only.`
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:application/pdf;base64,${pdfBase64}`
-                }
-              }
-            ]
-          }
-        ],
-        max_tokens: 2000
-      })
-    });
-    
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.statusText}`);
-    }
-    
-    const result = await response.json();
-    const content = result.choices[0].message.content;
-    
-    // Parse the JSON response
-    let extractedData;
-    try {
-      // Handle case where OpenAI might wrap the JSON in markdown code blocks
-      const jsonMatch = content.match(/```(?:json)?([\s\S]*?)```/) || [null, content];
-      const jsonString = jsonMatch[1].trim();
-      extractedData = JSON.parse(jsonString);
-    } catch (parseError) {
-      console.error('Error parsing OpenAI response as JSON:', parseError);
-      console.log('Raw response:', content);
-      
-      // Try more aggressive JSON extraction
-      const jsonRegex = /\{[\s\S]*\}/;
-      const match = content.match(jsonRegex);
-      
-      if (match) {
-        try {
-          extractedData = JSON.parse(match[0]);
-        } catch (secondParseError) {
-          throw new Error('Failed to parse structured data from OpenAI response');
-        }
-      } else {
-        throw new Error('Failed to extract structured data from OpenAI response');
-      }
-    }
-    
-    // Add metadata
-    return {
-      ...extractedData,
-      documentType,
-      targetTable,
-      extractedAt: new Date().toISOString()
-    };
-  } catch (error) {
-    console.error('Error extracting data from PDF:', error);
-    throw error;
-  }
-}
-
-// Log processing steps
-async function logProcessingStep(
-  supabase: any, 
-  requestId: string,
-  fileId: string,
-  logLevel: 'info' | 'warning' | 'error',
-  message: string,
-  details: Record<string, any> = {}
-): Promise<void> {
-  try {
+    // Log start of processing
     await supabase
       .from('processing_logs')
       .insert({
-        request_id: requestId,
         file_id: fileId,
-        log_level: logLevel,
-        message,
-        details
+        request_id: requestId,
+        message: `Started processing file: ${filePath}`,
+        log_level: 'info',
+        details: { documentType }
       });
+    
+    // Get download URL for the file
+    const { data: { publicUrl }, error: urlError } = supabase
+      .storage
+      .from('pdf_files')
+      .getPublicUrl(filePath);
+      
+    if (urlError) {
+      throw new Error(`Failed to get file URL: ${urlError.message}`);
+    }
+    
+    // Update file status to processing
+    await supabase
+      .from('uploaded_files')
+      .update({ 
+        processing: true,
+        processed: false,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', fileId);
+    
+    // Background task to process the file
+    EdgeRuntime.waitUntil((async () => {
+      try {
+        // Log processing steps
+        await supabase
+          .from('processing_logs')
+          .insert({
+            file_id: fileId,
+            request_id: requestId,
+            message: 'Downloading file for processing',
+            log_level: 'info'
+          });
+        
+        // Fetch the PDF file  
+        const fileResponse = await fetch(publicUrl);
+        if (!fileResponse.ok) {
+          throw new Error(`Failed to download file: ${fileResponse.statusText}`);
+        }
+        
+        const fileBuffer = await fileResponse.arrayBuffer();
+        const fileBase64 = btoa(String.fromCharCode(...new Uint8Array(fileBuffer)));
+        
+        // Log OpenAI API call
+        await supabase
+          .from('processing_logs')
+          .insert({
+            file_id: fileId,
+            request_id: requestId,
+            message: 'Sending file to OpenAI for processing',
+            log_level: 'info'
+          });
+        
+        // Create an API log entry
+        const apiLogId = crypto.randomUUID();
+        await supabase
+          .from('api_logs')
+          .insert({
+            id: apiLogId,
+            request_id: requestId,
+            file_name: filePath.split('/').pop(),
+            api_model: 'gpt-4-vision-preview',
+            status: 'pending',
+            timestamp_sent: new Date().toISOString()
+          });
+        
+        // Send to OpenAI for processing
+        const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${openAIKey}`
+          },
+          body: JSON.stringify({
+            model: "gpt-4-vision-preview",
+            messages: [
+              {
+                role: "system",
+                content: `You are an expert in hotel financial data extraction. Extract all key financial and operational data from this hotel ${documentType} PDF into a clean JSON format. Include as much detail as possible.`
+              },
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: `Please extract all the data from this ${documentType} PDF. Include all numbers, dates, and categorize the information appropriately.`
+                  },
+                  {
+                    type: "image_url",
+                    image_url: {
+                      url: `data:application/pdf;base64,${fileBase64}`
+                    }
+                  }
+                ]
+              }
+            ],
+            max_tokens: 4000
+          })
+        });
+        
+        // Update API log with received timestamp
+        await supabase
+          .from('api_logs')
+          .update({
+            timestamp_received: new Date().toISOString()
+          })
+          .eq('id', apiLogId);
+        
+        if (!openAIResponse.ok) {
+          const errorText = await openAIResponse.text();
+          
+          // Update API log with error
+          await supabase
+            .from('api_logs')
+            .update({
+              status: 'error',
+              error_message: errorText
+            })
+            .eq('id', apiLogId);
+          
+          throw new Error(`OpenAI API error: ${errorText}`);
+        }
+        
+        const openAIData = await openAIResponse.json();
+        
+        // Update API log with success and raw result
+        await supabase
+          .from('api_logs')
+          .update({
+            status: 'success',
+            raw_result: openAIData
+          })
+          .eq('id', apiLogId);
+        
+        // Extract the JSON from the OpenAI response
+        const responseContent = openAIData.choices[0].message.content;
+        
+        await supabase
+          .from('processing_logs')
+          .insert({
+            file_id: fileId,
+            request_id: requestId,
+            message: 'Received OpenAI response, parsing data',
+            log_level: 'info'
+          });
+        
+        // Try to parse the JSON from the response
+        let extractedData;
+        try {
+          // Find JSON in the content (it might be wrapped in markdown code blocks)
+          let jsonMatch = responseContent.match(/```json\n([\s\S]*?)\n```/) || 
+                          responseContent.match(/```\n([\s\S]*?)\n```/) ||
+                          responseContent.match(/{[\s\S]*}/);
+                          
+          let jsonContent = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : responseContent;
+          
+          extractedData = JSON.parse(jsonContent);
+        } catch (parseError) {
+          console.error('Error parsing JSON:', parseError);
+          
+          // If parsing fails, save the raw text
+          extractedData = {
+            error: true,
+            message: 'Failed to parse OpenAI response',
+            rawContent: responseContent
+          };
+          
+          await supabase
+            .from('processing_logs')
+            .insert({
+              file_id: fileId,
+              request_id: requestId,
+              message: 'Error parsing JSON response',
+              log_level: 'error',
+              details: { 
+                error: parseError.message,
+                responseContent 
+              }
+            });
+        }
+        
+        // Update file with extracted data
+        await supabase
+          .from('uploaded_files')
+          .update({ 
+            processing: false,
+            processed: true,
+            extracted_data: extractedData,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', fileId);
+        
+        // Final success log
+        await supabase
+          .from('processing_logs')
+          .insert({
+            file_id: fileId,
+            request_id: requestId,
+            message: 'File processing completed successfully',
+            log_level: 'info'
+          });
+        
+      } catch (error) {
+        console.error('Processing error:', error);
+        
+        // Log the error
+        await supabase
+          .from('processing_logs')
+          .insert({
+            file_id: fileId,
+            request_id: requestId,
+            message: `Error processing file: ${error.message}`,
+            log_level: 'error',
+            details: { error: error.stack || error.message }
+          });
+        
+        // Update file status with error
+        await supabase
+          .from('uploaded_files')
+          .update({ 
+            processing: false,
+            processed: true,
+            extracted_data: { 
+              error: true, 
+              message: error.message 
+            },
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', fileId);
+      }
+    })());
+    
+    // Return immediate success
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'File processing started',
+        requestId
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+    );
   } catch (error) {
-    console.error('Error logging processing step:', error);
-    // Continue despite logging error
+    console.error('Error:', error);
+    
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+    );
   }
-}
+});

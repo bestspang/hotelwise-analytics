@@ -1,11 +1,11 @@
-
 import React from 'react';
 import { TabsContent } from '@/components/ui/tabs';
 import { FileStatus } from './types/statusTypes';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Clock, AlertTriangle, CheckCircle, File } from 'lucide-react';
+import { Clock, AlertTriangle, CheckCircle, File, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 interface FileTabContentProps {
   tabValue: string;
@@ -32,7 +32,6 @@ const FileTabContent: React.FC<FileTabContentProps> = ({
     try {
       toast.info(`Processing ${file.filename}...`);
       
-      // Update file status
       await supabase
         .from('uploaded_files')
         .update({ 
@@ -41,7 +40,6 @@ const FileTabContent: React.FC<FileTabContentProps> = ({
         })
         .eq('id', file.id);
       
-      // Call process-pdf function
       const { error } = await supabase.functions.invoke('process-pdf', {
         body: { 
           fileId: file.id, 
@@ -65,7 +63,6 @@ const FileTabContent: React.FC<FileTabContentProps> = ({
     if (!file.id || !file.file_path) return;
     
     try {
-      // If a file is stuck in processing, reset its state
       if (isStuckInProcessing && isStuckInProcessing(file)) {
         await supabase
           .from('uploaded_files')
@@ -78,10 +75,27 @@ const FileTabContent: React.FC<FileTabContentProps> = ({
         toast.info(`Reset processing state for ${file.filename}`);
       }
       
-      // Start processing again
       handleProcessFile(file);
     } catch (error) {
       toast.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleDeleteFile = async (e: React.MouseEvent, fileId: string) => {
+    e.stopPropagation();
+    if (!onDelete) return;
+    
+    try {
+      const confirmed = window.confirm('Are you sure you want to delete this file? This action cannot be undone.');
+      if (!confirmed) return;
+      
+      toast.info('Deleting file...');
+      const success = await onDelete(fileId);
+      if (success) {
+        toast.success('File deleted successfully');
+      }
+    } catch (error) {
+      toast.error(`Error deleting file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -104,9 +118,11 @@ const FileTabContent: React.FC<FileTabContentProps> = ({
   };
 
   const renderActionButtons = (file: any) => {
-    if (!file.processing && !file.processed) {
-      return (
-        <>
+    const isStuck = isStuckInProcessing && isStuckInProcessing(file);
+    
+    return (
+      <div className="flex space-x-2">
+        {!file.processing && !file.processed && (
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -116,14 +132,9 @@ const FileTabContent: React.FC<FileTabContentProps> = ({
           >
             Process
           </button>
-        </>
-      );
-    }
+        )}
 
-    if ((file.processed && file.extracted_data?.error) || 
-        (isStuckInProcessing && isStuckInProcessing(file))) {
-      return (
-        <>
+        {((file.processed && file.extracted_data?.error) || isStuck) && (
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -133,12 +144,8 @@ const FileTabContent: React.FC<FileTabContentProps> = ({
           >
             Retry
           </button>
-        </>
-      );
-    }
+        )}
 
-    return (
-      <>
         {file.processed && (
           <button
             onClick={(e) => {
@@ -150,7 +157,16 @@ const FileTabContent: React.FC<FileTabContentProps> = ({
             View Data
           </button>
         )}
-      </>
+        
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={(e) => handleDeleteFile(e, file.id)}
+          className="text-red-500 hover:text-red-700 hover:bg-red-100 h-8"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
     );
   };
 
@@ -178,7 +194,7 @@ const FileTabContent: React.FC<FileTabContentProps> = ({
                 </div>
               </div>
               
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center">
                 {renderActionButtons(file)}
               </div>
             </div>
