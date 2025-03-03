@@ -78,6 +78,9 @@ export const getFileStatus = (file: any): FileStatus => {
     hasExtractionError: hasExtractionError(file),
     isUnprocessable: isUnprocessable(file),
     errorMessage: getErrorMessage(file, isStuck),
-    documentType: file.document_type || (file.extracted_data && file.extracted_data.documentType)
+    documentType: file.document_type || (file.extracted_data && file.extracted_data.documentType),
+    isApproved: !!(file.extracted_data && file.extracted_data.approved),
+    isRejected: !!(file.extracted_data && file.extracted_data.rejected),
+    isInserted: !!(file.extracted_data && file.extracted_data.inserted)
   };
 };

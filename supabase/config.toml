@@ -16,9 +16,6 @@ enabled = true
 enabled = true
 port = 54323
 
-[[seed.tables]]
-name = "profiles"
-
 # Edge Functions
 [functions.process-pdf]
 verify_jwt = false

@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { AlertTriangle, CheckCircle, Clock, File, FileText, Processing, Trash2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Clock, File, FileText, Loader, Trash2 } from 'lucide-react';
 import PreviewContent from './PreviewContent';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -52,10 +53,10 @@ const DataPreviewDialog: React.FC<DataPreviewDialogProps> = ({
 
   const getStatusBadge = () => {
     if (file.processing) {
-      return <Badge variant="secondary" className="flex items-center gap-1"><Processing className="h-3 w-3" /> Processing</Badge>;
+      return <Badge variant="secondary" className="flex items-center gap-1"><Loader className="h-3 w-3 animate-spin" /> Processing</Badge>;
     } else if (file.processed && file.extracted_data && !file.extracted_data.error) {
       if (file.extracted_data.approved) {
-        return <Badge variant="success" className="flex items-center gap-1 bg-green-100 text-green-800"><CheckCircle className="h-3 w-3" /> Approved</Badge>;
+        return <Badge variant="outline" className="flex items-center gap-1 bg-green-100 text-green-800"><CheckCircle className="h-3 w-3" /> Approved</Badge>;
       } else if (file.extracted_data.rejected) {
         return <Badge variant="destructive" className="flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Rejected</Badge>;
       } else {
