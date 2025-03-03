@@ -73,5 +73,5 @@ redirect_uri = ""
 url = ""
 
 [functions]
-# The functions port configuration
-port = 54321
+  [functions.port]
+    external = 54321

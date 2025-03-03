@@ -13,6 +13,7 @@ interface ReprocessButtonProps {
   variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link" | null | undefined;
   size?: "default" | "sm" | "lg" | "icon" | null | undefined;
   children?: React.ReactNode;
+  className?: string; // Add className prop
 }
 
 const ReprocessButton: React.FC<ReprocessButtonProps> = ({
@@ -22,7 +23,8 @@ const ReprocessButton: React.FC<ReprocessButtonProps> = ({
   onReprocessing,
   variant = "outline",
   size = "sm",
-  children
+  children,
+  className
 }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   
@@ -74,7 +76,7 @@ const ReprocessButton: React.FC<ReprocessButtonProps> = ({
       size={size} 
       onClick={handleReprocess}
       disabled={isProcessing}
-      className="flex items-center gap-1"
+      className={`flex items-center gap-1 ${className || ''}`}
     >
       <RefreshCw className={`h-4 w-4 ${isProcessing ? 'animate-spin' : ''}`} />
       {children || (isProcessing ? 'Processing...' : 'Reprocess')}
