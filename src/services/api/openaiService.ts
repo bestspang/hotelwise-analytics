@@ -40,7 +40,7 @@ export async function getOpenAIResponse(prompt: string): Promise<OpenAIResponse 
   }
 }
 
-// New function to process PDF with OpenAI
+// Process PDF with OpenAI
 export async function processPdfWithOpenAI(fileId: string, filePath: string): Promise<any> {
   try {
     console.log('Processing PDF with OpenAI, file ID:', fileId);
@@ -54,7 +54,13 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string): Pr
     
     if (error) {
       console.error('Error invoking process-pdf-openai function:', error);
-      toast.error(`PDF processing failed: ${error.message || 'Connection error'}`);
+      
+      // Check if this might be due to missing OpenAI API key
+      if (error.message?.includes('API key') || error.message?.includes('authentication')) {
+        toast.error('OpenAI API key may be missing or invalid. Please check your Supabase Edge Function secrets.');
+      } else {
+        toast.error(`PDF processing failed: ${error.message || 'Connection error'}`);
+      }
       return null;
     }
     
