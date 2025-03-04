@@ -1,10 +1,11 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sparkles, Send, AlertCircle, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { getOpenAIResponse } from '@/services/api/openai';
+import { getOpenAIResponse } from '@/services/api/openaiService';
 
 interface AIQueryFormProps {
   onResponse: (response: string) => void;
