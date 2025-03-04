@@ -3,6 +3,7 @@ import React from 'react';
 import { DocumentDataIcon } from '../utils/documentTypeUtils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { FileText } from 'lucide-react';
 
 interface FileHeaderProps {
   filename: string;
@@ -12,7 +13,14 @@ interface FileHeaderProps {
 
 const FileHeader: React.FC<FileHeaderProps> = ({ filename, documentType, compact = false }) => {
   // Get the icon for the document type
-  const Icon = documentType ? DocumentDataIcon[documentType] : null;
+  const getIcon = () => {
+    if (!documentType || !DocumentDataIcon[documentType]) {
+      return FileText;
+    }
+    return DocumentDataIcon[documentType];
+  };
+  
+  const Icon = getIcon();
   
   // Truncate long filenames
   const truncatedFilename = compact && filename.length > 24

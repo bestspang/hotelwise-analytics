@@ -1,4 +1,6 @@
 
+import { FileText, CreditCard, BarChart3, Database, Calendar, Moon, X } from 'lucide-react';
+
 /**
  * Determines document type based on filename pattern matching
  */
@@ -21,4 +23,18 @@ export const determineDocumentType = (filename: string): string => {
   
   // Default document type
   return 'Expense Voucher';
+};
+
+/**
+ * Maps document types to their corresponding icons
+ */
+export const DocumentDataIcon: Record<string, React.FC<any>> = {
+  'Expense Voucher': CreditCard,
+  'Monthly Statistics': BarChart3,
+  'Occupancy Report': Calendar,
+  'City Ledger': Database,
+  'Night Audit': Moon,
+  'No-show Report': X,
+  // Default icon for unknown document types
+  'default': FileText
 };
