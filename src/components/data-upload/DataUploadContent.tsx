@@ -27,35 +27,44 @@ const DataUploadContent: React.FC<DataUploadContentProps> = ({
   };
 
   return (
-    <div className="grid gap-6">
-      <UploadCard onUploadComplete={onUploadComplete} />
-      
-      <UploadedFilesList 
-        refreshTrigger={refreshTrigger}
-        onSelectFile={handleFileSelect}
-      />
-      
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="data">Extracted Data</TabsTrigger>
-          <TabsTrigger value="logs">Processing Logs</TabsTrigger>
-        </TabsList>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="space-y-6">
+        <UploadCard onUploadComplete={onUploadComplete} />
         
-        <TabsContent value="data" className="p-0 mt-4">
-          <ExtractedDataViewer 
-            fileId={selectedFileId} 
-            refreshTrigger={refreshTrigger} 
-          />
-        </TabsContent>
-        
-        <TabsContent value="logs" className="p-0 mt-4">
-          <ProcessingLogs 
-            fileId={selectedFileId || undefined} 
-            refreshTrigger={refreshTrigger}
-            maxHeight="400px"
-          />
-        </TabsContent>
-      </Tabs>
+        <UploadedFilesList 
+          refreshTrigger={refreshTrigger}
+          onSelectFile={handleFileSelect}
+          compact={true}
+        />
+      </div>
+      
+      <div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
+          <TabsList className="mb-4 bg-muted/60">
+            <TabsTrigger value="data" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-800">
+              Extracted Data
+            </TabsTrigger>
+            <TabsTrigger value="logs" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-800">
+              Processing Logs
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="data" className="p-0 mt-0 h-full">
+            <ExtractedDataViewer 
+              fileId={selectedFileId} 
+              refreshTrigger={refreshTrigger} 
+            />
+          </TabsContent>
+          
+          <TabsContent value="logs" className="p-0 mt-0 h-full">
+            <ProcessingLogs 
+              fileId={selectedFileId || undefined} 
+              refreshTrigger={refreshTrigger}
+              maxHeight="calc(100vh - 300px)"
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 };

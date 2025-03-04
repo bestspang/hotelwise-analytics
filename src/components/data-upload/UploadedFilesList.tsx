@@ -2,21 +2,23 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText } from 'lucide-react';
+import { FileText, RefreshCw, List } from 'lucide-react';
 import { useFileManagement } from './hooks/useFileManagement';
 import FileTabContent from './FileTabContent';
 import { Button } from '@/components/ui/button';
-import { RefreshCw } from 'lucide-react';
 import ExtractAllButton from './actions/ExtractAllButton';
+import { cn } from '@/lib/utils';
 
 interface UploadedFilesListProps {
   refreshTrigger: number;
   onSelectFile?: (fileId: string) => void;
+  compact?: boolean;
 }
 
 const UploadedFilesList: React.FC<UploadedFilesListProps> = ({ 
   refreshTrigger,
-  onSelectFile
+  onSelectFile,
+  compact = false
 }) => {
   const [tab, setTab] = useState('all');
   const { 
@@ -48,7 +50,7 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({
   };
 
   return (
-    <Card className="shadow-md">
+    <Card className={cn("shadow-md", compact ? "max-h-[calc(100vh-460px)] flex flex-col" : "")}>
       <CardHeader className="border-b flex flex-row items-center justify-between">
         <CardTitle className="flex items-center text-xl font-bold">
           <FileText className="mr-2 h-5 w-5 text-primary" />
@@ -70,7 +72,7 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="p-0">
+      <CardContent className={cn("p-0", compact ? "overflow-auto flex-grow" : "")}>
         <Tabs value={tab} onValueChange={setTab} className="w-full">
           <TabsList className="w-full justify-start rounded-none border-b bg-transparent px-4">
             <TabsTrigger value="all" className="data-[state=active]:bg-background relative">
@@ -108,6 +110,7 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({
               onCheckStuck={checkStuckProcessing}
               onSelectFile={onSelectFile}
               onRefresh={handleRefresh}
+              compact={compact}
             />
           </TabsContent>
           
@@ -120,6 +123,7 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({
               onCheckStuck={checkStuckProcessing}
               onSelectFile={onSelectFile}
               onRefresh={handleRefresh}
+              compact={compact}
             />
           </TabsContent>
           
@@ -132,6 +136,7 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({
               onCheckStuck={checkStuckProcessing}
               onSelectFile={onSelectFile}
               onRefresh={handleRefresh}
+              compact={compact}
             />
           </TabsContent>
           
@@ -144,6 +149,7 @@ const UploadedFilesList: React.FC<UploadedFilesListProps> = ({
               onCheckStuck={checkStuckProcessing}
               onSelectFile={onSelectFile}
               onRefresh={handleRefresh}
+              compact={compact}
             />
           </TabsContent>
         </Tabs>

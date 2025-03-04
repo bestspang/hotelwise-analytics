@@ -14,6 +14,7 @@ interface FileTabContentProps {
   onCheckStuck: (fileId: string) => Promise<boolean>;
   onSelectFile?: (fileId: string) => void;
   onRefresh?: () => void;
+  compact?: boolean;
 }
 
 const FileTabContent: React.FC<FileTabContentProps> = ({
@@ -23,7 +24,8 @@ const FileTabContent: React.FC<FileTabContentProps> = ({
   onReprocess,
   onCheckStuck,
   onSelectFile,
-  onRefresh
+  onRefresh,
+  compact = false
 }) => {
   if (!isLoading && files.length === 0) {
     return <NoFilesAlert isLoading={isLoading} />;
@@ -48,6 +50,7 @@ const FileTabContent: React.FC<FileTabContentProps> = ({
         onDelete={() => onDelete(file.id)}
         onCheckStuck={file.processing ? () => onCheckStuck(file.id) : undefined}
         onExtractComplete={onRefresh}
+        compact={compact}
       />
     </div>
   );
@@ -65,6 +68,7 @@ const FileTabContent: React.FC<FileTabContentProps> = ({
       isLoading={isLoading} 
       renderFileActions={renderFileActions}
       onFileClick={handleFileClick}
+      compact={compact}
     />
   );
 };
