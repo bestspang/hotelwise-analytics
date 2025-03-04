@@ -4,45 +4,44 @@ import { Button } from '@/components/ui/button';
 import { Brain } from 'lucide-react';
 import { toast } from 'sonner';
 import { processPdfWithOpenAI } from '@/services/api/openaiService';
-import { FileState } from '../types/fileTypes';
 
 interface ExtractButtonProps {
-  file: FileState;
+  fileId: string;
   onComplete?: () => void;
 }
 
-export const ExtractButton: React.FC<ExtractButtonProps> = ({ file, onComplete }) => {
+export const ExtractButton: React.FC<ExtractButtonProps> = ({ fileId, onComplete }) => {
   const [isExtracting, setIsExtracting] = useState(false);
 
   const handleExtract = async () => {
-    if (isExtracting || file.processed || file.processing) return;
+    if (isExtracting) return;
 
     setIsExtracting(true);
-    const toastId = `extract-${file.id}`;
+    const toastId = `extract-${fileId}`;
     
-    toast.info(`Starting AI extraction for ${file.filename}`, { 
+    toast.info(`Starting AI extraction for file ID: ${fileId}`, { 
       id: toastId,
       duration: 8000 
     });
 
     try {
       // Update the processing status optimistically
-      toast.loading(`Processing ${file.filename} with GPT-4o Vision...`, {
+      toast.loading(`Processing file with GPT-4o Vision...`, {
         id: toastId,
         duration: 60000 // Longer duration since processing might take time
       });
       
-      const result = await processPdfWithOpenAI(file.id, file.file_path);
+      const result = await processPdfWithOpenAI(fileId);
       
       if (result) {
-        toast.success(`Data extracted successfully from ${file.filename}`, {
+        toast.success(`Data extracted successfully`, {
           id: toastId,
           duration: 5000
         });
         
         if (onComplete) onComplete();
       } else {
-        toast.error(`Failed to extract data from ${file.filename}`, {
+        toast.error(`Failed to extract data`, {
           id: toastId,
           duration: 5000
         });
@@ -57,11 +56,6 @@ export const ExtractButton: React.FC<ExtractButtonProps> = ({ file, onComplete }
       setIsExtracting(false);
     }
   };
-
-  // Don't show button if already processed or processing
-  if (file.processed || file.processing) {
-    return null;
-  }
 
   return (
     <Button

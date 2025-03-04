@@ -6,26 +6,28 @@ import { StatusDialog } from './StatusDialog';
 import { toast } from 'sonner';
 
 interface StatusButtonProps {
-  onCheckStatus: () => Promise<any>;
-  isChecking: boolean;
+  fileId: string;
+  onCheck: () => Promise<any>;
 }
 
 export const StatusButton: React.FC<StatusButtonProps> = ({
-  onCheckStatus,
-  isChecking
+  fileId,
+  onCheck
 }) => {
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [statusResult, setStatusResult] = useState<any>(null);
   const [checkFailed, setCheckFailed] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
 
   const handleCheckStatus = async () => {
     if (isChecking) return;
     
+    setIsChecking(true);
     setCheckFailed(false);
     const toastId = toast.loading('Checking processing status...');
     
     try {
-      const result = await onCheckStatus();
+      const result = await onCheck();
       toast.dismiss(toastId);
       
       if (result) {
@@ -51,6 +53,8 @@ export const StatusButton: React.FC<StatusButtonProps> = ({
       setCheckFailed(true);
       toast.dismiss(toastId);
       toast.error(`Error checking status: ${error instanceof Error ? error.message : 'Connection failed'}`);
+    } finally {
+      setIsChecking(false);
     }
   };
 
@@ -83,3 +87,5 @@ export const StatusButton: React.FC<StatusButtonProps> = ({
     </>
   );
 };
+
+export default StatusButton;

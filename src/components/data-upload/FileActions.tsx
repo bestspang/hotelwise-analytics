@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { ExtractButton } from './actions/ExtractButton';
-import { StatusButton } from './actions/StatusButton';
+import ExtractButton from './actions/ExtractButton';
+import StatusButton from './actions/StatusButton';
 import { DeleteButton } from './actions/DeleteButton';
 import { Button } from '@/components/ui/button';
 import { MoreHorizontal } from 'lucide-react';
@@ -38,15 +38,15 @@ const FileActions: React.FC<FileActionsProps> = ({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem asChild>
+          <DropdownMenuItem>
             <ExtractButton fileId={fileId} onComplete={onExtractComplete} />
           </DropdownMenuItem>
           {onCheckStuck && (
-            <DropdownMenuItem asChild>
+            <DropdownMenuItem>
               <StatusButton fileId={fileId} onCheck={onCheckStuck} />
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem asChild className="text-destructive focus:text-destructive">
+          <DropdownMenuItem className="text-destructive focus:text-destructive">
             <DeleteButton fileId={fileId} onDelete={onDelete} />
           </DropdownMenuItem>
         </DropdownMenuContent>

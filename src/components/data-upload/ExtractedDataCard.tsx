@@ -1,16 +1,15 @@
-
 import React, { useState } from 'react';
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
-import { reprocessFile } from '@/services/uploadService';
-import { toast } from 'sonner';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Brain, AlertCircle } from 'lucide-react';
 import FileHeader from './card-components/FileHeader';
 import StatusIndicator from './card-components/StatusIndicator';
 import CardActions from './card-components/CardActions';
 import { getFileStatus } from './utils/fileStatusUtils';
 import { useAIProcessing } from './hooks/useAIProcessing';
-import { Button } from '@/components/ui/button';
-import { Brain, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { reprocessFile } from '@/services/uploadService';
+import { toast } from 'sonner';
 
 interface ExtractedDataCardProps {
   file: any; // Ideally this would be a proper type definition
@@ -109,7 +108,6 @@ const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
       <CardContent className="p-4 flex-grow">
         <div className="flex justify-between items-start">
           <FileHeader 
-            file={file} 
             filename={file.filename}
             documentType={file.document_type}
           />
