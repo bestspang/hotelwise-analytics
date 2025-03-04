@@ -26,7 +26,7 @@ export const ExtractButton: React.FC<ExtractButtonProps> = ({ fileId, onComplete
 
     try {
       // Update the processing status optimistically
-      toast.loading(`Processing file with GPT-4o Vision...`, {
+      toast.loading(`Processing file with hybrid PDF extraction...`, {
         id: toastId,
         duration: 60000 // Longer duration since processing might take time
       });
@@ -36,7 +36,9 @@ export const ExtractButton: React.FC<ExtractButtonProps> = ({ fileId, onComplete
       const result = await processPdfWithOpenAI(fileId, null);
       
       if (result) {
-        toast.success(`Data extracted successfully`, {
+        const extractionMethod = result.pdfType === 'text-based' ? 'text recognition' : 'vision analysis';
+        
+        toast.success(`Data extracted successfully using ${extractionMethod}`, {
           id: toastId,
           duration: 5000
         });

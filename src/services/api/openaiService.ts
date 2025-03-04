@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
@@ -40,7 +41,7 @@ export async function getOpenAIResponse(prompt: string): Promise<OpenAIResponse 
   }
 }
 
-// Process PDF with OpenAI
+// Process PDF with OpenAI using the hybrid approach
 export async function processPdfWithOpenAI(fileId: string, filePath: string | null = null): Promise<any> {
   try {
     console.log('Processing PDF with OpenAI, file ID:', fileId);
@@ -59,7 +60,7 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string | nu
     await supabase.from('processing_logs').insert({
       file_id: fileId,
       request_id: requestId,
-      message: 'Starting PDF processing with OpenAI',
+      message: 'Starting hybrid PDF processing with OpenAI',
       log_level: 'info'
     });
     
@@ -113,8 +114,8 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string | nu
       console.log('Retrieved file path from database:', actualFilePath);
     }
     
-    // Call the Supabase edge function to process the PDF
-    const { data, error } = await supabase.functions.invoke('process-pdf-openai', {
+    // Call the Supabase edge function to process the PDF with hybrid approach
+    const { data, error } = await supabase.functions.invoke('hybrid-pdf-extraction', {
       body: { 
         fileId, 
         filePath: actualFilePath,
@@ -123,7 +124,7 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string | nu
     });
     
     if (error) {
-      console.error('Error invoking process-pdf-openai function:', error);
+      console.error('Error invoking hybrid-pdf-extraction function:', error);
       
       // Log the error
       await supabase.from('processing_logs').insert({
@@ -188,12 +189,12 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string | nu
     await supabase.from('processing_logs').insert({
       file_id: fileId,
       request_id: requestId,
-      message: 'PDF processing completed successfully',
+      message: `PDF processing completed successfully using ${data.pdfType} extraction method`,
       log_level: 'info'
     });
     
     console.log('OpenAI PDF processing result received:', data);
-    toast.success(`Successfully extracted data from ${filePath.split('/').pop()}`);
+    toast.success(`Successfully extracted data from ${filePath?.split('/').pop() || 'file'} (${data.pdfType})`);
     return data;
   } catch (err) {
     console.error('Error processing PDF with OpenAI:', err);
