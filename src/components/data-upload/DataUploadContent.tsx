@@ -16,7 +16,7 @@ const DataUploadContent: React.FC<DataUploadContentProps> = ({
   onUploadComplete
 }) => {
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<string>('data');
+  const [activeTab, setActiveTab] = useState<string>('files');
 
   const handleFileSelect = (fileId: string | null) => {
     setSelectedFileId(fileId);
@@ -27,44 +27,45 @@ const DataUploadContent: React.FC<DataUploadContentProps> = ({
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="space-y-6">
-        <UploadCard onUploadComplete={onUploadComplete} />
-        
-        <UploadedFilesList 
-          refreshTrigger={refreshTrigger}
-          onSelectFile={handleFileSelect}
-          compact={true}
-        />
-      </div>
+    <div className="space-y-6">
+      <UploadCard onUploadComplete={onUploadComplete} />
       
-      <div>
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
-          <TabsList className="mb-4 bg-muted/60">
-            <TabsTrigger value="data" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-800">
-              Extracted Data
-            </TabsTrigger>
-            <TabsTrigger value="logs" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-800">
-              Processing Logs
-            </TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="data" className="p-0 mt-0 h-full">
-            <ExtractedDataViewer 
-              fileId={selectedFileId} 
-              refreshTrigger={refreshTrigger} 
-            />
-          </TabsContent>
-          
-          <TabsContent value="logs" className="p-0 mt-0 h-full">
-            <ProcessingLogs 
-              fileId={selectedFileId || undefined} 
-              refreshTrigger={refreshTrigger}
-              maxHeight="calc(100vh - 300px)"
-            />
-          </TabsContent>
-        </Tabs>
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="mb-4 bg-muted/60">
+          <TabsTrigger value="files" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-800">
+            Uploaded Files
+          </TabsTrigger>
+          <TabsTrigger value="data" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-800">
+            Extracted Data
+          </TabsTrigger>
+          <TabsTrigger value="logs" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-800">
+            Processing Logs
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="files" className="p-0 mt-0">
+          <UploadedFilesList 
+            refreshTrigger={refreshTrigger}
+            onSelectFile={handleFileSelect}
+            compact={false}
+          />
+        </TabsContent>
+        
+        <TabsContent value="data" className="p-0 mt-0">
+          <ExtractedDataViewer 
+            fileId={selectedFileId} 
+            refreshTrigger={refreshTrigger} 
+          />
+        </TabsContent>
+        
+        <TabsContent value="logs" className="p-0 mt-0">
+          <ProcessingLogs 
+            fileId={selectedFileId || undefined} 
+            refreshTrigger={refreshTrigger}
+            maxHeight="calc(100vh - 300px)"
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
