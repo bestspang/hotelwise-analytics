@@ -15,9 +15,9 @@ export const processPdfWithOpenAI = async (fileId: string, filePath: string) => 
     // Log the start of processing
     await logProcessingEvent(fileId, requestId, 'Starting hybrid PDF processing with OpenAI');
     
-    // Call the Edge Function
-    const { data, error } = await supabase.functions.invoke('process-pdf-openai', {
-      body: { fileId, filePath },
+    // Call the Edge Function - use hybrid-pdf-extraction instead of process-pdf-openai
+    const { data, error } = await supabase.functions.invoke('hybrid-pdf-extraction', {
+      body: { fileId, filePath, requestId },
     });
     
     if (error) {
@@ -105,14 +105,12 @@ async function logProcessingEvent(fileId: string, requestId: string, message: st
     
     const { error } = await supabase
       .from('processing_logs')
-      .insert([
-        {
-          file_id: fileId,
-          request_id: requestId,
-          message: message,
-          log_level: logLevel
-        }
-      ]);
+      .insert({
+        file_id: fileId,
+        request_id: requestId,
+        message: message,
+        log_level: logLevel
+      });
     
     if (error) {
       console.error('Failed to log processing event:', error);

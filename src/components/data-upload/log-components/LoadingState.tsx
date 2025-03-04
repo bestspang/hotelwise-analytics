@@ -1,21 +1,11 @@
 
 import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
 
-interface LoadingStateProps {
-  message: string;
-}
-
-export const LoadingState: React.FC<LoadingStateProps> = ({ message }) => {
+export const Spinner: React.FC = () => {
   return (
-    <Card className="mt-4">
-      <CardContent className="pt-6">
-        <div className="flex flex-col items-center justify-center p-4">
-          <Loader2 className="h-6 w-6 animate-spin text-primary mb-2" />
-          <p className="text-muted-foreground">{message}</p>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="flex items-center justify-center p-8">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <span className="ml-3 text-sm text-muted-foreground">Loading logs...</span>
+    </div>
   );
 };
