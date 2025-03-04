@@ -55,6 +55,6 @@ vector_port = 54328
 backend = "postgres"
 
 [functions]
-# The port that the functions server will listen on. Default is 54321.
+[functions.serve]
+enabled = true
 port = 54321
-
