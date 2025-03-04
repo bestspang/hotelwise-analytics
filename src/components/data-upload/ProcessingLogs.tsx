@@ -37,6 +37,7 @@ const ProcessingLogs: React.FC<ProcessingLogsProps> = ({
     if (!autoRefresh) return;
     
     const interval = setInterval(() => {
+      console.log('Auto-refreshing logs...');
       refetch();
       setLastRefresh(new Date());
     }, 5000);
@@ -44,8 +45,18 @@ const ProcessingLogs: React.FC<ProcessingLogsProps> = ({
     return () => clearInterval(interval);
   }, [autoRefresh, refetch]);
 
+  // Refresh logs when the refresh trigger changes
+  useEffect(() => {
+    if (refreshTrigger > 0) {
+      console.log('Refresh trigger changed, refreshing logs...');
+      refetch();
+      setLastRefresh(new Date());
+    }
+  }, [refreshTrigger, refetch]);
+
   // Manual refresh handler
   const handleRefresh = () => {
+    console.log('Manually refreshing logs...');
     refetch();
     setLastRefresh(new Date());
   };

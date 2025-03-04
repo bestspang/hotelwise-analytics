@@ -5,20 +5,29 @@ import { RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { processPdfWithOpenAI } from '@/services/api/openaiService';
-import { v4 as uuidv4 } from 'uuid';
 
 interface ReprocessButtonProps {
   fileId: string;
   filePath: string;
   documentType: string | null;
   onReprocessComplete?: () => void;
+  onReprocessing?: () => void;
+  className?: string;
+  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+  size?: "default" | "sm" | "lg" | "icon";
+  children?: React.ReactNode;
 }
 
 const ReprocessButton: React.FC<ReprocessButtonProps> = ({
   fileId,
   filePath,
   documentType,
-  onReprocessComplete
+  onReprocessComplete,
+  onReprocessing,
+  className = "",
+  variant = "outline",
+  size = "sm",
+  children
 }) => {
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -27,7 +36,9 @@ const ReprocessButton: React.FC<ReprocessButtonProps> = ({
     
     setIsProcessing(true);
     const toastId = `reprocess-${fileId}`;
-    const requestId = uuidv4();
+    
+    // Notify parent component processing has started
+    if (onReprocessing) onReprocessing();
     
     try {
       // Update status to processing
@@ -96,14 +107,14 @@ const ReprocessButton: React.FC<ReprocessButtonProps> = ({
 
   return (
     <Button
-      variant="outline"
-      size="sm"
+      variant={variant}
+      size={size}
       onClick={handleReprocess}
       disabled={isProcessing}
-      className="gap-1"
+      className={`${className} gap-1`}
     >
       <RefreshCw className={`h-4 w-4 ${isProcessing ? 'animate-spin' : ''}`} />
-      {isProcessing ? 'Reprocessing...' : 'Reprocess'}
+      {isProcessing ? 'Reprocessing...' : children || 'Reprocess'}
     </Button>
   );
 };
