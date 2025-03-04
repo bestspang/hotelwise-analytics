@@ -1,120 +1,85 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { RefreshCw } from 'lucide-react';
-import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { processPdfWithOpenAI } from '@/services/api/openaiService';
+import { toast } from 'sonner';
+import { RefreshCw } from 'lucide-react';
 
 interface ReprocessButtonProps {
   fileId: string;
   filePath: string;
   documentType: string | null;
-  onReprocessComplete?: () => void;
   onReprocessing?: () => void;
-  className?: string;
-  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
-  size?: "default" | "sm" | "lg" | "icon";
+  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link" | null | undefined;
+  size?: "default" | "sm" | "lg" | "icon" | null | undefined;
   children?: React.ReactNode;
+  className?: string; // Add className prop
 }
 
 const ReprocessButton: React.FC<ReprocessButtonProps> = ({
   fileId,
   filePath,
   documentType,
-  onReprocessComplete,
   onReprocessing,
-  className = "",
   variant = "outline",
   size = "sm",
-  children
+  children,
+  className
 }) => {
   const [isProcessing, setIsProcessing] = useState(false);
-
+  
   const handleReprocess = async () => {
     if (isProcessing) return;
     
     setIsProcessing(true);
-    const toastId = `reprocess-${fileId}`;
-    
-    // Notify parent component processing has started
-    if (onReprocessing) onReprocessing();
     
     try {
-      // Update status to processing
+      // Mark the file as being processed again
       const { error: updateError } = await supabase
         .from('uploaded_files')
         .update({
-          processed: false,
           processing: true,
+          processed: false,
           extracted_data: null
         })
         .eq('id', fileId);
         
-      if (updateError) {
-        throw new Error(`Could not update processing status: ${updateError.message}`);
-      }
+      if (updateError) throw updateError;
       
-      toast.loading(`Reprocessing ${documentType || 'document'}...`, {
-        id: toastId,
-        duration: 60000
+      // Call the process-pdf function to reprocess the file
+      const { error } = await supabase.functions.invoke('process-pdf', {
+        body: { 
+          fileId, 
+          filePath, 
+          documentType: documentType || 'Expense Voucher' // Default document type 
+        }
       });
-
-      // Process the file
-      const result = await processPdfWithOpenAI(fileId, filePath);
       
-      if (result) {
-        const extractionMethod = result.pdfType === 'text-based' ? 'text recognition' : 'vision analysis';
-        
-        toast.success(`File reprocessed successfully using ${extractionMethod}`, {
-          id: toastId,
-          duration: 5000
-        });
-        
-        if (onReprocessComplete) onReprocessComplete();
-      } else {
-        toast.error(`Failed to reprocess document`, {
-          id: toastId,
-          duration: 5000
-        });
+      if (error) throw error;
+      
+      toast.success('File is being reprocessed by AI');
+      
+      if (onReprocessing) {
+        onReprocessing();
       }
     } catch (error) {
-      console.error('Error during reprocessing:', error);
-      toast.error(`Reprocessing error: ${error instanceof Error ? error.message : 'Unknown error'}`, {
-        id: toastId,
-        duration: 5000
-      });
-      
-      // Reset processing status if there was an error
-      try {
-        const { error: resetError } = await supabase
-          .from('uploaded_files')
-          .update({
-            processing: false
-          })
-          .eq('id', fileId);
-          
-        if (resetError) {
-          console.error('Error resetting file processing status:', resetError);
-        }
-      } catch (resetErr) {
-        console.error('Error when trying to reset processing status:', resetErr);
-      }
+      console.error('Error reprocessing file:', error);
+      toast.error(`Failed to reprocess: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsProcessing(false);
     }
   };
-
+  
   return (
-    <Button
-      variant={variant}
-      size={size}
+    <Button 
+      variant={variant} 
+      size={size} 
       onClick={handleReprocess}
       disabled={isProcessing}
-      className={`${className} gap-1`}
+      className={`flex items-center gap-1 ${className || ''}`}
     >
       <RefreshCw className={`h-4 w-4 ${isProcessing ? 'animate-spin' : ''}`} />
-      {isProcessing ? 'Reprocessing...' : children || 'Reprocess'}
+      {children || (isProcessing ? 'Processing...' : 'Reprocess')}
     </Button>
   );
 };

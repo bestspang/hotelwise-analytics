@@ -4,8 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Brain } from 'lucide-react';
 import { toast } from 'sonner';
 import { processPdfWithOpenAI } from '@/services/api/openaiService';
-import { v4 as uuidv4 } from 'uuid';
-import { supabase } from '@/integrations/supabase/client';
 
 interface ExtractButtonProps {
   fileId: string;
@@ -27,34 +25,20 @@ export const ExtractButton: React.FC<ExtractButtonProps> = ({ fileId, onComplete
     });
 
     try {
-      // Get file path from database
-      const { data: fileData, error: fileError } = await supabase
-        .from('uploaded_files')
-        .select('file_path, document_type')
-        .eq('id', fileId)
-        .single();
-        
-      if (fileError) {
-        console.error('Error fetching file path:', fileError);
-        toast.error(`Failed to fetch file details: ${fileError.message}`, {
-          id: toastId,
-          duration: 5000
-        });
-        setIsExtracting(false);
-        return;
-      }
-      
-      // Update the processing status
-      toast.loading(`Processing file with OpenAI Assistants API...`, {
+      // Update the processing status optimistically
+      toast.loading(`Processing file with hybrid PDF extraction...`, {
         id: toastId,
-        duration: 120000 // Longer duration since processing might take time
+        duration: 60000 // Longer duration since processing might take time
       });
       
-      // Process the PDF with OpenAI
-      const result = await processPdfWithOpenAI(fileId, fileData.file_path);
+      // Pass null as the second argument for filePath since we're only using fileId
+      // The service will fetch the file path from the database
+      const result = await processPdfWithOpenAI(fileId, null);
       
       if (result) {
-        toast.success(`Data extracted successfully using OpenAI Assistants API`, {
+        const extractionMethod = result.pdfType === 'text-based' ? 'text recognition' : 'vision analysis';
+        
+        toast.success(`Data extracted successfully using ${extractionMethod}`, {
           id: toastId,
           duration: 5000
         });

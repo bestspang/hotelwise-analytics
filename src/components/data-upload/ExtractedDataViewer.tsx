@@ -38,8 +38,6 @@ const ExtractedDataViewer: React.FC<ExtractedDataViewerProps> = ({
       setError(null);
 
       try {
-        console.log('Fetching file details for ID:', fileId);
-        
         // Fetch file details
         const { data: fileData, error: fileError } = await supabase
           .from('uploaded_files')
@@ -48,11 +46,8 @@ const ExtractedDataViewer: React.FC<ExtractedDataViewerProps> = ({
           .single();
           
         if (fileError) {
-          console.error('Error fetching file details:', fileError);
           throw new Error(`Failed to fetch file details: ${fileError.message}`);
         }
-        
-        console.log('File details:', fileData);
         
         if (fileData) {
           setFileDetails({
@@ -62,9 +57,7 @@ const ExtractedDataViewer: React.FC<ExtractedDataViewerProps> = ({
         }
         
         // Fetch processed data
-        console.log('Fetching processed data for ID:', fileId);
         const result = await getProcessedData(fileId);
-        console.log('Processed data result:', result);
         setData(result);
         
         if (!result) {
