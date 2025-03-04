@@ -1,167 +1,13 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
-import * as pdfjs from "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/+esm";
-import { PDFDocument } from "https://esm.sh/pdf-lib@1.17.1";
+import { OpenAI } from "https://esm.sh/openai@1.42.0";
 
 // Configure CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-// Function to convert PDF page to base64 image
-async function convertPDFPageToBase64(pdfBytes: Uint8Array, pageIndex: number): Promise<string> {
-  try {
-    // Load the PDF document
-    const pdfDoc = await PDFDocument.load(pdfBytes);
-    
-    // Extract the specific page
-    const page = pdfDoc.getPages()[pageIndex];
-    if (!page) {
-      throw new Error(`Page index ${pageIndex} does not exist in the document`);
-    }
-    
-    // Get page dimensions
-    const { width, height } = page.getSize();
-    
-    // Create a new PDF document with just this page
-    const singlePagePdf = await PDFDocument.create();
-    const [copiedPage] = await singlePagePdf.copyPages(pdfDoc, [pageIndex]);
-    singlePagePdf.addPage(copiedPage);
-    
-    // Save as PDF bytes
-    const singlePageBytes = await singlePagePdf.save();
-    
-    // Convert to base64
-    const base64String = btoa(String.fromCharCode(...new Uint8Array(singlePageBytes)));
-    
-    return `data:application/pdf;base64,${base64String}`;
-  } catch (error) {
-    console.error(`Error converting PDF page ${pageIndex} to base64:`, error);
-    throw error;
-  }
-}
-
-// Function to extract structured data using GPT-4 Vision
-async function extractDataWithGPT4Vision(base64Images: string[], documentType: string): Promise<any> {
-  try {
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openAIApiKey) {
-      throw new Error('OpenAI API key is not set in environment variables');
-    }
-    
-    const messages = [
-      {
-        role: "system",
-        content: `You are an AI assistant specializing in extracting structured data from hotel financial documents. 
-        Extract all relevant information from the ${documentType} document images provided.
-        Return the data in a well-structured JSON format that includes all financial metrics, dates, room information, 
-        occupancy details, revenue figures, and any other relevant information visible in the document.
-        Use camelCase for property names and organize related data into nested objects where appropriate.
-        Include metadata like processedBy: "GPT-4 Vision" and processedAt (current timestamp).`
-      },
-      {
-        role: "user",
-        content: [
-          { type: "text", text: `Extract all relevant data from this ${documentType} document and format as structured JSON:` },
-          ...base64Images.map(image => ({ type: "image_url", image_url: { url: image } }))
-        ]
-      }
-    ];
-    
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: "gpt-4o",
-        messages: messages,
-        max_tokens: 4000,
-        temperature: 0.2
-      })
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('OpenAI API error:', errorData);
-      throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
-    }
-    
-    const data = await response.json();
-    
-    // Parse the JSON response from GPT-4
-    let jsonResponse;
-    try {
-      // Extract JSON from the response text (it might be wrapped in markdown code blocks)
-      const responseText = data.choices[0].message.content;
-      const jsonMatch = responseText.match(/```json\n([\s\S]*?)\n```/) || 
-                        responseText.match(/```\n([\s\S]*?)\n```/) || 
-                        [null, responseText];
-      
-      const jsonString = jsonMatch[1] || responseText;
-      jsonResponse = JSON.parse(jsonString.trim());
-    } catch (parseError) {
-      console.error('Error parsing JSON from GPT-4 response:', parseError);
-      console.log('Raw response:', data.choices[0].message.content);
-      throw new Error('Failed to parse structured data from GPT-4 response');
-    }
-    
-    // Add metadata if not already present
-    if (!jsonResponse.processedBy) {
-      jsonResponse.processedBy = "GPT-4 Vision";
-    }
-    if (!jsonResponse.processedAt) {
-      jsonResponse.processedAt = new Date().toISOString();
-    }
-    if (!jsonResponse.documentType) {
-      jsonResponse.documentType = documentType;
-    }
-    
-    return jsonResponse;
-  } catch (error) {
-    console.error('Error extracting data with GPT-4 Vision:', error);
-    throw error;
-  }
-}
-
-// Function to update file record with extracted data
-async function updateFileWithExtractedData(
-  supabase: any,
-  fileId: string,
-  extractedData: any,
-  requestId: string
-): Promise<void> {
-  try {
-    // Add a processing log entry
-    await supabase.from('processing_logs').insert({
-      file_id: fileId,
-      request_id: requestId,
-      message: 'Processing completed, updating database with extracted data',
-      log_level: 'info'
-    });
-    
-    // Update the file record with extracted data
-    const { error } = await supabase
-      .from('uploaded_files')
-      .update({
-        extracted_data: extractedData,
-        processing: false,
-        processed: true
-      })
-      .eq('id', fileId);
-    
-    if (error) {
-      console.error('Error updating file with extracted data:', error);
-      throw error;
-    }
-  } catch (error) {
-    console.error('Error in updateFileWithExtractedData:', error);
-    throw error;
-  }
-}
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -192,11 +38,20 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
+    // Get OpenAI API key
+    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openAIApiKey) {
+      return new Response(
+        JSON.stringify({ error: 'OpenAI API key is not set in environment variables' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+    
     // Log processing start
     await supabase.from('processing_logs').insert({
       file_id: fileId,
       request_id: requestId,
-      message: 'Starting PDF processing with GPT-4 Vision',
+      message: 'Starting PDF processing with OpenAI Assistants API',
       log_level: 'info'
     });
     
@@ -246,101 +101,312 @@ serve(async (req) => {
     await supabase.from('processing_logs').insert({
       file_id: fileId,
       request_id: requestId,
-      message: 'File downloaded successfully, starting page conversion',
+      message: 'File downloaded successfully, preparing for OpenAI processing',
       log_level: 'info'
     });
+
+    // Initialize OpenAI client
+    const openai = new OpenAI({
+      apiKey: openAIApiKey,
+    });
     
-    // Convert PDF to array of Uint8Array
-    const pdfBytes = new Uint8Array(await fileBuffer.arrayBuffer());
+    // Create a temporary file for OpenAI upload
+    const tempFileName = `temp_${requestId}.pdf`;
+    const file = new File([fileBuffer], tempFileName, { type: 'application/pdf' });
     
-    // Load PDF document to get number of pages
-    const pdfDoc = await PDFDocument.load(pdfBytes);
-    const pageCount = pdfDoc.getPageCount();
-    
-    // Log page count
+    // Log upload to OpenAI start
     await supabase.from('processing_logs').insert({
       file_id: fileId,
       request_id: requestId,
-      message: `PDF has ${pageCount} pages, converting to base64 images`,
+      message: 'Uploading file to OpenAI',
       log_level: 'info'
     });
     
-    // Convert first few pages to base64 strings (limit to maximum 5 pages to prevent token limits)
-    const pagesToProcess = Math.min(pageCount, 5);
-    const base64Images = [];
+    // Upload file to OpenAI
+    const openaiFile = await openai.files.create({
+      file: file,
+      purpose: "assistants",
+    });
     
-    for (let i = 0; i < pagesToProcess; i++) {
-      try {
-        const base64Page = await convertPDFPageToBase64(pdfBytes, i);
-        base64Images.push(base64Page);
-        
-        await supabase.from('processing_logs').insert({
-          file_id: fileId,
-          request_id: requestId,
-          message: `Converted page ${i + 1}/${pagesToProcess} to base64`,
-          log_level: 'info'
-        });
-      } catch (pageError) {
-        console.error(`Error processing page ${i}:`, pageError);
-        await supabase.from('processing_logs').insert({
-          file_id: fileId,
-          request_id: requestId,
-          message: `Error processing page ${i + 1}: ${pageError.message}`,
-          log_level: 'warning'
-        });
+    // Log successful upload to OpenAI
+    await supabase.from('processing_logs').insert({
+      file_id: fileId,
+      request_id: requestId,
+      message: `File uploaded to OpenAI with ID: ${openaiFile.id}`,
+      log_level: 'info'
+    });
+    
+    // Create an assistant
+    const assistant = await openai.beta.assistants.create({
+      name: "PDF Data Extraction Assistant",
+      description: "An assistant that extracts structured data from PDF files",
+      model: "gpt-4o",
+      tools: [{ type: "file_search" }],
+    });
+    
+    // Log assistant creation
+    await supabase.from('processing_logs').insert({
+      file_id: fileId,
+      request_id: requestId,
+      message: `Created OpenAI assistant with ID: ${assistant.id}`,
+      log_level: 'info'
+    });
+    
+    // Create a thread
+    const thread = await openai.beta.threads.create();
+    
+    // Log thread creation
+    await supabase.from('processing_logs').insert({
+      file_id: fileId,
+      request_id: requestId,
+      message: `Created OpenAI thread with ID: ${thread.id}`,
+      log_level: 'info'
+    });
+
+    // Construct a prompt based on document type
+    let extractionPrompt = `Extract all relevant information from this ${fileData.document_type || 'document'}.`;
+    extractionPrompt += ` Return the data in a well-structured JSON format that includes all financial metrics, dates, room information, `;
+    extractionPrompt += ` occupancy details, revenue figures, and any other relevant information visible in the document.`;
+    extractionPrompt += ` Use camelCase for property names and organize related data into nested objects where appropriate.`;
+    extractionPrompt += ` Include metadata like processedBy: "OpenAI Assistants API" and processedAt (current timestamp).`;
+    
+    // Create a message in the thread with the file attachment
+    await openai.beta.threads.messages.create(
+      thread.id,
+      {
+        role: "user",
+        content: extractionPrompt,
+        attachments: [
+          {
+            file_id: openaiFile.id,
+            tools: [{ type: "file_search" }]
+          }
+        ]
       }
-    }
+    );
     
-    if (base64Images.length === 0) {
+    // Log message creation
+    await supabase.from('processing_logs').insert({
+      file_id: fileId,
+      request_id: requestId,
+      message: 'Created message with file attachment in thread',
+      log_level: 'info'
+    });
+    
+    // Run the assistant on the thread
+    const run = await openai.beta.threads.runs.create(
+      thread.id,
+      {
+        assistant_id: assistant.id,
+      }
+    );
+    
+    // Log run creation
+    await supabase.from('processing_logs').insert({
+      file_id: fileId,
+      request_id: requestId,
+      message: `Started assistant run with ID: ${run.id}`,
+      log_level: 'info'
+    });
+    
+    // Poll for completion
+    let runStatus = await openai.beta.threads.runs.retrieve(
+      thread.id,
+      run.id
+    );
+    
+    let attempts = 0;
+    const maxAttempts = 30; // Timeout after 30 attempts (5 minutes with 10-second interval)
+    
+    while (runStatus.status !== "completed" && runStatus.status !== "failed" && attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds
+      runStatus = await openai.beta.threads.runs.retrieve(
+        thread.id,
+        run.id
+      );
+      
+      // Log run status
       await supabase.from('processing_logs').insert({
         file_id: fileId,
         request_id: requestId,
-        message: 'Failed to convert any pages to base64',
+        message: `Run status: ${runStatus.status} (attempt ${attempts + 1}/${maxAttempts})`,
+        log_level: 'info'
+      });
+      
+      attempts++;
+    }
+    
+    if (runStatus.status !== "completed") {
+      const errorMessage = runStatus.status === "failed" ? 
+        `OpenAI processing failed: ${runStatus.last_error?.message || 'Unknown error'}` : 
+        'OpenAI processing timed out';
+      
+      await supabase.from('processing_logs').insert({
+        file_id: fileId,
+        request_id: requestId,
+        message: errorMessage,
         log_level: 'error'
       });
       
       return new Response(
-        JSON.stringify({ error: 'Failed to convert any pages to base64' }),
+        JSON.stringify({ error: errorMessage }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
     
-    // Log successful conversion
-    await supabase.from('processing_logs').insert({
-      file_id: fileId,
-      request_id: requestId,
-      message: `Successfully converted ${base64Images.length} pages, sending to GPT-4 Vision`,
-      log_level: 'info'
-    });
+    // Get the messages from the thread
+    const messages = await openai.beta.threads.messages.list(
+      thread.id
+    );
     
-    // Extract structured data using GPT-4 Vision
-    const extractedData = await extractDataWithGPT4Vision(base64Images, fileData.document_type || 'unknown');
+    // Get the assistant's response
+    const assistantMessages = messages.data.filter(m => m.role === "assistant");
+    
+    if (assistantMessages.length === 0) {
+      await supabase.from('processing_logs').insert({
+        file_id: fileId,
+        request_id: requestId,
+        message: 'No assistant messages found in thread',
+        log_level: 'error'
+      });
+      
+      return new Response(
+        JSON.stringify({ error: 'No assistant messages found in thread' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+    
+    // Get the content of the most recent assistant message
+    const latestMessage = assistantMessages[0];
+    let messageContent = '';
+    
+    if (latestMessage.content && latestMessage.content.length > 0 && latestMessage.content[0].type === 'text') {
+      messageContent = latestMessage.content[0].text.value;
+    }
+    
+    if (!messageContent) {
+      await supabase.from('processing_logs').insert({
+        file_id: fileId,
+        request_id: requestId,
+        message: 'Empty message content from assistant',
+        log_level: 'error'
+      });
+      
+      return new Response(
+        JSON.stringify({ error: 'Empty message content from assistant' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+    
+    // Parse JSON from the message
+    let extractedData;
+    try {
+      // Extract JSON from the response text (it might be wrapped in markdown code blocks)
+      const jsonMatch = messageContent.match(/```json\n([\s\S]*?)\n```/) || 
+                      messageContent.match(/```\n([\s\S]*?)\n```/) || 
+                      [null, messageContent];
+      
+      const jsonString = jsonMatch[1] || messageContent;
+      extractedData = JSON.parse(jsonString.trim());
+      
+      // Add metadata if not already present
+      if (!extractedData.processedBy) {
+        extractedData.processedBy = "OpenAI Assistants API";
+      }
+      if (!extractedData.processedAt) {
+        extractedData.processedAt = new Date().toISOString();
+      }
+      if (!extractedData.documentType) {
+        extractedData.documentType = fileData.document_type || 'unknown';
+      }
+    } catch (parseError) {
+      console.error('Error parsing JSON from assistant response:', parseError);
+      console.log('Raw response:', messageContent);
+      
+      await supabase.from('processing_logs').insert({
+        file_id: fileId,
+        request_id: requestId,
+        message: `Error parsing JSON from assistant response: ${parseError.message}`,
+        log_level: 'error',
+        details: { rawResponse: messageContent }
+      });
+      
+      return new Response(
+        JSON.stringify({ error: 'Failed to parse structured data from assistant response' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
     
     // Log successful extraction
     await supabase.from('processing_logs').insert({
       file_id: fileId,
       request_id: requestId,
-      message: 'Successfully extracted data with GPT-4 Vision',
+      message: 'Successfully extracted data from PDF',
       log_level: 'info',
       details: { dataKeys: Object.keys(extractedData) }
     });
     
     // Update file record with extracted data
-    await updateFileWithExtractedData(supabase, fileId, extractedData, requestId);
+    const { error: updateError } = await supabase
+      .from('uploaded_files')
+      .update({
+        extracted_data: extractedData,
+        processing: false,
+        processed: true
+      })
+      .eq('id', fileId);
+    
+    if (updateError) {
+      console.error('Error updating file with extracted data:', updateError);
+      
+      await supabase.from('processing_logs').insert({
+        file_id: fileId,
+        request_id: requestId,
+        message: `Error updating file with extracted data: ${updateError.message}`,
+        log_level: 'error'
+      });
+      
+      return new Response(
+        JSON.stringify({ error: 'Failed to update file with extracted data', details: updateError }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+    
+    // Clean up OpenAI resources (delete the file)
+    try {
+      await openai.files.del(openaiFile.id);
+      
+      await supabase.from('processing_logs').insert({
+        file_id: fileId,
+        request_id: requestId,
+        message: `Deleted OpenAI file: ${openaiFile.id}`,
+        log_level: 'info'
+      });
+    } catch (deleteError) {
+      console.error('Error deleting OpenAI file:', deleteError);
+      
+      await supabase.from('processing_logs').insert({
+        file_id: fileId,
+        request_id: requestId,
+        message: `Error deleting OpenAI file: ${deleteError.message}`,
+        log_level: 'warning'
+      });
+    }
     
     // Final success log
     await supabase.from('processing_logs').insert({
       file_id: fileId,
       request_id: requestId,
-      message: 'Processing completed successfully',
-      log_level: 'info'
+      message: 'PDF processing completed successfully',
+      log_level: 'success'
     });
     
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'PDF processed successfully',
-        data: extractedData 
+        message: 'PDF processed successfully with Assistants API',
+        data: extractedData,
+        pdfType: 'assistant-processed'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

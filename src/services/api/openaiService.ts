@@ -37,8 +37,18 @@ export const processPdfWithOpenAI = async (fileId: string, filePath: string | nu
     await logProcessingEvent(fileId, requestId, 'Starting PDF processing with OpenAI');
     
     try {
+      // Update the file status to processing
+      await supabase
+        .from('uploaded_files')
+        .update({ 
+          processing: true, 
+          processed: false,
+          extracted_data: null 
+        })
+        .eq('id', fileId);
+      
       // Call the Edge Function
-      const { data, error } = await supabase.functions.invoke('process-pdf', {
+      const { data, error } = await supabase.functions.invoke('process-pdf-openai', {
         body: { 
           fileId, 
           filePath: finalFilePath, 

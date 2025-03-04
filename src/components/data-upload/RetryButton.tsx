@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
@@ -13,6 +12,7 @@ interface RetryButtonProps {
   processing?: boolean;
   processed?: boolean;
   onReprocessing?: () => void;
+  onRetry?: (fileId: string, filePath: string, documentType: string) => Promise<boolean>;
   className?: string;
   variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
   size?: "default" | "sm" | "lg" | "icon";
@@ -26,6 +26,7 @@ const RetryButton: React.FC<RetryButtonProps> = ({
   processing = false,
   processed = false,
   onReprocessing,
+  onRetry,
   className = "",
   variant = "outline",
   size = "sm",
@@ -55,6 +56,25 @@ const RetryButton: React.FC<RetryButtonProps> = ({
         duration: 5000
       });
       
+      // If onRetry prop exists, use that function
+      if (onRetry) {
+        const result = await onRetry(fileId, filePath, documentType || '');
+        if (result) {
+          toast.success(`Processing restarted successfully`, {
+            id: toastId,
+            duration: 5000
+          });
+        } else {
+          toast.error(`Failed to restart processing`, {
+            id: toastId,
+            duration: 5000
+          });
+        }
+        setIsRetrying(false);
+        return;
+      }
+      
+      // Otherwise, use default implementation
       // Update file status to indicate processing is starting
       await supabase
         .from('uploaded_files')
