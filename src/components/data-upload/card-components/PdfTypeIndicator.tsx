@@ -1,7 +1,12 @@
 
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip } from '@/components/ui/tooltip';
+import { 
+  Tooltip, 
+  TooltipContent, 
+  TooltipProvider, 
+  TooltipTrigger 
+} from '@/components/ui/tooltip';
 import { BookText, Image, HelpCircle } from 'lucide-react';
 
 interface PdfTypeIndicatorProps {
@@ -32,15 +37,22 @@ const PdfTypeIndicator: React.FC<PdfTypeIndicatorProps> = ({ pdfType, className 
   }
 
   return (
-    <Tooltip content={tooltipText}>
-      <Badge 
-        variant="outline"
-        className={`${className} gap-1 ${color} text-white hover:${color}`}
-      >
-        {icon}
-        <span>{text}</span>
-      </Badge>
-    </Tooltip>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge 
+            variant="outline"
+            className={`${className} gap-1 ${color} text-white hover:${color}`}
+          >
+            {icon}
+            <span>{text}</span>
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{tooltipText}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };
 

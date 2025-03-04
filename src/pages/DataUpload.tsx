@@ -38,12 +38,21 @@ const DataUpload = () => {
         // If bucket doesn't exist, try to create it
         if (!hasPdfBucket) {
           try {
-            console.log('Attempting to create PDF storage bucket via RPC...');
-            await supabase.rpc('create_pdf_bucket');
+            console.log('Attempting to create PDF storage bucket...');
+            const { data, error: createError } = await supabase.storage.createBucket('pdf_files', {
+              public: true
+            });
+            
+            if (createError) {
+              console.error('Failed to create PDF bucket:', createError);
+              toast.error('Could not create PDF storage bucket. Some features may not work correctly.');
+              return;
+            }
+            
             setStorageReady(true);
             toast.success('PDF storage bucket created successfully');
-          } catch (rpcErr) {
-            console.error('Failed to create PDF bucket:', rpcErr);
+          } catch (createErr) {
+            console.error('Error creating PDF bucket:', createErr);
             toast.error('Could not create PDF storage bucket. Some features may not work correctly.');
           }
         }
