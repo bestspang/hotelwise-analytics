@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 
-export const processPdfWithOpenAI = async (fileId: string, filePath: string) => {
+export const processPdfWithOpenAI = async (fileId: string, filePath: string | null) => {
   try {
     console.log(`Processing PDF with OpenAI (file ID: ${fileId}, path: ${filePath})`);
     
@@ -12,23 +12,54 @@ export const processPdfWithOpenAI = async (fileId: string, filePath: string) => 
     // Create a request ID for tracking this processing request
     const requestId = uuidv4();
     
-    // Log the start of processing
-    await logProcessingEvent(fileId, requestId, 'Starting hybrid PDF processing with OpenAI');
-    
-    // Call the Edge Function - use hybrid-pdf-extraction instead of process-pdf-openai
-    const { data, error } = await supabase.functions.invoke('hybrid-pdf-extraction', {
-      body: { fileId, filePath, requestId },
-    });
-    
-    if (error) {
-      console.error('Edge function error:', error);
-      await logProcessingEvent(fileId, requestId, `Error: ${error.message || 'Failed to process PDF'}`);
-      throw new Error(`Failed to process PDF: ${error.message}`);
+    // Get file path from database if not provided
+    let finalFilePath = filePath;
+    if (!finalFilePath) {
+      const { data, error } = await supabase
+        .from('uploaded_files')
+        .select('file_path, document_type')
+        .eq('id', fileId)
+        .single();
+        
+      if (error) {
+        console.error('Error fetching file path:', error);
+        throw new Error(`Failed to fetch file details: ${error.message}`);
+      }
+      
+      finalFilePath = data.file_path;
     }
     
-    console.log('Edge function response:', data);
+    if (!finalFilePath) {
+      throw new Error('No file path available for processing');
+    }
     
-    return data;
+    // Log the start of processing
+    await logProcessingEvent(fileId, requestId, 'Starting PDF processing with OpenAI');
+    
+    try {
+      // Call the Edge Function
+      const { data, error } = await supabase.functions.invoke('process-pdf', {
+        body: { 
+          fileId, 
+          filePath: finalFilePath, 
+          requestId 
+        },
+      });
+      
+      if (error) {
+        console.error('Edge function error:', error);
+        await logProcessingEvent(fileId, requestId, `Error: ${error.message || 'Failed to process PDF'}`);
+        throw new Error(`Failed to process PDF: ${error.message}`);
+      }
+      
+      console.log('Edge function response:', data);
+      
+      return data;
+    } catch (edgeFunctionError) {
+      console.error('Error invoking edge function:', edgeFunctionError);
+      await logProcessingEvent(fileId, requestId, `Error: Failed to send a request to the Edge Function`);
+      throw new Error('Failed to send a request to the Edge Function');
+    }
   } catch (error) {
     console.error('PDF processing error:', error);
     const requestId = uuidv4();

@@ -25,7 +25,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
     
     // Parse request body
-    const { fileId, filePath, documentType } = await req.json();
+    const { fileId, filePath, documentType, requestId } = await req.json();
     
     if (!fileId || !filePath) {
       return new Response(
@@ -34,15 +34,12 @@ serve(async (req) => {
       );
     }
     
-    // Create a unique request ID for tracking this processing job
-    const requestId = crypto.randomUUID();
-    
     // Log start of processing
     await supabase
       .from('processing_logs')
       .insert({
         file_id: fileId,
-        request_id: requestId,
+        request_id: requestId || crypto.randomUUID(),
         message: `Started processing file: ${filePath}`,
         log_level: 'info',
         details: { documentType }
@@ -76,7 +73,7 @@ serve(async (req) => {
           .from('processing_logs')
           .insert({
             file_id: fileId,
-            request_id: requestId,
+            request_id: requestId || crypto.randomUUID(),
             message: 'Downloading file for processing',
             log_level: 'info'
           });
@@ -95,7 +92,7 @@ serve(async (req) => {
           .from('processing_logs')
           .insert({
             file_id: fileId,
-            request_id: requestId,
+            request_id: requestId || crypto.randomUUID(),
             message: 'Sending file to OpenAI for processing',
             log_level: 'info'
           });
@@ -112,7 +109,7 @@ serve(async (req) => {
           .from('api_logs')
           .insert({
             id: apiLogId,
-            request_id: requestId,
+            request_id: requestId || crypto.randomUUID(),
             file_name: filePath.split('/').pop(),
             api_model: 'gpt-4o',
             status: 'pending',
@@ -131,14 +128,14 @@ serve(async (req) => {
             messages: [
               {
                 role: "system",
-                content: `You are an expert in hotel financial data extraction. Extract all key financial and operational data from this hotel ${documentType} PDF into a clean JSON format. Include as much detail as possible.`
+                content: `You are an expert in hotel financial data extraction. Extract all key financial and operational data from this hotel ${documentType || 'financial'} PDF into a clean JSON format. Include as much detail as possible.`
               },
               {
                 role: "user",
                 content: [
                   {
                     type: "text",
-                    text: `Please extract all the data from this ${documentType} PDF. Include all numbers, dates, and categorize the information appropriately.`
+                    text: `Please extract all the data from this ${documentType || 'financial'} PDF. Include all numbers, dates, and categorize the information appropriately.`
                   },
                   {
                     type: "image_url",
@@ -194,7 +191,7 @@ serve(async (req) => {
           .from('processing_logs')
           .insert({
             file_id: fileId,
-            request_id: requestId,
+            request_id: requestId || crypto.randomUUID(),
             message: 'Received OpenAI response, parsing data',
             log_level: 'info'
           });
@@ -224,7 +221,7 @@ serve(async (req) => {
             .from('processing_logs')
             .insert({
               file_id: fileId,
-              request_id: requestId,
+              request_id: requestId || crypto.randomUUID(),
               message: 'Error parsing JSON response',
               log_level: 'error',
               details: { 
@@ -250,7 +247,7 @@ serve(async (req) => {
           .from('processing_logs')
           .insert({
             file_id: fileId,
-            request_id: requestId,
+            request_id: requestId || crypto.randomUUID(),
             message: 'File processing completed successfully',
             log_level: 'info'
           });
@@ -263,7 +260,7 @@ serve(async (req) => {
           .from('processing_logs')
           .insert({
             file_id: fileId,
-            request_id: requestId,
+            request_id: requestId || crypto.randomUUID(),
             message: `Error processing file: ${error.message}`,
             log_level: 'error',
             details: { error: error.stack || error.message }
@@ -290,7 +287,8 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         message: 'File processing started',
-        requestId
+        requestId: requestId || crypto.randomUUID(),
+        pdfType: 'text-based' // Default to text-based
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );

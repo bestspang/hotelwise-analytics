@@ -1,10 +1,10 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Brain } from 'lucide-react';
 import { toast } from 'sonner';
 import { processPdfWithOpenAI } from '@/services/api/openaiService';
 import { v4 as uuidv4 } from 'uuid';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ExtractButtonProps {
   fileId: string;
