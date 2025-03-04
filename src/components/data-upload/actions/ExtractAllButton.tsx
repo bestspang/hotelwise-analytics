@@ -1,120 +1,151 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { FileState } from '../types/fileTypes';
-import { Brain, AlertCircle } from 'lucide-react';
+import { Brain } from 'lucide-react';
 import { toast } from 'sonner';
 import { processPdfWithOpenAI } from '@/services/api/openaiService';
+import { FileState } from '../types/fileTypes';
+import { Progress } from '@/components/ui/progress';
 
 interface ExtractAllButtonProps {
   files: FileState[];
   onComplete?: () => void;
 }
 
-const ExtractAllButton: React.FC<ExtractAllButtonProps> = ({ files, onComplete }) => {
+export const ExtractAllButton: React.FC<ExtractAllButtonProps> = ({ files, onComplete }) => {
   const [isExtracting, setIsExtracting] = useState(false);
+  const [currentFileIndex, setCurrentFileIndex] = useState(0);
   const [progress, setProgress] = useState(0);
-  const [currentFile, setCurrentFile] = useState<string | null>(null);
-  
-  // Count files that need processing
-  const eligibleFiles = files.filter(file => !file.processed && !file.processing);
-  
-  // Don't show if no files need processing
-  if (eligibleFiles.length === 0) {
-    return null;
-  }
+
+  // Filter files that need processing
+  const unprocessedFiles = files.filter(
+    file => !file.processed && !file.processing
+  );
 
   const handleExtractAll = async () => {
-    if (isExtracting) return;
-    
+    if (isExtracting || unprocessedFiles.length === 0) return;
+
     setIsExtracting(true);
+    setCurrentFileIndex(0);
     setProgress(0);
     
-    const total = eligibleFiles.length;
-    let processed = 0;
-    let failures = 0;
-    
-    const toastId = 'extract-all';
-    
-    toast.info(`Starting AI extraction for ${total} files`, { 
+    const toastId = `extract-all-${Date.now()}`;
+    toast.info(`Starting AI extraction for ${unprocessedFiles.length} files`, { 
       id: toastId,
       duration: 10000 
     });
-    
-    for (const file of eligibleFiles) {
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < unprocessedFiles.length; i++) {
+      const file = unprocessedFiles[i];
+      setCurrentFileIndex(i);
+      
+      // Calculate and update progress
+      const newProgress = Math.round(((i) / unprocessedFiles.length) * 100);
+      setProgress(newProgress);
+      
       try {
-        setCurrentFile(file.filename);
-        const progressPercent = Math.round((processed / total) * 100);
-        setProgress(progressPercent);
-        
-        toast.loading(`Processing file ${processed + 1}/${total}: ${file.filename}`, {
+        toast.loading(`Processing ${i + 1}/${unprocessedFiles.length}: ${file.filename}`, {
           id: toastId,
-          duration: 60000
+          duration: 10000
         });
         
         const result = await processPdfWithOpenAI(file.id, file.file_path);
         
         if (result) {
-          processed++;
+          successCount++;
+          toast.success(`Processed ${i + 1}/${unprocessedFiles.length}: ${file.filename}`, {
+            id: toastId,
+            duration: 3000
+          });
         } else {
-          failures++;
+          failCount++;
+          toast.error(`Failed: ${file.filename}`, {
+            id: toastId,
+            duration: 3000
+          });
         }
       } catch (error) {
         console.error(`Error extracting data from ${file.filename}:`, error);
-        failures++;
+        failCount++;
+        toast.error(`Error: ${file.filename} - ${error instanceof Error ? error.message : 'Unknown error'}`, {
+          id: toastId,
+          duration: 3000
+        });
       }
+      
+      // Small delay between processing files to prevent rate limiting
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
-    
-    setIsExtracting(false);
+
+    // Final progress update
     setProgress(100);
-    setCurrentFile(null);
-    
-    if (failures === 0) {
-      toast.success(`Successfully processed all ${total} files`, {
+
+    // Final summary toast
+    if (successCount > 0 && failCount === 0) {
+      toast.success(`Successfully processed all ${successCount} files`, {
         id: toastId,
         duration: 5000
       });
-    } else if (processed > 0) {
-      toast.warning(`Processed ${processed} files, ${failures} failed`, {
+    } else if (successCount > 0 && failCount > 0) {
+      toast.warning(`Processed ${successCount} files, ${failCount} failed`, {
         id: toastId,
         duration: 5000
       });
-    } else {
-      toast.error(`Failed to process any of the ${total} files`, {
+    } else if (successCount === 0 && failCount > 0) {
+      toast.error(`Failed to process all ${failCount} files`, {
         id: toastId,
         duration: 5000
       });
     }
+
+    setIsExtracting(false);
+    setCurrentFileIndex(0);
+    setProgress(0);
     
     if (onComplete) {
       onComplete();
     }
   };
 
+  // Don't show button if no files need processing
+  if (unprocessedFiles.length === 0) {
+    return null;
+  }
+
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={handleExtractAll}
-      disabled={isExtracting}
-      className={isExtracting ? "relative overflow-hidden" : ""}
-    >
-      {isExtracting ? (
-        <>
-          <Brain className="h-4 w-4 mr-1 animate-pulse" />
-          <span>Processing... {progress}%</span>
-          <div 
-            className="absolute bottom-0 left-0 h-1 bg-primary"
-            style={{ width: `${progress}%`, transition: 'width 0.3s ease-in-out' }}
-          />
-        </>
-      ) : (
-        <>
-          <Brain className="h-4 w-4 mr-1" />
-          Process All ({eligibleFiles.length})
-        </>
+    <div className="flex flex-col space-y-2">
+      <Button
+        variant="default"
+        size="sm"
+        onClick={handleExtractAll}
+        disabled={isExtracting}
+        className="bg-purple-600 hover:bg-purple-700 text-white"
+      >
+        {isExtracting ? (
+          <>
+            <Brain className="h-4 w-4 mr-2 animate-pulse" />
+            Processing {currentFileIndex + 1}/{unprocessedFiles.length}
+          </>
+        ) : (
+          <>
+            <Brain className="h-4 w-4 mr-2" />
+            Extract All ({unprocessedFiles.length})
+          </>
+        )}
+      </Button>
+      
+      {isExtracting && (
+        <div className="w-full">
+          <Progress value={progress} className="h-2" />
+          <p className="text-xs text-gray-500 mt-1">
+            Processing file {currentFileIndex + 1} of {unprocessedFiles.length} ({progress}%)
+          </p>
+        </div>
       )}
-    </Button>
+    </div>
   );
 };
 

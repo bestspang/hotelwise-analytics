@@ -1,54 +1,106 @@
 
 import React from 'react';
-import { CircleCheck, Timer, Clock, AlertTriangle } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface StatusIndicatorProps {
-  processing: boolean;
-  processed: boolean;
+  isProcessing?: boolean;
+  processing?: boolean; // For backward compatibility
+  isStuck?: boolean;
+  processed?: boolean;
+  hasExtractionError?: boolean;
+  hasExtractedData?: boolean;
+  errorMessage?: string | null;
   processingTime?: string;
-  hasError?: boolean;
 }
 
 const StatusIndicator: React.FC<StatusIndicatorProps> = ({
+  isProcessing,
   processing,
+  isStuck,
   processed,
-  processingTime,
-  hasError = false
+  hasExtractionError,
+  hasExtractedData,
+  errorMessage,
+  processingTime
 }) => {
-  // Define styles based on status
-  if (hasError) {
+  // Use either isProcessing or processing (for backward compatibility)
+  const isCurrentlyProcessing = isProcessing || processing;
+  
+  // Check if file is processing or stuck
+  if (isCurrentlyProcessing || isStuck) {
     return (
-      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 flex items-center gap-1">
-        <AlertTriangle className="h-3 w-3" />
-        <span>Error</span>
-      </Badge>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className={`flex items-center px-2 py-0.5 ${isStuck ? 'bg-red-100 dark:bg-red-900/30' : 'bg-amber-100 dark:bg-amber-900/30'} rounded-full`} aria-label="Processing status">
+              <div className={`h-2 w-2 ${isStuck ? 'bg-red-500' : 'bg-amber-500'} rounded-full mr-1.5 ${!isStuck && 'animate-pulse'}`} aria-hidden="true"></div>
+              <span className={`text-xs font-medium ${isStuck ? 'text-red-700 dark:text-red-400' : 'text-amber-700 dark:text-amber-400'}`}>
+                {isStuck ? 'Stuck' : 'Processing'} {processingTime && `(${processingTime})`}
+              </span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{isStuck ? 'Processing has stalled' : 'Data extraction in progress'}</p>
+            {errorMessage && <p className="text-xs text-red-500 mt-1">{errorMessage}</p>}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   }
   
-  if (processing) {
+  // Check if file has extraction error
+  if (hasExtractionError) {
     return (
-      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 flex items-center gap-1">
-        <Timer className="h-3 w-3 animate-spin" />
-        <span>{processingTime ? `Processing (${processingTime})` : 'Processing...'}</span>
-      </Badge>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center px-2 py-0.5 bg-red-100 dark:bg-red-900/30 rounded-full" aria-label="Error status">
+              <div className="h-2 w-2 bg-red-500 rounded-full mr-1.5" aria-hidden="true"></div>
+              <span className="text-xs font-medium text-red-700 dark:text-red-400">Error</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{errorMessage || 'Error extracting data'}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   }
   
-  if (processed) {
+  // Check if file is processed successfully and has data
+  if (processed || hasExtractedData) {
     return (
-      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 flex items-center gap-1">
-        <CircleCheck className="h-3 w-3" />
-        <span>Processed</span>
-      </Badge>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center px-2 py-0.5 bg-green-100 dark:bg-green-900/30 rounded-full" aria-label="Processed status">
+              <div className="h-2 w-2 bg-green-500 rounded-full mr-1.5" aria-hidden="true"></div>
+              <span className="text-xs font-medium text-green-700 dark:text-green-400">Processed</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Data extracted successfully</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   }
   
+  // If neither processing nor processed, show unprocessed state
   return (
-    <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 flex items-center gap-1">
-      <Clock className="h-3 w-3" />
-      <span>Pending</span>
-    </Badge>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex items-center px-2 py-0.5 bg-slate-100 dark:bg-slate-800/50 rounded-full" aria-label="Unprocessed status">
+            <div className="h-2 w-2 bg-slate-500 rounded-full mr-1.5" aria-hidden="true"></div>
+            <span className="text-xs font-medium text-slate-700 dark:text-slate-400">Unprocessed</span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>File needs processing</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };
 
