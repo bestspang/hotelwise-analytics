@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,7 +7,6 @@ import {
   Layers,
   Package,
   Settings,
-  Upload,
   Users,
   LogOut,
   LineChart,
@@ -45,12 +43,6 @@ const Sidebar = ({ collapsed, setCollapsed }: SidebarProps) => {
         path: '/day-summary',
         icon: <Calendar className="h-5 w-5" />,
         requiredRole: 'analyst',
-      },
-      {
-        name: 'Data Upload',
-        path: '/data-upload',
-        icon: <Upload className="h-5 w-5" />,
-        requiredRole: 'manager',
       },
       {
         name: 'Tools',

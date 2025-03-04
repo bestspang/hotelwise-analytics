@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,70 +14,121 @@ serve(async (req) => {
   }
 
   try {
+    // Create Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing environment variables for Supabase');
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // Get OpenAI API key
+    const openAIKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openAIKey) {
+      throw new Error('Missing OpenAI API key');
+    }
+    
+    // Parse request body
     const { prompt } = await req.json();
     
     if (!prompt) {
       return new Response(
         JSON.stringify({ error: 'Prompt is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
-
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
     
-    if (!openAIApiKey) {
-      return new Response(
-        JSON.stringify({ error: 'OpenAI API key not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('Sending request to OpenAI with prompt:', prompt.substring(0, 100) + '...');
-
-    // Get response from OpenAI
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    // Create an API log entry
+    const apiLogId = crypto.randomUUID();
+    const requestId = crypto.randomUUID();
+    
+    await supabase
+      .from('api_logs')
+      .insert({
+        id: apiLogId,
+        request_id: requestId,
+        file_name: 'ai-chat',
+        api_model: 'gpt-4o',
+        status: 'pending',
+        timestamp_sent: new Date().toISOString()
+      });
+    
+    // Send to OpenAI
+    const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${openAIKey}`
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: "gpt-4o",
         messages: [
-          { 
-            role: 'system', 
-            content: 'You are a hotel financial analysis expert. Provide detailed insights and actionable recommendations based on hotel financial data. Focus on metrics like RevPAR, ADR, occupancy rates, GOPPAR, and other relevant KPIs for the hospitality industry.' 
+          {
+            role: "system",
+            content: "You are an expert hotel financial analyst assistant. Provide analytical insights, strategic recommendations, and help interpret hotel financial data and KPIs."
           },
-          { role: 'user', content: prompt }
+          {
+            role: "user",
+            content: prompt
+          }
         ],
-        max_tokens: 1000,
-      }),
+        max_tokens: 2000
+      })
     });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('OpenAI API error:', errorData);
-      return new Response(
-        JSON.stringify({ error: `OpenAI API error: ${errorData.error?.message || response.statusText}` }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const data = await response.json();
-    console.log('Received OpenAI response. Token usage:', data.usage);
     
+    // Update API log with received timestamp
+    await supabase
+      .from('api_logs')
+      .update({
+        timestamp_received: new Date().toISOString()
+      })
+      .eq('id', apiLogId);
+    
+    if (!openAIResponse.ok) {
+      const errorText = await openAIResponse.text();
+      
+      // Update API log with error
+      await supabase
+        .from('api_logs')
+        .update({
+          status: 'error',
+          error_message: errorText
+        })
+        .eq('id', apiLogId);
+      
+      throw new Error(`OpenAI API error: ${errorText}`);
+    }
+    
+    const openAIData = await openAIResponse.json();
+    
+    // Update API log with success and raw result
+    await supabase
+      .from('api_logs')
+      .update({
+        status: 'success',
+        raw_result: openAIData
+      })
+      .eq('id', apiLogId);
+    
+    // Extract the response from the OpenAI response
+    const responseContent = openAIData.choices[0].message.content;
+    
+    // Return the response
     return new Response(
-      JSON.stringify({ 
-        response: data.choices[0].message.content,
-        usage: data.usage
+      JSON.stringify({
+        response: responseContent,
+        requestId: requestId
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
   } catch (error) {
-    console.error('Error in openai-chat function:', error);
+    console.error('Error:', error);
+    
     return new Response(
       JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });
