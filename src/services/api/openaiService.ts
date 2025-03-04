@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { v4 as uuidv4 } from 'uuid';
 
 export const processPdfWithOpenAI = async (fileId: string, filePath: string) => {
   try {
@@ -8,11 +9,11 @@ export const processPdfWithOpenAI = async (fileId: string, filePath: string) => 
     
     await checkAndCreateBucket();
     
-    // This would actually call the Supabase Edge Function to process the PDF with OpenAI
-    // For demonstration, we'll simulate the process with a timeout
+    // Create a request ID for tracking this processing request
+    const requestId = uuidv4();
     
     // Log the start of processing
-    await logProcessingEvent(fileId, 'Starting hybrid PDF processing with OpenAI');
+    await logProcessingEvent(fileId, requestId, 'Starting hybrid PDF processing with OpenAI');
     
     // Call the Edge Function
     const { data, error } = await supabase.functions.invoke('process-pdf-openai', {
@@ -21,7 +22,7 @@ export const processPdfWithOpenAI = async (fileId: string, filePath: string) => 
     
     if (error) {
       console.error('Edge function error:', error);
-      await logProcessingEvent(fileId, `Error: ${error.message || 'Failed to process PDF'}`);
+      await logProcessingEvent(fileId, requestId, `Error: ${error.message || 'Failed to process PDF'}`);
       throw new Error(`Failed to process PDF: ${error.message}`);
     }
     
@@ -30,7 +31,8 @@ export const processPdfWithOpenAI = async (fileId: string, filePath: string) => 
     return data;
   } catch (error) {
     console.error('PDF processing error:', error);
-    await logProcessingEvent(fileId, `Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    const requestId = uuidv4();
+    await logProcessingEvent(fileId, requestId, `Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     throw error;
   }
 };
@@ -56,15 +58,59 @@ export const getOpenAIResponse = async (query: string, context?: any) => {
   }
 };
 
-async function logProcessingEvent(fileId: string, message: string) {
+// Function to get processed data for a file
+export const getProcessedData = async (fileId: string) => {
   try {
+    console.log(`Fetching extracted data for file ID: ${fileId}`);
+    const { data, error } = await supabase
+      .from('uploaded_files')
+      .select('extracted_data, filename, document_type, processing, processed')
+      .eq('id', fileId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching extracted data:', error);
+      throw new Error(`Failed to retrieve data: ${error.message}`);
+    }
+
+    if (!data.processed && !data.processing) {
+      return {
+        filename: data.filename,
+        notProcessed: true
+      };
+    }
+
+    if (data.processing) {
+      return {
+        filename: data.filename,
+        processing: true
+      };
+    }
+
+    console.log(`Successfully retrieved extracted data for ${data.filename}`);
+    return {
+      filename: data.filename,
+      documentType: data.document_type,
+      extractedData: data.extracted_data
+    };
+  } catch (error) {
+    console.error('Unexpected error fetching extracted data:', error);
+    throw error;
+  }
+};
+
+async function logProcessingEvent(fileId: string, requestId: string, message: string, level = 'info') {
+  try {
+    const logLevel = message.toLowerCase().includes('error') ? 'error' : level;
+    
     const { error } = await supabase
       .from('processing_logs')
       .insert([
         {
           file_id: fileId,
-          log_message: message,
-          log_level: message.toLowerCase().includes('error') ? 'error' : 'info'
+          request_id: requestId,
+          message: message,
+          log_level: logLevel
         }
       ]);
     

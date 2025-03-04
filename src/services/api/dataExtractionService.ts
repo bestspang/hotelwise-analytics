@@ -1,30 +1,10 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { processPdfWithOpenAI } from './openaiService';
+import { processPdfWithOpenAI, getProcessedData } from './openaiService';
 
 export async function downloadExtractedData(fileId: string) {
-  try {
-    console.log(`Fetching extracted data for file ID: ${fileId}`);
-    const { data, error } = await supabase
-      .from('uploaded_files')
-      .select('extracted_data, filename')
-      .eq('id', fileId)
-      .single();
-
-    if (error) {
-      console.error('Error fetching extracted data:', error);
-      toast.error(`Failed to retrieve data: ${error.message}`);
-      return null;
-    }
-
-    console.log(`Successfully retrieved extracted data for ${data.filename}`);
-    return data;
-  } catch (error) {
-    console.error('Unexpected error fetching extracted data:', error);
-    toast.error(`Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    return null;
-  }
+  return getProcessedData(fileId);
 }
 
 export async function reprocessFile(fileId: string) {
