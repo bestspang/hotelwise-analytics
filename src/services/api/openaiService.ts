@@ -114,6 +114,37 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string | nu
       console.log('Retrieved file path from database:', actualFilePath);
     }
     
+    // Check if the storage bucket exists first
+    let storageExists = false;
+    try {
+      const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+      
+      if (bucketsError) {
+        console.error('Error checking storage buckets:', bucketsError);
+        
+        await supabase.from('processing_logs').insert({
+          file_id: fileId,
+          request_id: requestId,
+          message: `Error checking storage buckets: ${bucketsError.message}`,
+          log_level: 'error'
+        });
+      } else {
+        storageExists = buckets?.some(bucket => bucket.name === 'pdf_files') || false;
+        console.log('Storage bucket check - pdf_files exists:', storageExists);
+        
+        if (!storageExists) {
+          await supabase.from('processing_logs').insert({
+            file_id: fileId,
+            request_id: requestId,
+            message: 'Storage bucket "pdf_files" does not exist, may need to run migration',
+            log_level: 'warning'
+          });
+        }
+      }
+    } catch (bucketCheckErr) {
+      console.error('Error during bucket check:', bucketCheckErr);
+    }
+    
     // Additional debugging before calling the edge function
     console.log('Preparing to call hybrid-pdf-extraction with parameters:', {
       fileId,
@@ -122,37 +153,114 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string | nu
     });
     
     // Call the Supabase edge function to process the PDF with hybrid approach
-    const { data, error } = await supabase.functions.invoke('hybrid-pdf-extraction', {
-      body: { 
-        fileId, 
-        filePath: actualFilePath,
-        requestId
-      }
-    });
-    
-    if (error) {
-      console.error('Error invoking hybrid-pdf-extraction function:', error);
-      console.error('Error details:', JSON.stringify(error, null, 2));
+    try {
+      console.log('Calling hybrid-pdf-extraction edge function...');
       
-      // Log the error
+      const { data, error } = await supabase.functions.invoke('hybrid-pdf-extraction', {
+        body: { 
+          fileId, 
+          filePath: actualFilePath,
+          requestId
+        }
+      });
+      
+      console.log('Edge function response received:', data);
+      
+      if (error) {
+        console.error('Error invoking hybrid-pdf-extraction function:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
+        
+        // Log the error
+        await supabase.from('processing_logs').insert({
+          file_id: fileId,
+          request_id: requestId,
+          message: `Edge function error: ${error.message || 'Connection error'}`,
+          log_level: 'error',
+          details: { error }
+        });
+        
+        // More detailed error handling
+        if (!storageExists) {
+          toast.error('Storage bucket "pdf_files" does not exist. Running the migration script to create it...');
+          
+          // This is a client-side fix to help users create the bucket if it's missing
+          try {
+            await supabase.rpc('create_pdf_bucket', {});
+            toast.success('Storage bucket created. Please try processing again.');
+          } catch (rpcErr) {
+            console.error('Failed to create bucket via RPC:', rpcErr);
+            toast.error('Could not create storage bucket. Please run the migration script manually.');
+          }
+        } else if (error.message?.includes('API key') || error.message?.includes('authentication')) {
+          toast.error('OpenAI API key may be missing or invalid. Please check your Supabase Edge Function secrets.');
+        } else if (error.message?.includes('CORS') || error.status === 0) {
+          toast.error('CORS error. The Edge Function is not properly configured to accept requests from this origin.');
+        } else {
+          toast.error(`PDF processing failed: ${error.message || 'Connection error'}`);
+        }
+        
+        // Reset the processing status on error
+        await supabase
+          .from('uploaded_files')
+          .update({
+            processing: false,
+            processed: false,
+            extracted_data: { error: true, message: error.message || 'Connection error' }
+          })
+          .eq('id', fileId);
+        
+        return null;
+      }
+      
+      if (data?.error) {
+        console.error('Error from PDF processing service:', data.error);
+        toast.error(`PDF processing error: ${data.error}`);
+        
+        // Log the error
+        await supabase.from('processing_logs').insert({
+          file_id: fileId,
+          request_id: requestId,
+          message: `Processing error: ${data.error}`,
+          log_level: 'error',
+          details: { error: data.error }
+        });
+        
+        // Reset the processing status on error
+        await supabase
+          .from('uploaded_files')
+          .update({
+            processing: false,
+            processed: true,
+            extracted_data: { error: true, message: data.error }
+          })
+          .eq('id', fileId);
+        
+        return null;
+      }
+      
+      // Log success
       await supabase.from('processing_logs').insert({
         file_id: fileId,
         request_id: requestId,
-        message: `Edge function error: ${error.message || 'Connection error'}`,
-        log_level: 'error',
-        details: { error: error }
+        message: `Successfully extracted data with ${data.pdfType} extraction method`,
+        log_level: 'info'
       });
       
-      // More detailed error handling
-      if (error.message?.includes('bucket') || error.message?.includes('storage')) {
-        toast.error('Storage bucket "pdf_files" does not exist or file is not accessible. Please check your Supabase storage configuration.');
-      } else if (error.message?.includes('API key') || error.message?.includes('authentication')) {
-        toast.error('OpenAI API key may be missing or invalid. Please check your Supabase Edge Function secrets.');
-      } else if (error.message?.includes('CORS') || error.status === 0) {
-        toast.error('CORS error. The Edge Function is not properly configured to accept requests from this origin.');
-      } else {
-        toast.error(`PDF processing failed: ${error.message || 'Connection error'}`);
-      }
+      console.log('OpenAI PDF processing result received:', data);
+      toast.success(`Successfully extracted data from ${filePath?.split('/').pop() || 'file'} (${data.pdfType})`);
+      return data;
+    } catch (invocationErr) {
+      console.error('Exception during edge function invocation:', invocationErr);
+      
+      await supabase.from('processing_logs').insert({
+        file_id: fileId,
+        request_id: requestId,
+        message: `Edge function invocation exception: ${invocationErr instanceof Error ? invocationErr.message : 'Unknown error'}`,
+        log_level: 'error',
+        details: { error: invocationErr instanceof Error ? invocationErr.stack : String(invocationErr) }
+      });
+      
+      toast.error(`Edge function error: ${invocationErr instanceof Error ? invocationErr.message : 'Unknown error'}`);
       
       // Reset the processing status on error
       await supabase
@@ -160,50 +268,12 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string | nu
         .update({
           processing: false,
           processed: false,
-          extracted_data: { error: true, message: error.message || 'Connection error' }
+          extracted_data: { error: true, message: invocationErr instanceof Error ? invocationErr.message : 'Unknown error' }
         })
         .eq('id', fileId);
       
       return null;
     }
-    
-    if (data?.error) {
-      console.error('Error from PDF processing service:', data.error);
-      toast.error(`PDF processing error: ${data.error}`);
-      
-      // Log the error
-      await supabase.from('processing_logs').insert({
-        file_id: fileId,
-        request_id: requestId,
-        message: `Processing error: ${data.error}`,
-        log_level: 'error',
-        details: { error: data.error }
-      });
-      
-      // Reset the processing status on error
-      await supabase
-        .from('uploaded_files')
-        .update({
-          processing: false,
-          processed: true,
-          extracted_data: { error: true, message: data.error }
-        })
-        .eq('id', fileId);
-      
-      return null;
-    }
-    
-    // Log success
-    await supabase.from('processing_logs').insert({
-      file_id: fileId,
-      request_id: requestId,
-      message: `Successfully extracted data with ${data.pdfType} extraction method`,
-      log_level: 'info'
-    });
-    
-    console.log('OpenAI PDF processing result received:', data);
-    toast.success(`Successfully extracted data from ${filePath?.split('/').pop() || 'file'} (${data.pdfType})`);
-    return data;
   } catch (err) {
     console.error('Error processing PDF with OpenAI:', err);
     toast.error(`PDF processing error: ${err instanceof Error ? err.message : 'Unknown error'}`);

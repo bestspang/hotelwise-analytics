@@ -1,51 +1,46 @@
 
 import React from 'react';
-import { FileText, Eye } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip } from '@/components/ui/tooltip';
+import { BookText, Image, HelpCircle } from 'lucide-react';
 
 interface PdfTypeIndicatorProps {
-  extractedData: any;
+  pdfType?: string;
   className?: string;
 }
 
-const PdfTypeIndicator: React.FC<PdfTypeIndicatorProps> = ({ extractedData, className }) => {
-  // Check for errors
-  if (!extractedData || extractedData.error) {
+const PdfTypeIndicator: React.FC<PdfTypeIndicatorProps> = ({ pdfType, className }) => {
+  if (!pdfType) {
     return null;
   }
-  
-  // Determine if this was processed with text or vision based on the processedBy field
-  const isTextBased = extractedData.processedBy?.includes('Text');
-  
+
+  let icon = <HelpCircle className="h-3.5 w-3.5" />;
+  let color = 'bg-gray-500';
+  let text = 'Unknown';
+  let tooltipText = 'PDF processing type not determined';
+
+  if (pdfType.toLowerCase() === 'text') {
+    icon = <BookText className="h-3.5 w-3.5" />;
+    color = 'bg-blue-500';
+    text = 'Text-based';
+    tooltipText = 'This PDF contains selectable text which was directly extracted for processing';
+  } else if (pdfType.toLowerCase() === 'vision') {
+    icon = <Image className="h-3.5 w-3.5" />;
+    color = 'bg-purple-500';
+    text = 'Image-based';
+    tooltipText = 'This PDF was processed as images using vision technology';
+  }
+
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Badge 
-            variant="outline" 
-            className={`${isTextBased ? 'border-blue-500 text-blue-600' : 'border-purple-500 text-purple-600'} ${className || ''}`}
-          >
-            {isTextBased ? (
-              <>
-                <FileText className="h-3 w-3 mr-1" />
-                Text-based
-              </>
-            ) : (
-              <>
-                <Eye className="h-3 w-3 mr-1" />
-                Vision
-              </>
-            )}
-          </Badge>
-        </TooltipTrigger>
-        <TooltipContent>
-          {isTextBased 
-            ? 'This PDF contained selectable text and was processed using text extraction.' 
-            : 'This PDF was processed using image-based vision analysis.'}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Tooltip content={tooltipText}>
+      <Badge 
+        variant="outline"
+        className={`${className} gap-1 ${color} text-white hover:${color}`}
+      >
+        {icon}
+        <span>{text}</span>
+      </Badge>
+    </Tooltip>
   );
 };
 

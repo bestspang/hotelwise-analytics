@@ -26,3 +26,16 @@ CREATE POLICY "Auth Users Delete Access"
 ON storage.objects FOR DELETE
 TO authenticated
 USING (bucket_id = 'pdf_files' AND owner = auth.uid());
+
+-- Create a function to create the bucket from the client side if needed
+CREATE OR REPLACE FUNCTION public.create_pdf_bucket()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  INSERT INTO storage.buckets (id, name, public)
+  VALUES ('pdf_files', 'pdf_files', true)
+  ON CONFLICT (id) DO NOTHING;
+END;
+$$;
