@@ -1,78 +1,93 @@
 
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, FileText } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
+import { Upload, AlertTriangle } from 'lucide-react';
 
 interface FileDropzoneProps {
   onDrop: (acceptedFiles: File[]) => void;
   isUploading: boolean;
-  selectedFiles?: File[];
+  selectedFiles: File[];
 }
 
 const FileDropzone: React.FC<FileDropzoneProps> = ({ 
   onDrop, 
-  isUploading,
-  selectedFiles = []
+  isUploading, 
+  selectedFiles 
 }) => {
-  const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
-    onDrop,
-    accept: {
-      'application/pdf': ['.pdf'],
-    },
-    multiple: true,
-    disabled: isUploading,
-    onDropRejected: (fileRejections) => {
-      fileRejections.forEach(({ file, errors }) => {
-        if (errors.some(e => e.code === 'file-invalid-type')) {
-          toast.error(`${file.name} is not a PDF file`);
-        }
+  const [isDragActive, setIsDragActive] = useState(false);
+  const [dragError, setDragError] = useState<string | null>(null);
+
+  const handleDrop = useCallback((acceptedFiles: File[], fileRejections: any[]) => {
+    setIsDragActive(false);
+    
+    // Handle rejected files
+    if (fileRejections.length > 0) {
+      const errors = fileRejections.map(rejection => {
+        const { file, errors } = rejection;
+        return `${file.name}: ${errors.map((e: any) => e.message).join(', ')}`;
       });
+      setDragError(errors.join('; '));
+      setTimeout(() => setDragError(null), 5000);
+      return;
     }
+    
+    setDragError(null);
+    onDrop(acceptedFiles);
+  }, [onDrop]);
+
+  const {
+    getRootProps,
+    getInputProps,
+    isDragReject
+  } = useDropzone({
+    onDrop: handleDrop,
+    accept: {
+      'application/pdf': ['.pdf']
+    },
+    disabled: isUploading,
+    onDragEnter: () => setIsDragActive(true),
+    onDragLeave: () => setIsDragActive(false)
   });
 
+  // Determine border color and background based on state
+  const getBorderStyle = () => {
+    if (isDragReject || dragError) return 'border-red-400 bg-red-50';
+    if (isDragActive) return 'border-primary bg-primary/5';
+    return 'border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100';
+  };
+
   return (
-    <div
-      {...getRootProps()}
-      className={cn(
-        "border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition-colors",
-        isDragActive && !isDragReject ? "border-primary bg-primary/5" : 
-        isDragReject ? "border-red-500 bg-red-50 dark:bg-red-900/20" :
-        isUploading ? "border-gray-300 bg-gray-50 dark:bg-gray-800/30 cursor-not-allowed" : 
-        "border-gray-300 dark:border-gray-700 hover:border-primary/50 dark:hover:border-primary/30"
-      )}
+    <div 
+      {...getRootProps()} 
+      className={`border-2 rounded-lg p-8 text-center cursor-pointer transition-colors ${getBorderStyle()}`}
+      aria-disabled={isUploading}
     >
-      <input {...getInputProps()} />
+      <input {...getInputProps()} disabled={isUploading} />
       
-      {isDragActive && !isDragReject && (
-        <>
-          <Upload className="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" />
-          <h3 className="text-lg font-medium mb-2 text-primary">Drop PDF Files Here</h3>
-        </>
-      )}
-      
-      {isDragReject && (
-        <>
-          <FileText className="h-12 w-12 mx-auto mb-4 text-red-500" />
-          <h3 className="text-lg font-medium mb-2 text-red-500">Only PDF Files Are Accepted</h3>
-        </>
-      )}
-      
-      {!isDragActive && !isDragReject && (
-        <>
-          <Upload className={cn("h-12 w-12 mx-auto mb-4", isUploading ? "text-gray-300 dark:text-gray-600" : "text-gray-400 dark:text-gray-500")} />
-          <h3 className={cn("text-lg font-medium mb-2", isUploading ? "text-gray-400 dark:text-gray-500" : "text-gray-700 dark:text-gray-300")}>
-            {isUploading ? "Uploading..." : "Drag & Drop PDF Files Here"}
-          </h3>
-          <p className={cn("text-muted-foreground mb-3", isUploading ? "text-gray-300 dark:text-gray-600" : "")}>
-            {isUploading ? "Please wait..." : "Or click to browse your files"}
+      {dragError ? (
+        <div className="text-red-500 flex flex-col items-center justify-center">
+          <AlertTriangle className="h-12 w-12 mb-2" />
+          <p className="text-red-600 font-medium">Error with files</p>
+          <p className="text-sm">{dragError}</p>
+        </div>
+      ) : isDragActive ? (
+        <div className="text-primary flex flex-col items-center justify-center">
+          <Upload className="h-12 w-12 mb-2 text-primary animate-bounce" />
+          <p className="font-medium">Drop files here</p>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center">
+          <Upload className="h-12 w-12 mb-2 text-muted-foreground" />
+          <p className="font-medium">Drag and drop PDF files</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Or click to select files
           </p>
-          <div className="flex justify-center items-center gap-2 mb-2">
-            <div className="px-2 py-1 bg-primary/10 rounded-md text-xs font-medium text-primary">PDF</div>
-          </div>
-          <p className="text-xs text-muted-foreground">Maximum file size: 10MB</p>
-        </>
+          {selectedFiles.length > 0 && (
+            <p className="text-sm text-primary mt-2">
+              {selectedFiles.length} file(s) selected
+            </p>
+          )}
+        </div>
       )}
     </div>
   );
