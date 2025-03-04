@@ -31,7 +31,9 @@ export const ExtractButton: React.FC<ExtractButtonProps> = ({ fileId, onComplete
         duration: 60000 // Longer duration since processing might take time
       });
       
-      const result = await processPdfWithOpenAI(fileId);
+      // Pass null as the second argument for filePath since we're only using fileId
+      // The service will fetch the file path from the database
+      const result = await processPdfWithOpenAI(fileId, null);
       
       if (result) {
         toast.success(`Data extracted successfully`, {

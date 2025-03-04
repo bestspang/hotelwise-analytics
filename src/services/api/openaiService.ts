@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
@@ -42,10 +41,16 @@ export async function getOpenAIResponse(prompt: string): Promise<OpenAIResponse 
 }
 
 // Process PDF with OpenAI
-export async function processPdfWithOpenAI(fileId: string, filePath: string): Promise<any> {
+export async function processPdfWithOpenAI(fileId: string, filePath: string | null = null): Promise<any> {
   try {
     console.log('Processing PDF with OpenAI, file ID:', fileId);
-    console.log('File path:', filePath);
+    
+    // If filePath is not provided, we don't log it to avoid undefined in logs
+    if (filePath) {
+      console.log('File path:', filePath);
+    } else {
+      console.log('No file path provided, will retrieve from database');
+    }
     
     // Generate a request ID for tracking this processing operation
     const requestId = uuidv4();
@@ -81,11 +86,38 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string): Pr
       return null;
     }
     
+    // If filePath is not provided, retrieve it from the database
+    let actualFilePath = filePath;
+    if (!actualFilePath) {
+      const { data: fileData, error: fileError } = await supabase
+        .from('uploaded_files')
+        .select('file_path')
+        .eq('id', fileId)
+        .single();
+        
+      if (fileError) {
+        console.error('Error retrieving file path:', fileError);
+        toast.error(`Failed to retrieve file path: ${fileError.message}`);
+        
+        await supabase.from('processing_logs').insert({
+          file_id: fileId,
+          request_id: requestId,
+          message: `Failed to retrieve file path: ${fileError.message}`,
+          log_level: 'error'
+        });
+        
+        return null;
+      }
+      
+      actualFilePath = fileData.file_path;
+      console.log('Retrieved file path from database:', actualFilePath);
+    }
+    
     // Call the Supabase edge function to process the PDF
     const { data, error } = await supabase.functions.invoke('process-pdf-openai', {
       body: { 
         fileId, 
-        filePath,
+        filePath: actualFilePath,
         requestId
       }
     });
