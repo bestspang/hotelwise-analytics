@@ -57,3 +57,4 @@ backend = "postgres"
 [functions]
 # The port that the functions server will listen on. Default is 54321.
 port = 54321
+

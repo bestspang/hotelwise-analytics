@@ -6,6 +6,7 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Index from '@/pages/Index';
 import Auth from '@/pages/Auth';
 import Dashboard from '@/pages/Dashboard';
+import DataUpload from '@/pages/DataUpload';
 import Settings from '@/pages/Settings';
 import NotFound from '@/pages/NotFound';
 import Tools from '@/pages/Tools';
@@ -39,6 +40,15 @@ function App() {
             element={
               <ProtectedRoute requiredRole="analyst">
                 <DaySummary />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/data-upload" 
+            element={
+              <ProtectedRoute requiredRole="manager">
+                <DataUpload />
               </ProtectedRoute>
             } 
           />
