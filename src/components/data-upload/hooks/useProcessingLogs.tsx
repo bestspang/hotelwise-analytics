@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/services/api/supabaseClient';
+import { supabase } from '@/integrations/supabase/client';
 import { ProcessingLog } from '../types/processingLogTypes';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -19,31 +19,31 @@ export const useProcessingLogs = ({ fileId, requestId, refreshTrigger = 0 }: Use
   const fetchLogs = useCallback(async () => {
     try {
       setLoading(true);
+      console.log('Fetching logs with filters:', { fileId, requestId });
       
-      // Use a type assertion for now until types are regenerated
-      const query = supabase
-        .from('processing_logs' as any)
+      let query = supabase
+        .from('processing_logs')
         .select('*')
         .order('created_at', { ascending: false });
       
       // Apply filters if provided
       if (fileId) {
-        query.eq('file_id', fileId);
+        query = query.eq('file_id', fileId);
       }
       
       if (requestId) {
-        query.eq('request_id', requestId);
+        query = query.eq('request_id', requestId);
       }
       
       const { data, error: queryError } = await query.limit(100);
       
       if (queryError) {
+        console.error('Error in query:', queryError);
         throw queryError;
       }
       
-      // First cast to unknown, then to ProcessingLog[] to avoid type errors
-      // This is safe since we know the structure matches our ProcessingLog type
-      setLogs((data as unknown) as ProcessingLog[] || []);
+      console.log('Fetched logs:', data?.length || 0);
+      setLogs(data as ProcessingLog[] || []);
       setError(null);
     } catch (err) {
       console.error('Error fetching processing logs:', err);
