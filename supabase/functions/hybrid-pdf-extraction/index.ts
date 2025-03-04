@@ -92,6 +92,8 @@ async function extractDataWithGPT4Text(pdfText: string, documentType: string): P
       throw new Error('OpenAI API key is not set in environment variables');
     }
     
+    console.log(`Extracting data from ${documentType} using GPT-4 Text...`);
+    
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -127,6 +129,7 @@ async function extractDataWithGPT4Text(pdfText: string, documentType: string): P
     }
     
     const data = await response.json();
+    console.log('Received GPT-4 Text response');
     
     // Parse the JSON response from GPT-4
     let jsonResponse;
@@ -171,6 +174,8 @@ async function extractDataWithGPT4Vision(base64Images: string[], documentType: s
       throw new Error('OpenAI API key is not set in environment variables');
     }
     
+    console.log(`Extracting data from ${documentType} using GPT-4 Vision with ${base64Images.length} images...`);
+    
     const messages = [
       {
         role: "system",
@@ -189,6 +194,8 @@ async function extractDataWithGPT4Vision(base64Images: string[], documentType: s
         ]
       }
     ];
+    
+    console.log('Sending request to OpenAI API for vision analysis...');
     
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -211,6 +218,7 @@ async function extractDataWithGPT4Vision(base64Images: string[], documentType: s
     }
     
     const data = await response.json();
+    console.log('Received GPT-4 Vision response');
     
     // Parse the JSON response from GPT-4
     let jsonResponse;
@@ -254,7 +262,10 @@ serve(async (req) => {
   }
   
   try {
+    console.log('Hybrid PDF extraction function called');
     const { fileId, filePath, requestId } = await req.json();
+    
+    console.log('Received parameters:', { fileId, filePath, requestId });
     
     if (!fileId || !filePath || !requestId) {
       return new Response(
@@ -266,6 +277,8 @@ serve(async (req) => {
     // Create Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    
+    console.log('Supabase URL and key available:', !!supabaseUrl, !!supabaseServiceKey);
     
     if (!supabaseUrl || !supabaseServiceKey) {
       return new Response(
@@ -306,7 +319,10 @@ serve(async (req) => {
       );
     }
     
+    console.log('File details retrieved:', fileData);
+    
     // Download PDF file from storage
+    console.log('Attempting to download file from storage bucket:', 'pdf_files/' + filePath);
     const { data: fileBuffer, error: downloadError } = await supabase.storage
       .from('pdf_files')
       .download(filePath);
@@ -490,7 +506,13 @@ serve(async (req) => {
       
       if (supabaseUrl && supabaseServiceKey) {
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
-        const errorInfo = await req.json().catch(() => ({}));
+        let errorInfo = { fileId: null, requestId: null };
+        
+        try {
+          errorInfo = await req.json().catch(() => ({}));
+        } catch(e) {
+          console.error('Could not parse request JSON for error logging:', e);
+        }
         
         await supabase.from('processing_logs').insert({
           file_id: errorInfo.fileId || null,

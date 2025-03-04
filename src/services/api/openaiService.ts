@@ -114,6 +114,13 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string | nu
       console.log('Retrieved file path from database:', actualFilePath);
     }
     
+    // Additional debugging before calling the edge function
+    console.log('Preparing to call hybrid-pdf-extraction with parameters:', {
+      fileId,
+      filePath: actualFilePath,
+      requestId
+    });
+    
     // Call the Supabase edge function to process the PDF with hybrid approach
     const { data, error } = await supabase.functions.invoke('hybrid-pdf-extraction', {
       body: { 
@@ -125,6 +132,7 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string | nu
     
     if (error) {
       console.error('Error invoking hybrid-pdf-extraction function:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
       
       // Log the error
       await supabase.from('processing_logs').insert({
@@ -189,7 +197,7 @@ export async function processPdfWithOpenAI(fileId: string, filePath: string | nu
     await supabase.from('processing_logs').insert({
       file_id: fileId,
       request_id: requestId,
-      message: `PDF processing completed successfully using ${data.pdfType} extraction method`,
+      message: `Successfully extracted data with ${data.pdfType} extraction method`,
       log_level: 'info'
     });
     
