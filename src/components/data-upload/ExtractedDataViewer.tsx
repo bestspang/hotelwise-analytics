@@ -7,8 +7,6 @@ import ErrorDisplay from './extracted-data/ErrorDisplay';
 import ProcessingState from './extracted-data/ProcessingState';
 import NotProcessedState from './extracted-data/NotProcessedState';
 import ProcessedDataCard from './extracted-data/ProcessedDataCard';
-import PdfContentPreview from './preview/PdfContentPreview';
-import { supabase } from '@/integrations/supabase/client';
 
 interface ExtractedDataViewerProps {
   fileId: string | null;
@@ -20,7 +18,6 @@ const ExtractedDataViewer: React.FC<ExtractedDataViewerProps> = ({
   refreshTrigger 
 }) => {
   const [data, setData] = useState<any>(null);
-  const [fileDetails, setFileDetails] = useState<{ path: string, name: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('formatted');
@@ -30,7 +27,6 @@ const ExtractedDataViewer: React.FC<ExtractedDataViewerProps> = ({
       if (!fileId) {
         setData(null);
         setError(null);
-        setFileDetails(null);
         return;
       }
 
@@ -38,25 +34,6 @@ const ExtractedDataViewer: React.FC<ExtractedDataViewerProps> = ({
       setError(null);
 
       try {
-        // Fetch file details
-        const { data: fileData, error: fileError } = await supabase
-          .from('uploaded_files')
-          .select('file_path, filename')
-          .eq('id', fileId)
-          .single();
-          
-        if (fileError) {
-          throw new Error(`Failed to fetch file details: ${fileError.message}`);
-        }
-        
-        if (fileData) {
-          setFileDetails({
-            path: fileData.file_path,
-            name: fileData.filename
-          });
-        }
-        
-        // Fetch processed data
         const result = await getProcessedData(fileId);
         setData(result);
         
@@ -106,36 +83,33 @@ const ExtractedDataViewer: React.FC<ExtractedDataViewerProps> = ({
     return <ErrorDisplay title="Extracted Data" errorMessage="No data available" />;
   }
 
-  return (
-    <div className="space-y-6">
-      {fileDetails && (
-        <PdfContentPreview 
-          fileId={fileId}
-          filePath={fileDetails.path}
-          fileName={fileDetails.name}
-        />
-      )}
+  if (data.notProcessed) {
+    return <NotProcessedState filename={data.filename} />;
+  }
 
-      {data.notProcessed ? (
-        <NotProcessedState filename={data.filename} />
-      ) : data.processing ? (
-        <ProcessingState filename={data.filename} />
-      ) : data.extractedData?.error ? (
-        <ErrorDisplay 
-          title={`${data.filename} - Processing Error`} 
-          errorMessage={data.extractedData.message || 'An unknown error occurred during processing.'}
-        />
-      ) : (
-        <ProcessedDataCard
-          filename={data.filename}
-          documentType={data.documentType}
-          extractedData={data.extractedData}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          onDownload={handleDownload}
-        />
-      )}
-    </div>
+  if (data.processing) {
+    return <ProcessingState filename={data.filename} />;
+  }
+
+  if (data.extractedData?.error) {
+    return (
+      <ErrorDisplay 
+        title={`${data.filename} - Processing Error`} 
+        errorMessage={data.extractedData.message || 'An unknown error occurred during processing.'}
+      />
+    );
+  }
+
+  // Successfully processed data
+  return (
+    <ProcessedDataCard
+      filename={data.filename}
+      documentType={data.documentType}
+      extractedData={data.extractedData}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      onDownload={handleDownload}
+    />
   );
 };
 

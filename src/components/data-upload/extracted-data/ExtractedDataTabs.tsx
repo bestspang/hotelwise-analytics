@@ -24,13 +24,6 @@ const ExtractedDataTabs: React.FC<ExtractedDataTabsProps> = ({
       
       <TabsContent value="formatted" className="p-0">
         <div className="border rounded-md p-4 bg-gray-50 h-80 overflow-auto">
-          {extractedData.processedBy && (
-            <div className="mb-4 p-2 bg-blue-50 border-l-4 border-blue-400 text-blue-700 text-sm">
-              <p className="font-medium">Processed by: {extractedData.processedBy}</p>
-              <p>Using: {extractedData.processedBy.includes('Vision') ? 'Image-based extraction' : 'Text-based extraction'}</p>
-            </div>
-          )}
-          
           {Object.entries(extractedData).map(([key, value]: [string, any]) => {
             // Skip processing metadata
             if (['processedBy', 'processedAt', 'documentType'].includes(key)) {
